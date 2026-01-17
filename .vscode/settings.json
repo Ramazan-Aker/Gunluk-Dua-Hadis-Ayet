@@ -1,0 +1,47 @@
+{
+  // Flutter SDK yolu
+  "dart.flutterSdkPath": "C:\\Users\\Ramazan\\flutter",
+  
+  // Android Studio entegrasyonu
+  "dart.androidStudioPath": "C:\\Program Files\\Android\\Android Studio\\bin\\studio64.exe",
+  
+  // Otomatik format ve düzenleme
+  "editor.formatOnSave": true,
+  "editor.codeActionsOnSave": {
+    "source.fixAll": "explicit"
+  },
+  
+  // Dart/Flutter ayarları
+  "dart.enableSdkFormatter": true,
+  "dart.lineLength": 80,
+  "dart.previewFlutterUiGuides": true,
+  "dart.previewFlutterUiGuidesCustomTracking": true,
+  
+  // Dosya ilişkilendirmeleri
+  "files.associations": {
+    "*.dart": "dart"
+  },
+  
+  // Android build klasörlerini gizle
+  "files.exclude": {
+    "**/.dart_tool": true,
+    "**/.flutter-plugins": true,
+    "**/.flutter-plugins-dependencies": true,
+    "**/.packages": true,
+    "**/build": false
+  },
+  
+  // Search ayarları
+  "search.exclude": {
+    "**/build": true,
+    "**/.dart_tool": true,
+    "**/pubspec.lock": true
+  },
+  
+  // Terminal ayarları
+  "terminal.integrated.env.windows": {
+    "ANDROID_HOME": "C:\\Users\\Ramazan\\AppData\\Local\\Android\\sdk",
+    "JAVA_HOME": "C:\\Program Files\\Android\\Android Studio\\jbr"
+  }
+}
+

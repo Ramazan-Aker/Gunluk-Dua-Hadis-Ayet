@@ -1,0 +1,60 @@
+{
+  "version": "2.0.0",
+  "tasks": [
+    {
+      "label": "Flutter: Clean",
+      "type": "shell",
+      "command": "flutter clean",
+      "group": "build",
+      "presentation": {
+        "reveal": "always"
+      }
+    },
+    {
+      "label": "Flutter: Get Packages",
+      "type": "shell",
+      "command": "flutter pub get",
+      "group": "build",
+      "presentation": {
+        "reveal": "always"
+      }
+    },
+    {
+      "label": "Flutter: Build APK",
+      "type": "shell",
+      "command": "flutter build apk",
+      "group": "build",
+      "presentation": {
+        "reveal": "always"
+      },
+      "dependsOn": "Flutter: Get Packages"
+    },
+    {
+      "label": "Flutter: Build App Bundle",
+      "type": "shell",
+      "command": "flutter build appbundle",
+      "group": "build",
+      "presentation": {
+        "reveal": "always"
+      },
+      "dependsOn": "Flutter: Get Packages"
+    },
+    {
+      "label": "Android: Open in Android Studio",
+      "type": "shell",
+      "command": "start",
+      "args": [
+        "\"C:\\Program Files\\Android\\Android Studio\\bin\\studio64.exe\"",
+        "${workspaceFolder}"
+      ],
+      "windows": {
+        "command": "start"
+      },
+      "group": "build",
+      "presentation": {
+        "reveal": "always"
+      }
+    }
+  ]
+}
+

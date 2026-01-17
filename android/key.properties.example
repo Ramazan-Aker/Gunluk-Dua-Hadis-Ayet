@@ -1,0 +1,14 @@
+# Keystore properties file
+# Copy this file to key.properties and fill in your actual values
+# IMPORTANT: Never commit key.properties to version control!
+
+storePassword=your_keystore_password_here
+keyPassword=your_key_password_here
+keyAlias=key
+storeFile=C:\\Users\\Ramazan\\key.jks
+
+# Instructions:
+# 1. Copy this file: cp key.properties.example key.properties
+# 2. Replace all placeholder values with your actual keystore information
+# 3. Make sure key.properties is in .gitignore (already added)
+

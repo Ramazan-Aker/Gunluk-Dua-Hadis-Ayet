@@ -1,0 +1,115 @@
+===========================================
+MAĞAZA GİRİŞİ BİLGİLERİ
+===========================================
+
+UYGULAMA ADI:
+Günlük Dua & Hadis
+
+KISA AÇIKLAMA (80 karakter):
+Günlük dua, hadis ve ayet ile maneviyatınızı besleyin. 🕌✨
+
+TAM AÇIKLAMA (4000 karakter):
+🕌 Günlük Dua & Hadis - Maneviyat Rehberiniz
+
+Her gün yeni bir dua, hadis ve Kuran ayeti ile ruhunuzu besleyin! 
+
+✨ ÖZELLİKLER
+
+📖 HER GÜN YENİ İÇERİK
+• Günlük dua
+• Günlük hadis
+• Günlük Kuran ayeti
+• Anlam ve tercümeler
+
+🔔 HATIRLATMA BİLDİRİMLERİ
+• İstediğiniz saatte günlük hatırlatma
+• Duanızı kaçırmayın
+• Kişiselleştirilebilir bildirimler
+
+📤 KOLAY PAYLAŞIM
+• Güzel kartlar halinde paylaşın
+• Sosyal medyada paylaşın
+• Aileniz ve arkadaşlarınızla paylaşın
+
+🎨 MODERN TASARIM
+• Kullanıcı dostu arayüz
+• Güzel ve şık görünüm
+• Kolay navigasyon
+
+💚 NEDEN BU UYGULAMA?
+
+Günümüzün yoğun temposunda maneviyatımıza zaman ayırmak önemli. Bu uygulama ile her gün İslami bilgi ve dualarla ruhunuzu besleyebilirsiniz.
+
+📱 NASIL KULLANILIR?
+
+1. Uygulamayı açın
+2. Günün duası, hadisi ve ayeti karşınızda
+3. Okuyun, paylaşın, hatırlayın
+4. Her gün geri gelin, yeni içerikler sizi bekliyor!
+
+🎯 KİMLER İÇİN?
+
+• Maneviyatını güçlendirmek isteyenler
+• Dua öğrenmek isteyenler
+• Hadis okumayı sevenler
+• Kuran-ı Kerim'i anlamak isteyenler
+• Her yaştan Müslümanlar
+
+🔒 GİZLİLİK
+
+• Kişisel bilgi toplamıyoruz
+• Güvenli ve temiz uygulama
+• Gizlilik önceliğimiz
+
+📧 DESTEK
+
+Sorularınız, önerileriniz için: tahram2351@gmail.com
+Her türlü geri bildirime açığız!
+
+İndirin ve maneviyatınızı güçlendirin! 🌟
+
+#Dua #Hadis #Ayet #İslamiyet #Maneviyat #Müslüman
+
+===========================================
+GRAFİKLER:
+===========================================
+
+UYGULAMA İKONU:
+play_store_assets/app_icon_512x512.png
+
+FEATURE GRAPHIC:
+play_store_assets/Title.png
+
+EKRAN GÖRÜNTÜLERİ (5 adet):
+1. play_store_assets/01_ana_ekran_giris.jpeg
+2. play_store_assets/02_gunluk_dua_hadis.jpeg
+3. play_store_assets/03_ayet_gosterimi.jpeg
+4. play_store_assets/04_paylasim_ozelligi.jpeg
+5. play_store_assets/05_hadis_ekrani.jpeg
+
+===========================================
+KATEGORİ VE ETİKETLER:
+===========================================
+
+KATEGORİ:
+Yaşam Tarzı
+
+ETİKETLER (5 adet):
+Dua
+Hadis
+İslamiyet
+Kuran
+Maneviyat
+
+===========================================
+İLETİŞİM:
+===========================================
+
+E-POSTA:
+tahram2351@gmail.com
+
+GİZLİLİK POLİTİKASI URL:
+https://tahram2351-ctrl.github.io/gunluk-dua-hadis-privacy/
+
+===========================================
+

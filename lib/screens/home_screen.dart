@@ -1,0 +1,896 @@
+import 'package:flutter/material.dart';
+import 'package:flutter/foundation.dart' show kDebugMode;
+import 'package:widgets_to_image/widgets_to_image.dart';
+import 'package:share_plus/share_plus.dart';
+import 'package:path_provider/path_provider.dart';
+import 'dart:io';
+import '../models/daily_item.dart';
+import '../services/data_service.dart';
+import '../services/ad_service.dart';
+import '../services/daily_reminder_service.dart';
+import '../services/notification_service.dart';
+import '../services/firebase_service.dart';
+import '../widgets/item_card.dart';
+import '../widgets/shareable_card.dart';
+
+/// Main home screen displaying the daily item
+class HomeScreen extends StatefulWidget {
+  const HomeScreen({Key? key}) : super(key: key);
+
+  @override
+  State<HomeScreen> createState() => _HomeScreenState();
+}
+
+class _HomeScreenState extends State<HomeScreen> {
+  final DataService _dataService = DataService();
+  final DailyReminderService _reminderService = DailyReminderService();
+  final AdService _adService = AdService();
+  DailyItem? _currentItem;
+  bool _isLoading = true;
+  bool _isRefreshing = false;
+  bool _isUsingApi = false;
+  bool _isSharing = false;
+  bool _isRead = false;
+  int _readingStreak = 0;
+  String? _errorMessage;
+  int _nextButtonClickCount = 0; // Sonraki buton tıklama sayacı
+
+  @override
+  void initState() {
+    super.initState();
+    _loadDailyItem();
+    _checkApiStatus();
+    _checkReadingStatus();
+    _showReminderIfNeeded();
+    
+    // Schedule notifications and request battery optimization exemption
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      _setupNotificationsAndPermissions();
+    });
+    
+    // Load interstitial ad for share feature
+    _adService.loadInterstitialAd();
+    
+    // Load interstitial ad for next button (shown after 4 clicks)
+    _adService.loadNextButtonInterstitialAd();
+    
+    // Log screen view to Analytics
+    FirebaseService.logScreenView(screenName: AnalyticsEvents.screenHome);
+  }
+  
+  /// Setup notifications and request necessary permissions
+  Future<void> _setupNotificationsAndPermissions() async {
+    try {
+      final notificationService = NotificationService();
+      
+      // Schedule daily reminders (morning and evening)
+      await notificationService.scheduleDailyReminders(context);
+      print('✅ Daily reminders scheduled');
+      
+      // Request battery optimization exemption
+      await notificationService.requestBatteryOptimizationExemption(context);
+      print('✅ Battery optimization exemption requested');
+    } catch (e) {
+      print('❌ Error setting up notifications: $e');
+    }
+  }
+  
+  /// Check if today's content is read
+  Future<void> _checkReadingStatus() async {
+    final hasRead = await _reminderService.hasReadToday();
+    final streak = await _reminderService.getReadingStreak();
+    setState(() {
+      _isRead = hasRead;
+      _readingStreak = streak;
+    });
+  }
+
+  /// Show reminder dialog if needed
+  Future<void> _showReminderIfNeeded() async {
+    // Wait a bit for the UI to load
+    await Future.delayed(const Duration(seconds: 1));
+    
+    if (!mounted) return;
+    
+    final shouldShow = await _reminderService.shouldShowReminder();
+    if (shouldShow && _currentItem != null) {
+      await _reminderService.markReminderAsShown();
+      
+      // Log reminder shown to Analytics
+      FirebaseService.logEvent(
+        name: AnalyticsEvents.reminderShown,
+        parameters: {
+          AnalyticsParams.itemType: _currentItem!.type,
+        },
+      );
+      
+      if (mounted) {
+        _showReminderDialog();
+      }
+    }
+  }
+
+  /// Show reminder dialog
+  void _showReminderDialog() {
+    if (_currentItem == null) return;
+    
+    final message = _reminderService.getReminderMessage(_currentItem!.type);
+    
+    showDialog(
+      context: context,
+      barrierDismissible: true,
+      builder: (BuildContext context) {
+        return AlertDialog(
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(20),
+          ),
+          title: Row(
+            children: [
+              Text(
+                _currentItem!.getIcon(),
+                style: const TextStyle(fontSize: 28),
+              ),
+              const SizedBox(width: 12),
+              const Expanded(
+                child: Text(
+                  'Günlük Hatırlatma',
+                  style: TextStyle(
+                    fontSize: 20,
+                    fontWeight: FontWeight.bold,
+                    color: Color(0xFF2D5016),
+                  ),
+                ),
+              ),
+            ],
+          ),
+          content: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(
+                message,
+                style: const TextStyle(
+                  fontSize: 16,
+                  color: Color(0xFF2C3E50),
+                ),
+              ),
+              const SizedBox(height: 16),
+              if (_readingStreak > 0)
+                Container(
+                  padding: const EdgeInsets.all(12),
+                  decoration: BoxDecoration(
+                    color: const Color(0xFFE8F5E9),
+                    borderRadius: BorderRadius.circular(12),
+                  ),
+                  child: Row(
+                    children: [
+                      const Icon(
+                        Icons.local_fire_department,
+                        color: Color(0xFF4CAF50),
+                        size: 20,
+                      ),
+                      const SizedBox(width: 8),
+                      Expanded(
+                        child: Text(
+                          '${_readingStreak} günlük okuma serisi! 🔥',
+                          style: const TextStyle(
+                            fontSize: 14,
+                            fontWeight: FontWeight.w600,
+                            color: Color(0xFF2D5016),
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+            ],
+          ),
+          actions: [
+            TextButton(
+              onPressed: () {
+                Navigator.of(context).pop();
+              },
+              child: const Text(
+                'Daha Sonra',
+                style: TextStyle(color: Color(0xFF6B8E23)),
+              ),
+            ),
+            ElevatedButton(
+              onPressed: () {
+                Navigator.of(context).pop();
+                _markAsRead();
+              },
+              style: ElevatedButton.styleFrom(
+                backgroundColor: const Color(0xFF6B8E23),
+                foregroundColor: Colors.white,
+              ),
+              child: const Text('Okudum'),
+            ),
+          ],
+        );
+      },
+    );
+  }
+
+  /// Mark current item as read
+  Future<void> _markAsRead() async {
+    await _reminderService.markAsRead();
+    await _checkReadingStatus();
+    
+    // Log reading event to Analytics
+    if (_currentItem != null) {
+      FirebaseService.logEvent(
+        name: AnalyticsEvents.dailyItemRead,
+        parameters: {
+          AnalyticsParams.itemType: _currentItem!.type,
+          AnalyticsParams.itemSource: _currentItem!.source,
+          AnalyticsParams.readingStreak: _readingStreak,
+        },
+      );
+    }
+    
+    if (mounted) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Row(
+            children: [
+              const Icon(Icons.check_circle, color: Colors.white),
+              const SizedBox(width: 8),
+              Expanded(
+                child: Text(
+                  _reminderService.getStreakMessage(_readingStreak),
+                  style: const TextStyle(color: Colors.white),
+                ),
+              ),
+            ],
+          ),
+          backgroundColor: const Color(0xFF4CAF50),
+          duration: const Duration(seconds: 3),
+        ),
+      );
+    }
+  }
+
+  /// Check if API is being used
+  Future<void> _checkApiStatus() async {
+    final usingApi = await _dataService.isUsingApi();
+    setState(() {
+      _isUsingApi = usingApi;
+    });
+  }
+
+  /// Load the daily item
+  Future<void> _loadDailyItem({bool forceRefresh = false}) async {
+    setState(() {
+      _isLoading = !forceRefresh;
+      _isRefreshing = forceRefresh;
+      _errorMessage = null;
+    });
+
+    try {
+      final item = await _dataService.getDailyItem(forceRefresh: forceRefresh);
+      final usingApi = await _dataService.isUsingApi();
+      
+      setState(() {
+        _currentItem = item;
+        _isLoading = false;
+        _isRefreshing = false;
+        _isUsingApi = usingApi;
+      });
+      
+      // Check reading status after loading item
+      await _checkReadingStatus();
+      
+      // Show reminder if needed (only after item is loaded)
+      if (item != null) {
+        _showReminderIfNeeded();
+        
+        // Log daily item viewed to Analytics
+        FirebaseService.logEvent(
+          name: AnalyticsEvents.dailyItemViewed,
+          parameters: {
+            AnalyticsParams.itemType: item.type,
+            AnalyticsParams.itemSource: item.source,
+          },
+        );
+      }
+      
+      if (item == null) {
+        setState(() {
+          _errorMessage = 'İçerik bulunamadı. Lütfen tekrar deneyin.';
+        });
+      }
+    } catch (e) {
+      print('Error loading daily item: $e');
+      // Log error to Crashlytics
+      FirebaseService.logError(
+        exception: e,
+        reason: 'Error loading daily item',
+      );
+      setState(() {
+        _isLoading = false;
+        _isRefreshing = false;
+        _errorMessage = 'İçerik yüklenirken bir hata oluştu: ${e.toString()}';
+      });
+      
+      // Show error message
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text(_errorMessage ?? 'Günlük içerik yüklenemedi'),
+            backgroundColor: Colors.red,
+            action: SnackBarAction(
+              label: 'Tekrar Dene',
+              textColor: Colors.white,
+              onPressed: () => _loadDailyItem(forceRefresh: true),
+            ),
+          ),
+        );
+      }
+    }
+  }
+
+  /// Show notification settings and test dialog
+  Future<void> _showNotificationSettings() async {
+    final notificationService = NotificationService();
+    final pendingNotifications = await notificationService.getPendingNotifications();
+    final reminderEnabled = await _reminderService.isReminderEnabled();
+    final notificationsEnabled = await notificationService.areNotificationsEnabled();
+    
+    if (!mounted) return;
+    
+    showDialog(
+      context: context,
+      builder: (BuildContext dialogContext) {
+        return AlertDialog(
+          title: const Row(
+            children: [
+              Icon(Icons.notifications_active, color: Color(0xFF6B8E23)),
+              SizedBox(width: 8),
+              Text('Bildirim Ayarları'),
+            ],
+          ),
+          content: SingleChildScrollView(
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                // Status information
+                _buildInfoRow('Sistem Bildirimleri:', notificationsEnabled ? '✅ Açık' : '❌ Kapalı'),
+                const SizedBox(height: 8),
+                _buildInfoRow('Hatırlatıcılar:', reminderEnabled ? '✅ Aktif' : '❌ Pasif'),
+                const SizedBox(height: 8),
+                _buildInfoRow('Planlanan Bildirimler:', '${pendingNotifications.length} adet'),
+                const Divider(height: 24),
+                
+                // Scheduled notifications list
+                if (pendingNotifications.isNotEmpty) ...[
+                  const Text(
+                    'Planlanan Bildirimler:',
+                    style: TextStyle(fontWeight: FontWeight.bold),
+                  ),
+                  const SizedBox(height: 8),
+                  ...pendingNotifications.map((notification) => Padding(
+                    padding: const EdgeInsets.only(bottom: 4.0),
+                    child: Text(
+                      '• ID: ${notification.id} - ${notification.title ?? "Bildirim"}',
+                      style: const TextStyle(fontSize: 12),
+                    ),
+                  )),
+                  const Divider(height: 24),
+                ],
+                
+                // Help text
+                const Text(
+                  'Bildirim Zamanları:\n'
+                  '🌅 Sabah: 09:00\n'
+                  '🌙 Akşam: 18:00',
+                  style: TextStyle(fontSize: 13, color: Colors.black54),
+                ),
+                const SizedBox(height: 12),
+                const Text(
+                  'Not: Bildirimlerin düzgün çalışması için:\n'
+                  '1. Sistem bildirim izni verilmeli\n'
+                  '2. Tam zamanlı alarm izni verilmeli\n'
+                  '3. Batarya optimizasyonlarından muaf tutulmalı',
+                  style: TextStyle(fontSize: 11, color: Colors.red, fontStyle: FontStyle.italic),
+                ),
+              ],
+            ),
+          ),
+          actions: [
+            // Test notification button
+            TextButton.icon(
+              onPressed: () async {
+                await notificationService.showNotification(
+                  title: 'Test Bildirimi',
+                  body: 'Bildirimler çalışıyor! ✅',
+                );
+                if (dialogContext.mounted) {
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    const SnackBar(content: Text('Test bildirimi gönderildi!')),
+                  );
+                }
+              },
+              icon: const Icon(Icons.send),
+              label: const Text('Test Gönder'),
+            ),
+            // Close button
+            ElevatedButton(
+              onPressed: () => Navigator.of(dialogContext).pop(),
+              style: ElevatedButton.styleFrom(
+                backgroundColor: const Color(0xFF6B8E23),
+              ),
+              child: const Text('Kapat'),
+            ),
+          ],
+        );
+      },
+    );
+  }
+  
+  Widget _buildInfoRow(String label, String value) {
+    return Row(
+      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+      children: [
+        Text(label, style: const TextStyle(fontWeight: FontWeight.w500)),
+        Text(value, style: const TextStyle(color: Colors.black87)),
+      ],
+    );
+  }
+  
+  /// Refresh data from API
+  Future<void> _refreshData() async {
+    setState(() {
+      _isRefreshing = true;
+      _errorMessage = null;
+    });
+
+    try {
+      final success = await _dataService.refreshData();
+      if (success) {
+        await _loadDailyItem(forceRefresh: true);
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(
+              content: Text('İçerik başarıyla yenilendi'),
+              backgroundColor: Colors.green,
+            ),
+          );
+        }
+      } else {
+        setState(() {
+          _errorMessage = 'İçerik yenilenemedi. Offline mod kullanılıyor.';
+        });
+      }
+    } catch (e) {
+      setState(() {
+        _errorMessage = 'Yenileme sırasında hata oluştu: ${e.toString()}';
+      });
+    } finally {
+      setState(() {
+        _isRefreshing = false;
+      });
+    }
+  }
+
+  /// Load a random item (Next button)
+  Future<void> _loadRandomItem() async {
+    setState(() {
+      _isLoading = true;
+    });
+
+    // Sayacı artır
+    _nextButtonClickCount++;
+    print('🔢 Sonraki butonu tıklama sayısı: $_nextButtonClickCount');
+    
+    // Her 4 tıklamada bir interstitial reklam göster (Sonraki butonu reklamı)
+    if (_nextButtonClickCount >= 4) {
+      print('🎯 4 tıklama tamamlandı, sonraki butonu reklamı gösteriliyor...');
+      
+      try {
+        final adShown = await _adService.showNextButtonInterstitialAd();
+        if (adShown) {
+          print('✅ Sonraki butonu reklamı gösterildi ve kapatıldı');
+        } else {
+          print('⚠️ Sonraki butonu reklamı hazır değil');
+        }
+      } catch (e) {
+        print('❌ Sonraki butonu reklamı gösterilirken hata: $e');
+      }
+      
+      // Sayacı sıfırla
+      _nextButtonClickCount = 0;
+    }
+
+    try {
+      final item = await _dataService.getRandomItem();
+      setState(() {
+        _currentItem = item;
+        _isLoading = false;
+      });
+      
+      // Log random item viewed to Analytics
+      if (item != null) {
+        FirebaseService.logEvent(
+          name: AnalyticsEvents.randomItemViewed,
+          parameters: {
+            AnalyticsParams.itemType: item.type,
+            AnalyticsParams.itemSource: item.source,
+          },
+        );
+      }
+    } catch (e) {
+      print('Error loading random item: $e');
+      FirebaseService.logError(
+        exception: e,
+        reason: 'Error loading random item',
+      );
+      setState(() {
+        _isLoading = false;
+      });
+    }
+  }
+
+  /// Share current item as image card
+  Future<void> _shareItem() async {
+    if (_currentItem == null) return;
+
+    setState(() {
+      _isSharing = true;
+    });
+
+    // Show interstitial ad before sharing
+    // Note: showInterstitialAd() now waits for ad to be dismissed before returning
+    try {
+      final adShown = await _adService.showInterstitialAd();
+      if (adShown) {
+        print('✅ Interstitial ad shown and dismissed, continuing with share');
+      } else {
+        print('⚠️ Interstitial ad not ready, proceeding with share');
+      }
+    } catch (e) {
+      print('❌ Error showing interstitial ad: $e');
+      // Continue with share even if ad fails
+    }
+
+    try {
+      // Show loading indicator
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Row(
+              children: [
+                SizedBox(
+                  width: 20,
+                  height: 20,
+                  child: CircularProgressIndicator(
+                    strokeWidth: 2,
+                    valueColor: AlwaysStoppedAnimation<Color>(Colors.white),
+                  ),
+                ),
+                SizedBox(width: 12),
+                Text('Kart görseli oluşturuluyor...'),
+              ],
+            ),
+            duration: Duration(seconds: 3),
+          ),
+        );
+      }
+
+      // Show overlay with shareable card
+      if (!mounted) return;
+      
+      final overlay = Overlay.of(context);
+      late OverlayEntry overlayEntry;
+      
+      final controller = WidgetsToImageController();
+      
+      overlayEntry = OverlayEntry(
+        builder: (context) => Stack(
+          children: [
+            Positioned(
+              left: -10000, // Off-screen
+              top: -10000,
+              child: WidgetsToImage(
+                controller: controller,
+                child: Material(
+                  child: Directionality(
+                    textDirection: TextDirection.ltr,
+                    child: ShareableCard(
+                      item: _currentItem!,
+                      width: 1080,
+                      height: 1080,
+                    ),
+                  ),
+                ),
+              ),
+            ),
+          ],
+        ),
+      );
+      
+      overlay.insert(overlayEntry);
+      
+      // Wait for widget to render
+      await Future.delayed(const Duration(milliseconds: 500));
+      
+      // Capture the image
+      final bytes = await controller.capture();
+      
+      // Remove overlay
+      overlayEntry.remove();
+
+      if (bytes != null && bytes.isNotEmpty) {
+        // Save image to temporary directory
+        final directory = await getTemporaryDirectory();
+        final imagePath = '${directory.path}/share_card_${DateTime.now().millisecondsSinceEpoch}.png';
+        final imageFile = File(imagePath);
+        await imageFile.writeAsBytes(bytes);
+
+        // Share the image
+        await Share.shareXFiles(
+          [XFile(imagePath)],
+          text: '${_currentItem!.getTitle()}\n\nGünlük Dua & Hadis Uygulamasından paylaşıldı',
+          subject: _currentItem!.getTitle(),
+        );
+
+        // Log share event to Analytics
+        FirebaseService.logEvent(
+          name: AnalyticsEvents.dailyItemShared,
+          parameters: {
+            AnalyticsParams.itemType: _currentItem!.type,
+            AnalyticsParams.itemSource: _currentItem!.source,
+          },
+        );
+
+        // Show success message
+        if (mounted) {
+          ScaffoldMessenger.of(context).hideCurrentSnackBar();
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(
+              content: Text('✅ Kart görsel olarak paylaşıldı!'),
+              backgroundColor: Colors.green,
+              duration: Duration(seconds: 2),
+            ),
+          );
+        }
+
+        // Clean up after sharing (optional - delete after a delay)
+        Future.delayed(const Duration(minutes: 5), () {
+          try {
+            if (imageFile.existsSync()) {
+              imageFile.deleteSync();
+            }
+          } catch (e) {
+            // Ignore cleanup errors
+          }
+        });
+      } else {
+        // Fallback to text sharing if image creation fails
+        print('⚠️ Image is null or empty, falling back to text sharing');
+        _shareAsText();
+      }
+    } catch (e) {
+      print('❌ Error sharing image: $e');
+      // Fallback to text sharing
+      if (mounted) {
+        ScaffoldMessenger.of(context).hideCurrentSnackBar();
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Görsel oluşturulamadı, metin olarak paylaşılıyor: $e'),
+            backgroundColor: Colors.orange,
+            duration: const Duration(seconds: 2),
+          ),
+        );
+      }
+      _shareAsText();
+    } finally {
+      setState(() {
+        _isSharing = false;
+      });
+    }
+  }
+
+  /// Fallback: Share as text
+  void _shareAsText() {
+    if (_currentItem == null) return;
+
+    final String shareText = '''
+${_currentItem!.getTitle()}
+
+${_currentItem!.text}
+
+— ${_currentItem!.source}
+
+Günlük Dua & Hadis Uygulamasından paylaşıldı
+''';
+
+    Share.share(shareText);
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      // App Bar with gradient
+      appBar: AppBar(
+        title: Column(
+          children: [
+            const Text(
+              'Günlük Dua & Hadis',
+              style: TextStyle(
+                fontWeight: FontWeight.bold,
+                fontSize: 22,
+              ),
+            ),
+            if (_readingStreak > 0)
+              Text(
+                '🔥 $_readingStreak gün',
+                style: const TextStyle(
+                  fontSize: 12,
+                  fontWeight: FontWeight.normal,
+                ),
+              ),
+          ],
+        ),
+        centerTitle: true,
+        elevation: 0,
+        flexibleSpace: Container(
+          decoration: const BoxDecoration(
+            gradient: LinearGradient(
+              colors: [Color(0xFF6B8E23), Color(0xFF8FBC8F)],
+              begin: Alignment.topLeft,
+              end: Alignment.bottomRight,
+            ),
+          ),
+        ),
+        actions: [
+          // Notification settings button (only in debug mode)
+          if (kDebugMode)
+            IconButton(
+              icon: const Icon(Icons.notifications_outlined),
+              onPressed: _showNotificationSettings,
+              tooltip: 'Bildirim Ayarları (Debug)',
+            ),
+          // Refresh button
+          IconButton(
+            icon: _isRefreshing
+                ? const SizedBox(
+                    width: 20,
+                    height: 20,
+                    child: CircularProgressIndicator(
+                      strokeWidth: 2,
+                      valueColor: AlwaysStoppedAnimation<Color>(Colors.white),
+                    ),
+                  )
+                : const Icon(Icons.refresh),
+            onPressed: _isRefreshing ? null : _refreshData,
+            tooltip: 'Yenile',
+          ),
+          // API status indicator
+          Padding(
+            padding: const EdgeInsets.only(right: 8.0),
+            child: Center(
+              child: Icon(
+                _isUsingApi ? Icons.cloud_done : Icons.cloud_off,
+                size: 20,
+                color: _isUsingApi ? Colors.lightGreenAccent : Colors.orangeAccent,
+              ),
+            ),
+          ),
+        ],
+      ),
+      
+      // Body with gradient background
+      body: Container(
+        decoration: const BoxDecoration(
+          gradient: LinearGradient(
+            colors: [Color(0xFFF5F5DC), Color(0xFFE8F5E9)],
+            begin: Alignment.topCenter,
+            end: Alignment.bottomCenter,
+          ),
+        ),
+        child: SafeArea(
+          child: Column(
+            children: [
+              // Upper banner ad (new position)
+              const AdBannerWidget(useSecondAd: true),
+              
+              // Main content area
+              Expanded(
+                child: Center(
+                  child: SingleChildScrollView(
+                    child: _isLoading
+                        ? const LoadingCard()
+                        : _currentItem != null
+                            ? ItemCard(
+                                item: _currentItem!,
+                                onShare: _shareItem,
+                                onNext: _loadRandomItem,
+                                onMarkAsRead: _markAsRead,
+                                isSharing: _isSharing,
+                                isRead: _isRead,
+                              )
+                            : _buildErrorWidget(),
+                  ),
+                ),
+              ),
+              
+              // Banner ad at the bottom
+              const AdBannerWidget(),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
+  /// Error widget when no data is available
+  Widget _buildErrorWidget() {
+    return Container(
+      margin: const EdgeInsets.symmetric(horizontal: 20, vertical: 20),
+      padding: const EdgeInsets.all(24),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(20),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withValues(alpha: 0.1),
+            blurRadius: 20,
+            offset: const Offset(0, 10),
+          ),
+        ],
+      ),
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          const Icon(
+            Icons.error_outline,
+            color: Colors.red,
+            size: 48,
+          ),
+          const SizedBox(height: 16),
+          const Text(
+            'İçerik yüklenemedi',
+            style: TextStyle(
+              fontSize: 18,
+              fontWeight: FontWeight.bold,
+              color: Colors.red,
+            ),
+          ),
+          const SizedBox(height: 8),
+          Text(
+            _errorMessage ?? 'Lütfen internet bağlantınızı kontrol edin',
+            style: const TextStyle(color: Colors.grey),
+            textAlign: TextAlign.center,
+          ),
+          const SizedBox(height: 16),
+          Row(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              ElevatedButton(
+                onPressed: () => _loadDailyItem(),
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: const Color(0xFF6B8E23),
+                  foregroundColor: Colors.white,
+                ),
+                child: const Text('Tekrar Dene'),
+              ),
+              const SizedBox(width: 12),
+              ElevatedButton.icon(
+                onPressed: _refreshData,
+                icon: const Icon(Icons.refresh, size: 18),
+                label: const Text('Yenile'),
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: const Color(0xFF8FBC8F),
+                  foregroundColor: Colors.white,
+                ),
+              ),
+            ],
+          ),
+        ],
+      ),
+    );
+  }
+}
+

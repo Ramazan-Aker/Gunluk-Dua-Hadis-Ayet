@@ -1,0 +1,97 @@
+plugins {
+    id "com.android.application"
+    id "kotlin-android"
+    id "dev.flutter.flutter-gradle-plugin"
+    id "com.google.gms.google-services"
+}
+
+// Load keystore properties from key.properties file (if exists)
+def keystoreProperties = new Properties()
+def keystorePropertiesFile = rootProject.file('key.properties')
+if (keystorePropertiesFile.exists()) {
+    keystoreProperties.load(new FileInputStream(keystorePropertiesFile))
+    println("✅ Keystore properties loaded from: ${keystorePropertiesFile}")
+} else {
+    println("❌ Keystore properties file not found: ${keystorePropertiesFile}")
+}
+
+android {
+    namespace "com.tahram.gunlukduahadis"
+    compileSdk 36
+    ndkVersion flutter.ndkVersion
+
+    compileOptions {
+        sourceCompatibility JavaVersion.VERSION_17
+        targetCompatibility JavaVersion.VERSION_17
+        coreLibraryDesugaringEnabled true
+    }
+
+    kotlinOptions {
+        jvmTarget = '17'
+    }
+
+    sourceSets {
+        main.java.srcDirs += 'src/main/kotlin'
+    }
+
+    defaultConfig {
+        applicationId "com.tahram.gunlukduahadis"
+        minSdkVersion flutter.minSdkVersion
+        targetSdk 36
+        versionCode 12
+        versionName "1.0.9"
+        multiDexEnabled true
+    }
+
+    signingConfigs {
+        release {
+            if (keystorePropertiesFile.exists()) {
+                keyAlias keystoreProperties['keyAlias']
+                keyPassword keystoreProperties['keyPassword']
+                def storeFilePath = keystoreProperties['storeFile']
+                if (storeFilePath != null) {
+                    // Resolve path relative to rootProject (android/)
+                    def keystoreFile = rootProject.file("app/${storeFilePath}")
+                    if (keystoreFile.exists()) {
+                        storeFile keystoreFile
+                        println("✅ Using keystore: ${keystoreFile}")
+                    } else {
+                        println("❌ Keystore file not found: ${keystoreFile}")
+                    }
+                }
+                storePassword keystoreProperties['storePassword']
+                println("✅ Release signing config configured")
+            } else {
+                println("❌ Keystore properties file not found, using debug signing")
+            }
+        }
+    }
+
+    buildTypes {
+        release {
+            // Use release signing config if keystore exists, otherwise use debug
+            if (keystorePropertiesFile.exists() && signingConfigs.release.storeFile != null) {
+                signingConfig signingConfigs.release
+                println("✅ Release build will use release signing config")
+            } else {
+                signingConfig signingConfigs.debug
+                println("⚠️ WARNING: Release build will use DEBUG signing config!")
+                println("   Keystore properties exists: ${keystorePropertiesFile.exists()}")
+                if (keystorePropertiesFile.exists()) {
+                    println("   Store file: ${signingConfigs.release.storeFile}")
+                }
+            }
+            minifyEnabled false
+            shrinkResources false
+        }
+    }
+}
+
+flutter {
+    source '../..'
+}
+
+dependencies {
+    implementation "org.jetbrains.kotlin:kotlin-stdlib-jdk8:2.1.0"
+    coreLibraryDesugaring 'com.android.tools:desugar_jdk_libs:2.1.4'
+}

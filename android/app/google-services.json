@@ -1,0 +1,29 @@
+{
+  "project_info": {
+    "project_number": "1091937268649",
+    "project_id": "gunluk-dua-hadis-15178",
+    "storage_bucket": "gunluk-dua-hadis-15178.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:1091937268649:android:46a1578788c7acc3b6cab8",
+        "android_client_info": {
+          "package_name": "com.tahram.gunlukduahadis"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyAv1ukWM1j1RTjW4DRcro3UeDKgwAs4bgk"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}
