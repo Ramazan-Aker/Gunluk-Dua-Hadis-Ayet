@@ -66,13 +66,14 @@ class NotificationService {
       final androidImplementation = _notifications.resolvePlatformSpecificImplementation<
           AndroidFlutterLocalNotificationsPlugin>();
       if (androidImplementation != null) {
-        // Request notification permission
+        // Request notification permission (this shows a simple dialog)
         final bool? granted = await androidImplementation.requestNotificationsPermission();
         print('📱 Notification permission granted: $granted');
         
-        // Request exact alarm permission (required for scheduled notifications on Android 12+)
-        final bool? exactAlarmGranted = await androidImplementation.requestExactAlarmsPermission();
-        print('⏰ Exact alarm permission granted: $exactAlarmGranted');
+        // Don't request exact alarm permission automatically - it will be handled gracefully
+        // when scheduling notifications (will use inexact mode if not granted)
+        final bool? canScheduleExact = await androidImplementation.canScheduleExactNotifications();
+        print('⏰ Can schedule exact alarms: $canScheduleExact');
       }
     }
   }
@@ -86,45 +87,10 @@ class NotificationService {
         // Check if exact alarm permission is granted
         final bool? canScheduleExactAlarms = await androidImplementation.canScheduleExactNotifications();
         
+        // Don't show dialog to user - just return the status
+        // If not granted, we'll use inexact mode which is good enough for daily reminders
         if (canScheduleExactAlarms == false) {
-          // Show dialog explaining why we need this permission
-          if (context != null && context.mounted) {
-            final bool? userAccepted = await showDialog<bool>(
-              context: context,
-              builder: (BuildContext dialogContext) {
-                return AlertDialog(
-                  title: const Text('Bildirim İzni Gerekli'),
-                  content: const Text(
-                    'Günlük hatırlatmalar için "Tam Zamanlı Alarmlar ve Bildirimler" iznine ihtiyacımız var.\n\n'
-                    'Bu izni ayarlardan verebilirsiniz. Şimdi ayarlara gitmek ister misiniz?'
-                  ),
-                  actions: [
-                    TextButton(
-                      onPressed: () => Navigator.of(dialogContext).pop(false),
-                      child: const Text('İptal'),
-                    ),
-                    ElevatedButton(
-                      onPressed: () => Navigator.of(dialogContext).pop(true),
-                      child: const Text('Ayarlara Git'),
-                    ),
-                  ],
-                );
-              },
-            );
-            
-            if (userAccepted == true) {
-              // Request exact alarm permission (this will open system settings)
-              await androidImplementation.requestExactAlarmsPermission();
-              
-              // Check again after user returns
-              await Future.delayed(const Duration(seconds: 1));
-              final bool? recheckPermission = await androidImplementation.canScheduleExactNotifications();
-              return recheckPermission ?? false;
-            }
-          } else {
-            // No context, just request permission
-            await androidImplementation.requestExactAlarmsPermission();
-          }
+          print('⚠️ Exact alarm permission not granted - will use inexact mode (this is OK)');
           return false;
         }
         return canScheduleExactAlarms ?? false;
@@ -183,16 +149,23 @@ class NotificationService {
             'daily_reminder',
             'Günlük Hatırlatmalar',
             channelDescription: 'Her gün günlük dua, hadis veya ayet için hatırlatmalar',
-            importance: Importance.high,
+            importance: Importance.max,
             priority: Priority.high,
             icon: '@mipmap/ic_launcher',
             enableVibration: true,
             playSound: true,
+            channelShowBadge: true,
+            visibility: NotificationVisibility.public,
+            autoCancel: false,
+            ongoing: false,
+            // Critical for showing notifications even in Doze mode
+            fullScreenIntent: true,
           ),
           iOS: DarwinNotificationDetails(
             presentAlert: true,
             presentBadge: true,
             presentSound: true,
+            interruptionLevel: InterruptionLevel.timeSensitive,
           ),
         ),
         androidScheduleMode: scheduleMode,
@@ -305,21 +278,70 @@ class NotificationService {
             'daily_reminder',
             'Günlük Hatırlatmalar',
             channelDescription: 'Her gün günlük dua, hadis veya ayet için hatırlatmalar',
-            importance: Importance.high,
+            importance: Importance.max,
             priority: Priority.high,
             icon: '@mipmap/ic_launcher',
             enableVibration: true,
             playSound: true,
+            channelShowBadge: true,
+            visibility: NotificationVisibility.public,
           ),
           iOS: DarwinNotificationDetails(
             presentAlert: true,
             presentBadge: true,
             presentSound: true,
+            interruptionLevel: InterruptionLevel.timeSensitive,
           ),
         ),
       );
+      print('✅ Test notification shown successfully');
     } catch (e) {
       print('❌ Error showing notification: $e');
+      rethrow;
+    }
+  }
+
+  /// Show test notification after 5 seconds (for testing delayed notifications)
+  Future<void> showTestNotificationAfter5Seconds() async {
+    if (!_isInitialized) {
+      await initialize();
+    }
+
+    try {
+      final scheduledTime = tz.TZDateTime.now(tz.local).add(const Duration(seconds: 5));
+      
+      await _notifications.zonedSchedule(
+        998, // Unique ID for test notifications
+        'Test Bildirimi',
+        '5 saniye sonra gelen test bildirimi! 🎉',
+        scheduledTime,
+        const NotificationDetails(
+          android: AndroidNotificationDetails(
+            'daily_reminder',
+            'Günlük Hatırlatmalar',
+            channelDescription: 'Her gün günlük dua, hadis veya ayet için hatırlatmalar',
+            importance: Importance.max,
+            priority: Priority.high,
+            icon: '@mipmap/ic_launcher',
+            enableVibration: true,
+            playSound: true,
+            channelShowBadge: true,
+            visibility: NotificationVisibility.public,
+          ),
+          iOS: DarwinNotificationDetails(
+            presentAlert: true,
+            presentBadge: true,
+            presentSound: true,
+            interruptionLevel: InterruptionLevel.timeSensitive,
+          ),
+        ),
+        androidScheduleMode: AndroidScheduleMode.exactAllowWhileIdle,
+        uiLocalNotificationDateInterpretation: UILocalNotificationDateInterpretation.absoluteTime,
+      );
+      print('✅ Test notification scheduled for 5 seconds from now');
+    } catch (e) {
+      print('❌ Error scheduling test notification: $e');
+      rethrow;
     }
   }
 

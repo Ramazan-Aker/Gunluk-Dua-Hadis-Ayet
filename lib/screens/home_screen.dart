@@ -67,9 +67,9 @@ class _HomeScreenState extends State<HomeScreen> {
       await notificationService.scheduleDailyReminders(context);
       print('✅ Daily reminders scheduled');
       
-      // Request battery optimization exemption
-      await notificationService.requestBatteryOptimizationExemption(context);
-      print('✅ Battery optimization exemption requested');
+      // Don't request battery optimization automatically - it's too intrusive
+      // Users can check notification settings in debug mode if needed
+      // await notificationService.requestBatteryOptimizationExemption(context);
     } catch (e) {
       print('❌ Error setting up notifications: $e');
     }
@@ -399,21 +399,62 @@ class _HomeScreenState extends State<HomeScreen> {
             ),
           ),
           actions: [
-            // Test notification button
+            // Test immediate notification button
             TextButton.icon(
               onPressed: () async {
-                await notificationService.showNotification(
-                  title: 'Test Bildirimi',
-                  body: 'Bildirimler çalışıyor! ✅',
-                );
-                if (dialogContext.mounted) {
-                  ScaffoldMessenger.of(context).showSnackBar(
-                    const SnackBar(content: Text('Test bildirimi gönderildi!')),
+                try {
+                  await notificationService.showNotification(
+                    title: 'Test Bildirimi',
+                    body: 'Bildirimler çalışıyor! ✅',
                   );
+                  if (dialogContext.mounted) {
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      const SnackBar(
+                        content: Text('✅ Test bildirimi gönderildi!'),
+                        backgroundColor: Colors.green,
+                      ),
+                    );
+                  }
+                } catch (e) {
+                  if (dialogContext.mounted) {
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      SnackBar(
+                        content: Text('❌ Hata: $e'),
+                        backgroundColor: Colors.red,
+                      ),
+                    );
+                  }
                 }
               },
               icon: const Icon(Icons.send),
-              label: const Text('Test Gönder'),
+              label: const Text('Şimdi Gönder'),
+            ),
+            // Test delayed notification button
+            TextButton.icon(
+              onPressed: () async {
+                try {
+                  await notificationService.showTestNotificationAfter5Seconds();
+                  if (dialogContext.mounted) {
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      const SnackBar(
+                        content: Text('⏰ 5 saniye sonra bildirim gelecek!'),
+                        backgroundColor: Colors.orange,
+                      ),
+                    );
+                  }
+                } catch (e) {
+                  if (dialogContext.mounted) {
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      SnackBar(
+                        content: Text('❌ Hata: $e'),
+                        backgroundColor: Colors.red,
+                      ),
+                    );
+                  }
+                }
+              },
+              icon: const Icon(Icons.schedule),
+              label: const Text('5 sn sonra'),
             ),
             // Close button
             ElevatedButton(
