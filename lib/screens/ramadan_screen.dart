@@ -410,15 +410,13 @@ class _RamadanScreenState extends State<RamadanScreen> {
     }
     if (todayIndex < 0) return;
 
-    const countdownHeight = 180.0;
-    final todayCardHeight = _todaysPrayerTimes != null ? 280.0 : 0.0;
-    const tableHeaderHeight = 60.0;
+    const tableTitleHeight = 50.0;
+    const tableHeaderHeight = 40.0;
     const rowHeight = 48.0;
-    final targetOffset = countdownHeight +
-        todayCardHeight +
+    final targetOffset = tableTitleHeight +
         tableHeaderHeight +
         (todayIndex * rowHeight) -
-        100;
+        80;
     if (_scrollController.hasClients) {
       _scrollController.animateTo(
         targetOffset.clamp(0.0, _scrollController.position.maxScrollExtent),
@@ -506,20 +504,26 @@ class _RamadanScreenState extends State<RamadanScreen> {
   }
 
   /// Build main content
+  /// Countdown ve bugünkü vakitler üstte sabit, İmsakiye tablosu kendi alanında scroll edilir
   Widget _buildContent() {
-    return SingleChildScrollView(
-      controller: _scrollController,
-      child: Column(
-        children: [
-          _buildCountdownCard(),
-          const SizedBox(height: 16),
-          if (_todaysPrayerTimes != null)
-            _buildTodaysPrayerTimesCard(),
-          const SizedBox(height: 16),
-          _buildFullScheduleSection(),
-          const SizedBox(height: 20),
-        ],
-      ),
+    return Column(
+      children: [
+        _buildCountdownCard(),
+        const SizedBox(height: 16),
+        if (_todaysPrayerTimes != null) _buildTodaysPrayerTimesCard(),
+        const SizedBox(height: 16),
+        Expanded(
+          child: SingleChildScrollView(
+            controller: _scrollController,
+            child: Column(
+              children: [
+                _buildFullScheduleSection(),
+                const SizedBox(height: 20),
+              ],
+            ),
+          ),
+        ),
+      ],
     );
   }
 

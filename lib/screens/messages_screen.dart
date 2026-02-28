@@ -30,6 +30,9 @@ class _MessagesScreenState extends State<MessagesScreen> {
   String _messageText = '';
   String _messageTitle = '';
   bool _isCustomMessage = false;
+  String? _selectedMessageId;
+  String? _previewImageUrl;
+  Future<String?>? _imageFuture;
 
   @override
   void initState() {
@@ -56,6 +59,10 @@ class _MessagesScreenState extends State<MessagesScreen> {
 
       if (group == 'cuma') {
         _selectedCategoryId = 'cuma';
+        _greetingService.prefetchImageForCategory('cuma');
+      } else if (group == 'günlük_dua') {
+        _selectedCategoryId = 'günlük_dua';
+        _greetingService.prefetchImageForCategory('günlük_dua');
       }
     });
   }
@@ -66,6 +73,7 @@ class _MessagesScreenState extends State<MessagesScreen> {
       _messageText = '';
       _messageTitle = '';
       _isCustomMessage = false;
+      _greetingService.prefetchImageForCategory(categoryId);
     });
   }
 
@@ -74,6 +82,8 @@ class _MessagesScreenState extends State<MessagesScreen> {
       _messageText = msg.text;
       _messageTitle = msg.title;
       _isCustomMessage = false;
+      _selectedMessageId = msg.id;
+      _imageFuture = _greetingService.fetchImageForMessage(msg.category, messageId: msg.id);
     });
   }
 
@@ -82,6 +92,10 @@ class _MessagesScreenState extends State<MessagesScreen> {
       _messageText = text;
       _messageTitle = title;
       _isCustomMessage = true;
+      _selectedMessageId = null;
+      if (_selectedCategoryId != null) {
+        _imageFuture = _greetingService.fetchImageForMessage(_selectedCategoryId!, messageId: null);
+      }
     });
   }
 
@@ -94,6 +108,8 @@ class _MessagesScreenState extends State<MessagesScreen> {
       setState(() {
         _messageText = '';
         _messageTitle = '';
+        _selectedMessageId = null;
+        _imageFuture = null;
       });
       return;
     }
@@ -154,6 +170,13 @@ class _MessagesScreenState extends State<MessagesScreen> {
       late OverlayEntry overlayEntry;
       final controller = WidgetsToImageController();
 
+      final imageUrl = await _greetingService.fetchImageForMessage(
+        _selectedCategoryId!,
+        messageId: _selectedMessageId,
+      );
+      if (imageUrl != null && imageUrl.isNotEmpty && mounted) {
+        await precacheImage(NetworkImage(imageUrl), context);
+      }
       overlayEntry = OverlayEntry(
         builder: (context) => Stack(
           children: [
@@ -169,6 +192,7 @@ class _MessagesScreenState extends State<MessagesScreen> {
                       categoryId: _selectedCategoryId!,
                       messageText: _messageText,
                       messageTitle: _messageTitle,
+                      imageUrl: imageUrl,
                       width: 1080,
                       height: 1080,
                     ),
@@ -181,7 +205,7 @@ class _MessagesScreenState extends State<MessagesScreen> {
       );
 
       overlay.insert(overlayEntry);
-      await Future.delayed(const Duration(milliseconds: 500));
+      await Future.delayed(Duration(milliseconds: imageUrl != null && imageUrl.isNotEmpty ? 800 : 500));
 
       final bytes = await controller.capture();
       overlayEntry.remove();
@@ -346,6 +370,12 @@ class _MessagesScreenState extends State<MessagesScreen> {
             'Bayramlar',
             Icons.celebration,
             onTap: () => _selectMainGroup('bayram'),
+          ),
+          const SizedBox(height: 12),
+          _categoryChip(
+            'Günlük Dua & Zikir',
+            Icons.menu_book,
+            onTap: () => _selectMainGroup('günlük_dua'),
           ),
         ],
       ),
@@ -539,80 +569,110 @@ class _MessagesScreenState extends State<MessagesScreen> {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
-          const Text(
+          Text(
             'Önizleme',
             style: TextStyle(
-              fontSize: 18,
-              fontWeight: FontWeight.bold,
-              color: Color(0xFF2D5016),
+              fontSize: 15,
+              fontWeight: FontWeight.w600,
+              color: Colors.grey[700],
             ),
           ),
-          const SizedBox(height: 16),
-          Container(
-            decoration: BoxDecoration(
-              borderRadius: BorderRadius.circular(16),
-              boxShadow: [
-                BoxShadow(
-                  color: Colors.black.withValues(alpha: 0.15),
-                  blurRadius: 15,
-                  offset: const Offset(0, 5),
+          const SizedBox(height: 12),
+          FutureBuilder<String?>(
+            future: _imageFuture,
+            builder: (context, snapshot) {
+              final imageUrl = snapshot.data;
+              return Container(
+                decoration: BoxDecoration(
+                  borderRadius: BorderRadius.circular(14),
+                  boxShadow: [
+                    BoxShadow(
+                      color: Colors.black.withValues(alpha: 0.08),
+                      blurRadius: 12,
+                      offset: const Offset(0, 2),
+                    ),
+                  ],
                 ),
-              ],
-            ),
-            child: ClipRRect(
-              borderRadius: BorderRadius.circular(16),
-              child: AspectRatio(
-                aspectRatio: 1,
-                child: FittedBox(
-                  fit: BoxFit.contain,
-                  alignment: Alignment.center,
-                  child: GreetingShareableCard(
-                    categoryId: _selectedCategoryId!,
-                    messageText: _messageText,
-                    messageTitle: _messageTitle,
-                    width: 1080,
-                    height: 1080,
+                child: ClipRRect(
+                  borderRadius: BorderRadius.circular(14),
+                  child: AspectRatio(
+                    aspectRatio: 1,
+                    child: FittedBox(
+                      fit: BoxFit.contain,
+                      alignment: Alignment.center,
+                      child: GreetingShareableCard(
+                        categoryId: _selectedCategoryId!,
+                        messageText: _messageText,
+                        messageTitle: _messageTitle,
+                        imageUrl: imageUrl,
+                        width: 1080,
+                        height: 1080,
+                      ),
+                    ),
+                  ),
+                ),
+              );
+            },
+          ),
+          const SizedBox(height: 28),
+          Column(
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              ElevatedButton.icon(
+                onPressed: _isSharing ? null : _shareGreeting,
+                icon: _isSharing
+                    ? const SizedBox(
+                        width: 22,
+                        height: 22,
+                        child: CircularProgressIndicator(
+                          strokeWidth: 2,
+                          valueColor: AlwaysStoppedAnimation<Color>(Colors.white),
+                        ),
+                      )
+                    : const Icon(Icons.share, size: 22),
+                label: Text(
+                  _isSharing ? 'Paylaşılıyor...' : 'Paylaş',
+                  style: const TextStyle(
+                    fontSize: 17,
+                    fontWeight: FontWeight.w600,
+                  ),
+                ),
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: const Color(0xFF4A7C23),
+                  foregroundColor: Colors.white,
+                  padding: const EdgeInsets.symmetric(vertical: 18),
+                  elevation: 2,
+                  shadowColor: Colors.black.withValues(alpha: 0.25),
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(14),
                   ),
                 ),
               ),
-            ),
-          ),
-          const SizedBox(height: 24),
-          Row(
-            children: [
-              Expanded(
-                child: OutlinedButton.icon(
-                  onPressed: _isSharing
-                      ? null
+              const SizedBox(height: 12),
+              TextButton.icon(
+                onPressed: _isSharing
+                    ? null
                       : () => setState(() {
                             _messageText = '';
                             _messageTitle = '';
+                            _selectedMessageId = null;
+                            _imageFuture = null;
                           }),
-                  icon: const Icon(Icons.edit),
-                  label: const Text('Değiştir'),
-                  style: OutlinedButton.styleFrom(
-                    foregroundColor: const Color(0xFF6B8E23),
-                    side: const BorderSide(color: Color(0xFF6B8E23)),
+                icon: Icon(
+                  Icons.edit_outlined,
+                  size: 20,
+                  color: Colors.grey[600],
+                ),
+                label: Text(
+                  'Değiştir',
+                  style: TextStyle(
+                    fontSize: 15,
+                    color: Colors.grey[700],
+                    fontWeight: FontWeight.w500,
                   ),
                 ),
-              ),
-              const SizedBox(width: 12),
-              Expanded(
-                flex: 2,
-                child: ElevatedButton.icon(
-                  onPressed: _isSharing ? null : _shareGreeting,
-                  icon: _isSharing
-                      ? const SizedBox(
-                          width: 20,
-                          height: 20,
-                          child: CircularProgressIndicator(strokeWidth: 2),
-                        )
-                      : const Icon(Icons.share),
-                  label: Text(_isSharing ? 'Paylaşılıyor...' : 'Paylaş'),
-                  style: ElevatedButton.styleFrom(
-                    backgroundColor: const Color(0xFF6B8E23),
-                    padding: const EdgeInsets.symmetric(vertical: 14),
-                  ),
+                style: TextButton.styleFrom(
+                  foregroundColor: Colors.grey[700],
                 ),
               ),
             ],

@@ -1,18 +1,25 @@
 import 'dart:convert';
 import 'package:flutter/services.dart' show rootBundle;
 import '../models/greeting_message.dart';
+import 'dua_dhikr_api_service.dart';
+import 'pixabay_image_service.dart';
 
 /// Service for loading Cuma, Kandil, and Bayram greeting messages
+/// Yerel JSON + Dua-Dhikr API + Pixabay görseller
 class GreetingService {
   static final GreetingService _instance = GreetingService._internal();
   factory GreetingService() => _instance;
   GreetingService._internal();
 
-  Map<String, List<GreetingMessage>> _messages = {};
+  final DuaDhikrApiService _duaApi = DuaDhikrApiService();
+  final PixabayImageService _pixabay = PixabayImageService();
 
-  /// Load all greeting messages from JSON
+  Map<String, List<GreetingMessage>> _messages = {};
+  bool _apiMessagesLoaded = false;
+
+  /// Load all greeting messages (local JSON + API)
   Future<void> loadMessages() async {
-    if (_messages.isNotEmpty) return;
+    if (_messages.isNotEmpty && _apiMessagesLoaded) return;
 
     try {
       final String jsonString =
@@ -31,11 +38,39 @@ class GreetingService {
                   Map<String, dynamic>.from(e), category),
         ];
       }
+
+      await _loadApiMessages();
       print('✅ Loaded greeting messages for ${_messages.length} categories');
     } catch (e) {
       print('❌ Error loading greeting messages: $e');
       _messages = {};
     }
+  }
+
+  /// Dua-Dhikr API'den günlük dua/zikir mesajları yükle
+  Future<void> _loadApiMessages() async {
+    if (_apiMessagesLoaded) return;
+    try {
+      final duas = await _duaApi.fetchDuasFromCategory('daily-dua');
+      if (duas.isNotEmpty) {
+        _messages['günlük_dua'] = duas;
+        _apiMessagesLoaded = true;
+        print('✅ Dua-Dhikr API: ${duas.length} mesaj yüklendi');
+      }
+    } catch (e) {
+      print('⚠️ Dua-Dhikr API atlandı: $e');
+    }
+  }
+
+  /// Mesaj için görsel URL getir - her mesajda farklı görsel (Pixabay)
+  /// [messageId] - Mesaj ID'si (boşsa özel mesaj, her seferinde yeni görsel)
+  Future<String?> fetchImageForMessage(String categoryId, {String? messageId}) async {
+    return _pixabay.fetchRandomImage(categoryId, messageId: messageId);
+  }
+
+  /// Görseli önceden yükle - mesaj seçim ekranına girildiğinde ping azaltır
+  void prefetchImageForCategory(String categoryId) {
+    _pixabay.prefetchForCategory(categoryId);
   }
 
   /// Get messages for a category
@@ -49,6 +84,7 @@ class GreetingService {
       ...GreetingCategoryInfo.cumaIds,
       ...GreetingCategoryInfo.kandilIds,
       ...GreetingCategoryInfo.bayramIds,
+      if (_messages.containsKey('günlük_dua')) ...GreetingCategoryInfo.apiCategoryIds,
     ];
   }
 

@@ -4,12 +4,15 @@ class GreetingMessage {
   final String category;
   final String title;
   final String text;
+  /// API'den gelen görsel URL'si (Pixabay vb.)
+  final String? imageUrl;
 
   GreetingMessage({
     required this.id,
     required this.category,
     required this.title,
     required this.text,
+    this.imageUrl,
   });
 
   factory GreetingMessage.fromJson(Map<String, dynamic> json, String category) {
@@ -18,6 +21,7 @@ class GreetingMessage {
       category: category,
       title: json['title'] as String? ?? '',
       text: json['text'] as String? ?? '',
+      imageUrl: json['imageUrl'] as String?,
     );
   }
 
@@ -27,6 +31,7 @@ class GreetingMessage {
       'category': category,
       'title': title,
       'text': text,
+      if (imageUrl != null) 'imageUrl': imageUrl,
     };
   }
 }
@@ -52,11 +57,13 @@ class GreetingCategoryInfo {
     'ramazan_bayrami',
     'kurban_bayrami',
   ];
+  static const List<String> apiCategoryIds = ['günlük_dua'];
 
   static GreetingCategory getCategoryType(String categoryId) {
     if (cumaIds.contains(categoryId)) return GreetingCategory.cuma;
     if (kandilIds.contains(categoryId)) return GreetingCategory.kandil;
     if (bayramIds.contains(categoryId)) return GreetingCategory.bayram;
+    if (apiCategoryIds.contains(categoryId)) return GreetingCategory.cuma;
     return GreetingCategory.cuma;
   }
 
@@ -78,6 +85,8 @@ class GreetingCategoryInfo {
         return 'Ramazan Bayramı';
       case 'kurban_bayrami':
         return 'Kurban Bayramı';
+      case 'günlük_dua':
+        return 'Günlük Dua & Zikir';
       default:
         return categoryId;
     }
