@@ -5,6 +5,8 @@ import 'services/notification_service.dart';
 import 'services/daily_reminder_service.dart';
 import 'services/firebase_service.dart';
 import 'screens/home_screen.dart';
+import 'screens/ramadan_screen.dart';
+import 'screens/messages_screen.dart';
 
 /// Main entry point of the Daily Dua & Hadith app
 void main() async {
@@ -145,8 +147,65 @@ class DailyDuaApp extends StatelessWidget {
         ),
       ),
       
-      // Home screen
-      home: const HomeScreen(),
+      // Home screen with bottom navigation
+      home: const MainNavigationScreen(),
+    );
+  }
+}
+
+/// Main navigation screen with bottom navigation bar
+class MainNavigationScreen extends StatefulWidget {
+  const MainNavigationScreen({Key? key}) : super(key: key);
+
+  @override
+  State<MainNavigationScreen> createState() => _MainNavigationScreenState();
+}
+
+class _MainNavigationScreenState extends State<MainNavigationScreen> {
+  int _selectedIndex = 0;
+
+  // Screens for navigation
+  final List<Widget> _screens = [
+    const HomeScreen(),
+    const RamadanScreen(),
+    const MessagesScreen(),
+  ];
+
+  void _onItemTapped(int index) {
+    setState(() {
+      _selectedIndex = index;
+    });
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      body: _screens[_selectedIndex],
+      bottomNavigationBar: BottomNavigationBar(
+        currentIndex: _selectedIndex,
+        onTap: _onItemTapped,
+        type: BottomNavigationBarType.fixed,
+        backgroundColor: const Color(0xFF6B8E23),
+        selectedItemColor: Colors.white,
+        unselectedItemColor: Colors.white70,
+        selectedFontSize: 14,
+        unselectedFontSize: 12,
+        elevation: 8,
+        items: const [
+          BottomNavigationBarItem(
+            icon: Icon(Icons.home),
+            label: 'Ana Sayfa',
+          ),
+          BottomNavigationBarItem(
+            icon: Icon(Icons.mosque),
+            label: 'İmsakiye',
+          ),
+          BottomNavigationBarItem(
+            icon: Icon(Icons.celebration),
+            label: 'Mesajlar',
+          ),
+        ],
+      ),
     );
   }
 }

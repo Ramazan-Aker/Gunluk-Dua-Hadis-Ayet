@@ -162,6 +162,7 @@ class AnalyticsEvents {
   // Screen views
   static const String screenHome = 'screen_home';
   static const String screenSettings = 'screen_settings';
+  static const String screenRamadan = 'screen_ramadan';
   
   // User actions
   static const String dailyItemViewed = 'daily_item_viewed';
@@ -172,6 +173,13 @@ class AnalyticsEvents {
   static const String reminderDisabled = 'reminder_disabled';
   static const String reminderShown = 'reminder_shown';
   
+  // Ramadan feature events
+  static const String ramadanScreenViewed = 'ramadan_screen_viewed';
+  static const String ramadanCitySelected = 'ramadan_city_selected';
+  static const String ramadanTimesLoaded = 'ramadan_times_loaded';
+  static const String ramadanTimesRefreshed = 'ramadan_times_refreshed';
+  static const String greetingShared = 'greeting_shared';
+
   // Content types
   static const String itemTypeDua = 'dua';
   static const String itemTypeHadith = 'hadith';
@@ -184,5 +192,9 @@ class AnalyticsParams {
   static const String itemSource = 'item_source';
   static const String readingStreak = 'reading_streak';
   static const String reminderTime = 'reminder_time';
+  static const String cityName = 'city_name';
+  static const String year = 'year';
+  static const String category = 'category';
+  static const String messageType = 'message_type';
 }
 

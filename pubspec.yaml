@@ -52,4 +52,5 @@ flutter:
   # Assets
   assets:
     - assets/data.json
+    - assets/greeting_messages.json
 

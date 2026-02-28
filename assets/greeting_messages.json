@@ -1,0 +1,133 @@
+{
+  "cuma": [
+    {
+      "id": "c1",
+      "title": "Cuma Mesajı",
+      "text": "Cuma'nız mübarek olsun. Rabbim dualarınızı kabul etsin, gönlünüzü ferah eylesin."
+    },
+    {
+      "id": "c2",
+      "title": "Cuma Mesajı",
+      "text": "Hayırlı cumalar. Bu mübarek günde dualarınız kabul, hayırlarınız bereketli olsun."
+    },
+    {
+      "id": "c3",
+      "title": "Cuma Mesajı",
+      "text": "Cumanız mübarek, dualarınız makbul olsun. Hayırlara vesile olan bu günde Allah'a yakınlık nasip etsin."
+    },
+    {
+      "id": "c4",
+      "title": "Cuma Mesajı",
+      "text": "Cuma günü bereket ve hayır günüdür. Rabbim bu günde yaptığınız ibadetleri kabul, dualarınızı makbul eylesin."
+    }
+  ],
+  "mevlid": [
+    {
+      "id": "m1",
+      "title": "Mevlid Kandili",
+      "text": "Mevlid Kandiliniz mübarek olsun. Peygamber Efendimiz'e salât ve selâm olsun."
+    },
+    {
+      "id": "m2",
+      "title": "Mevlid Kandili",
+      "text": "Mevlid Kandilinizi tebrik ederiz. Bu mübarek gecede Efendimiz'in şefaatine nail olmayı niyaz ederiz."
+    },
+    {
+      "id": "m3",
+      "title": "Mevlid Kandili",
+      "text": "Mevlid Kandiliniz kutlu olsun. Dünyaya nur olarak gelen Peygamberimize salât ve selâm."
+    }
+  ],
+  "regaib": [
+    {
+      "id": "r1",
+      "title": "Regaib Kandili",
+      "text": "Regaib Kandiliniz mübarek olsun. Bu mübarek gecede dualarınız kabul, hayırlarınız bereketli olsun."
+    },
+    {
+      "id": "r2",
+      "title": "Regaib Kandili",
+      "text": "Regaib Kandilinizi tebrik ederiz. Recep ayının ilk cuma gecesinin bereketi üzerinize olsun."
+    }
+  ],
+  "mirac": [
+    {
+      "id": "mi1",
+      "title": "Mirac Kandili",
+      "text": "Mirac Kandiliniz mübarek olsun. Bu gece Peygamberimiz'in Mirac'a yükseldiği mübarek gecedir."
+    },
+    {
+      "id": "mi2",
+      "title": "Mirac Kandili",
+      "text": "Mirac Kandilinizi tebrik ederiz. Rabbim bu mübarek gecede dualarınızı kabul eylesin."
+    },
+    {
+      "id": "mi3",
+      "title": "Mirac Kandili",
+      "text": "Mirac Kandiliniz kutlu olsun. İsra ve Mirac mucizesinin bereketi üzerinize olsun."
+    }
+  ],
+  "berat": [
+    {
+      "id": "b1",
+      "title": "Berat Kandili",
+      "text": "Berat Kandiliniz mübarek olsun. Şaban ayının 15. gecesinde dualarınız kabul, günahlarınız bağışlansın."
+    },
+    {
+      "id": "b2",
+      "title": "Berat Kandili",
+      "text": "Berat Kandilinizi tebrik ederiz. Bu gece af ve mağfiret gecesidir. Hayırlı kandiller."
+    }
+  ],
+  "kadir": [
+    {
+      "id": "k1",
+      "title": "Kadir Gecesi",
+      "text": "Kadir Geceniz mübarek olsun. Bin aydan hayırlı bu gecede dualarınız kabul, hayırlarınız bereketli olsun."
+    },
+    {
+      "id": "k2",
+      "title": "Kadir Gecesi",
+      "text": "Kadir Gecesi'nin bereketi üzerinize olsun. Bu mübarek gecede Kur'an'ın indirildiği geceyi ihya edenlere selâm."
+    },
+    {
+      "id": "k3",
+      "title": "Kadir Gecesi",
+      "text": "Kadir Geceniz kutlu olsun. Bin aydan hayırlı bu geceyi ihya edenlerden olmayı nasip etsin Rabbim."
+    }
+  ],
+  "ramazan_bayrami": [
+    {
+      "id": "rb1",
+      "title": "Ramazan Bayramı",
+      "text": "Ramazan Bayramınız mübarek olsun. Rabbim hayırlara vesile eylesin, dualarınızı kabul buyursun."
+    },
+    {
+      "id": "rb2",
+      "title": "Ramazan Bayramı",
+      "text": "Ramazan Bayramınızı tebrik ederiz. Oruçlarınız makbul, bayramınız bereketli olsun."
+    },
+    {
+      "id": "rb3",
+      "title": "Ramazan Bayramı",
+      "text": "Hayat, sevdiklerimizle paylaşıldığında anlam bulur. Bayram, sevginin kutlanmasıdır. İyi bayramlar."
+    }
+  ],
+  "kurban_bayrami": [
+    {
+      "id": "kb1",
+      "title": "Kurban Bayramı",
+      "text": "Kurban Bayramınız mübarek olsun. Rabbim kurbanlarınızı kabul, bayramınızı bereketli eylesin."
+    },
+    {
+      "id": "kb2",
+      "title": "Kurban Bayramı",
+      "text": "Kurban Bayramınızı tebrik ederiz. İbrahim (a.s.)'ın teslimiyeti üzerimize olsun. Hayırlı bayramlar."
+    },
+    {
+      "id": "kb3",
+      "title": "Kurban Bayramı",
+      "text": "Kurban Bayramınız kutlu olsun. Fedakarlığın ve teslimiyetin bayramında sevdiklerinizle birlikte olmanız dileğiyle."
+    }
+  ]
+}
