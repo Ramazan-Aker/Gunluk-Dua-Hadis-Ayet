@@ -3,7 +3,6 @@ import 'dart:math';
 import 'package:flutter/services.dart' show rootBundle;
 import 'package:shared_preferences/shared_preferences.dart';
 import '../models/daily_item.dart';
-import 'api_service.dart';
 import 'quran_api_service.dart';
 
 /// Service class to handle data loading and daily item selection

@@ -54,14 +54,14 @@ class ItemCard extends StatelessWidget {
                 style: const TextStyle(
                   fontSize: 22,
                   fontWeight: FontWeight.bold,
-                  color: Color(0xFF2D5016),
+                  color: Color(0xFF0F766E),
                 ),
               ),
               if (isRead) ...[
                 const SizedBox(width: 8),
                 const Icon(
                   Icons.check_circle,
-                  color: Color(0xFF6B8E23),
+                  color: Color(0xFF0D9488),
                   size: 24,
                 ),
               ],
@@ -78,9 +78,9 @@ class ItemCard extends StatelessWidget {
             decoration: BoxDecoration(
               gradient: LinearGradient(
                 colors: [
-                  const Color(0xFF6B8E23).withValues(alpha: 0.3),
-                  const Color(0xFF6B8E23),
-                  const Color(0xFF6B8E23).withValues(alpha: 0.3),
+                  const Color(0xFF0D9488).withValues(alpha: 0.3),
+                  const Color(0xFF0D9488),
+                  const Color(0xFF0D9488).withValues(alpha: 0.3),
                 ],
               ),
               borderRadius: BorderRadius.circular(2),
@@ -107,7 +107,7 @@ class ItemCard extends StatelessWidget {
           Container(
             padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
             decoration: BoxDecoration(
-              color: const Color(0xFFF5F5DC).withValues(alpha: 0.5),
+              color: const Color(0xFFF0FDFA).withValues(alpha: 0.5),
               borderRadius: BorderRadius.circular(12),
             ),
             child: Text(
@@ -116,7 +116,7 @@ class ItemCard extends StatelessWidget {
               style: const TextStyle(
                 fontSize: 14,
                 fontStyle: FontStyle.italic,
-                color: Color(0xFF6B8E23),
+                color: Color(0xFF0D9488),
                 fontWeight: FontWeight.w500,
               ),
             ),
@@ -135,7 +135,7 @@ class ItemCard extends StatelessWidget {
                   icon: const Icon(Icons.check_circle_outline, size: 20),
                   label: const Text('Okudum olarak işaretle'),
                   style: ElevatedButton.styleFrom(
-                    backgroundColor: const Color(0xFF4CAF50),
+                    backgroundColor: const Color(0xFF14B8A6),
                     foregroundColor: Colors.white,
                     padding: const EdgeInsets.symmetric(vertical: 14),
                     shape: RoundedRectangleBorder(
@@ -166,9 +166,9 @@ class ItemCard extends StatelessWidget {
                       : const Icon(Icons.share, size: 20),
                   label: Text(isSharing ? 'Oluşturuluyor...' : 'Paylaş'),
                   style: ElevatedButton.styleFrom(
-                    backgroundColor: const Color(0xFF6B8E23),
+                    backgroundColor: const Color(0xFF0D9488),
                     foregroundColor: Colors.white,
-                    disabledBackgroundColor: const Color(0xFF6B8E23).withValues(alpha: 0.6),
+                    disabledBackgroundColor: const Color(0xFF0D9488).withValues(alpha: 0.6),
                     padding: const EdgeInsets.symmetric(vertical: 14),
                     shape: RoundedRectangleBorder(
                       borderRadius: BorderRadius.circular(12),
@@ -180,14 +180,14 @@ class ItemCard extends StatelessWidget {
               
               const SizedBox(width: 12),
               
-              // Next button
+              // Next button (amber accent)
               Expanded(
                 child: ElevatedButton.icon(
                   onPressed: onNext,
                   icon: const Icon(Icons.refresh, size: 20),
                   label: const Text('Sonraki'),
                   style: ElevatedButton.styleFrom(
-                    backgroundColor: const Color(0xFF8FBC8F),
+                    backgroundColor: const Color(0xFFF59E0B),
                     foregroundColor: Colors.white,
                     padding: const EdgeInsets.symmetric(vertical: 14),
                     shape: RoundedRectangleBorder(
@@ -229,14 +229,14 @@ class LoadingCard extends StatelessWidget {
         mainAxisSize: MainAxisSize.min,
         children: [
           CircularProgressIndicator(
-            color: Color(0xFF6B8E23),
+            color: Color(0xFF0D9488),
           ),
           SizedBox(height: 20),
           Text(
             'Yükleniyor...',
             style: TextStyle(
               fontSize: 16,
-              color: Color(0xFF6B8E23),
+              color: Color(0xFF0D9488),
             ),
           ),
         ],

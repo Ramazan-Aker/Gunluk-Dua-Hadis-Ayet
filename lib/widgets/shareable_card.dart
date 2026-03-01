@@ -1,8 +1,8 @@
 import 'package:flutter/material.dart';
 import '../models/daily_item.dart';
 
-/// Shareable card widget for creating image to share
-/// This widget is designed to be converted to an image
+/// Paylaşılabilir kart - Ekrandaki ItemCard ile aynı görünüm, butonlar olmadan
+/// Paylaş butonuna basıldığında oluşturulan görsel bu karttan üretilir
 class ShareableCard extends StatelessWidget {
   final DailyItem item;
   final double width;
@@ -20,35 +20,33 @@ class ShareableCard extends StatelessWidget {
     return Container(
       width: width,
       height: height,
-      decoration: BoxDecoration(
+      decoration: const BoxDecoration(
         gradient: LinearGradient(
-          colors: [
-            const Color(0xFF6B8E23),
-            const Color(0xFF8FBC8F),
-          ],
-          begin: Alignment.topLeft,
-          end: Alignment.bottomRight,
+          colors: [Color(0xFFF0FDFA), Color(0xFFCCFBF1)],
+          begin: Alignment.topCenter,
+          end: Alignment.bottomCenter,
         ),
       ),
-      child: Container(
-        margin: const EdgeInsets.all(40),
-        decoration: BoxDecoration(
-          color: Colors.white,
-          borderRadius: BorderRadius.circular(30),
-          boxShadow: [
-            BoxShadow(
-              color: Colors.black.withValues(alpha: 0.2),
-              blurRadius: 30,
-              offset: const Offset(0, 15),
-            ),
-          ],
-        ),
-        child: Padding(
+      child: Center(
+        child: Container(
+          margin: const EdgeInsets.all(60),
           padding: const EdgeInsets.all(50),
+          decoration: BoxDecoration(
+            color: Colors.white,
+            borderRadius: BorderRadius.circular(20),
+            boxShadow: [
+              BoxShadow(
+                color: Colors.black.withValues(alpha: 0.1),
+                blurRadius: 20,
+                offset: const Offset(0, 10),
+              ),
+            ],
+          ),
           child: Column(
-            mainAxisAlignment: MainAxisAlignment.center,
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.stretch,
             children: [
-              // Icon and Title
+              // Icon + Title (ekrandaki kart gibi)
               Row(
                 mainAxisAlignment: MainAxisAlignment.center,
                 children: [
@@ -63,89 +61,64 @@ class ShareableCard extends StatelessWidget {
                       style: const TextStyle(
                         fontSize: 36,
                         fontWeight: FontWeight.bold,
-                        color: Color(0xFF2D5016),
+                        color: Color(0xFF0F766E),
                       ),
                       textAlign: TextAlign.center,
                     ),
                   ),
                 ],
               ),
-              
               const SizedBox(height: 40),
-              
-              // Decorative divider
-              Container(
-                height: 4,
-                width: 120,
-                decoration: BoxDecoration(
-                  gradient: LinearGradient(
-                    colors: [
-                      const Color(0xFF6B8E23).withValues(alpha: 0.3),
-                      const Color(0xFF6B8E23),
-                      const Color(0xFF6B8E23).withValues(alpha: 0.3),
-                    ],
+              // Divider
+              Center(
+                child: Container(
+                  height: 3,
+                  width: 80,
+                  decoration: BoxDecoration(
+                    gradient: LinearGradient(
+                      colors: [
+                        const Color(0xFF0D9488).withValues(alpha: 0.3),
+                        const Color(0xFF0D9488),
+                        const Color(0xFF0D9488).withValues(alpha: 0.3),
+                      ],
+                    ),
+                    borderRadius: BorderRadius.circular(2),
                   ),
-                  borderRadius: BorderRadius.circular(2),
                 ),
               ),
-              
               const SizedBox(height: 40),
-              
-              // Main text - Flexible to take available space
+              // Main text
               Flexible(
-                flex: 3,
                 child: SingleChildScrollView(
-                  child: Padding(
-                    padding: const EdgeInsets.symmetric(horizontal: 20),
-                    child: Text(
-                      item.text,
-                      textAlign: TextAlign.center,
-                      style: const TextStyle(
-                        fontSize: 28,
-                        height: 1.8,
-                        color: Color(0xFF2C3E50),
-                        letterSpacing: 0.5,
-                        fontWeight: FontWeight.w500,
-                      ),
+                  child: Text(
+                    item.text,
+                    textAlign: TextAlign.center,
+                    style: const TextStyle(
+                      fontSize: 32,
+                      height: 1.8,
+                      color: Color(0xFF2C3E50),
+                      letterSpacing: 0.5,
                     ),
                   ),
                 ),
               ),
-              
               const SizedBox(height: 40),
-              
               // Source
               Container(
-                padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 12),
+                padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 14),
                 decoration: BoxDecoration(
-                  color: const Color(0xFFF5F5DC).withValues(alpha: 0.7),
-                  borderRadius: BorderRadius.circular(16),
-                  border: Border.all(
-                    color: const Color(0xFF6B8E23).withValues(alpha: 0.3),
-                    width: 2,
-                  ),
+                  color: const Color(0xFFF0FDFA).withValues(alpha: 0.5),
+                  borderRadius: BorderRadius.circular(12),
                 ),
                 child: Text(
                   '— ${item.source}',
                   textAlign: TextAlign.center,
                   style: const TextStyle(
-                    fontSize: 20,
+                    fontSize: 24,
                     fontStyle: FontStyle.italic,
-                    color: Color(0xFF6B8E23),
-                    fontWeight: FontWeight.w600,
+                    color: Color(0xFF0D9488),
+                    fontWeight: FontWeight.w500,
                   ),
-                ),
-              ),
-              
-              const SizedBox(height: 40),
-              
-              // App name at bottom
-              Text(
-                'Günlük Dua & Hadis',
-                style: TextStyle(
-                  fontSize: 18,
-                  color: Colors.grey[600],
-                  fontWeight: FontWeight.w500,
                 ),
               ),
             ],
@@ -155,4 +128,3 @@ class ShareableCard extends StatelessWidget {
     );
   }
 }
-

@@ -48,10 +48,8 @@ class NotificationService {
         onDidReceiveNotificationResponse: _onNotificationTapped,
       );
 
-      // Request permissions for Android 13+
-      if (Platform.isAndroid) {
-        await _requestAndroidPermissions();
-      }
+      // Don't request permission here - we'll request after showing value proposition dialog
+      // in HomeScreen._setupNotificationsAndPermissions for better opt-in rate
 
       _isInitialized = true;
       print('✅ Notification service initialized');
@@ -60,22 +58,22 @@ class NotificationService {
     }
   }
 
-  /// Request Android permissions (Android 13+)
-  Future<void> _requestAndroidPermissions() async {
+  /// Request notification permission (Android 13+ / iOS)
+  /// Call this after showing value proposition to user for better opt-in rate
+  Future<bool> requestPermission() async {
+    if (!_isInitialized) {
+      await initialize();
+    }
     if (Platform.isAndroid) {
       final androidImplementation = _notifications.resolvePlatformSpecificImplementation<
           AndroidFlutterLocalNotificationsPlugin>();
       if (androidImplementation != null) {
-        // Request notification permission (this shows a simple dialog)
         final bool? granted = await androidImplementation.requestNotificationsPermission();
         print('📱 Notification permission granted: $granted');
-        
-        // Don't request exact alarm permission automatically - it will be handled gracefully
-        // when scheduling notifications (will use inexact mode if not granted)
-        final bool? canScheduleExact = await androidImplementation.canScheduleExactNotifications();
-        print('⏰ Can schedule exact alarms: $canScheduleExact');
+        return granted ?? false;
       }
     }
+    return true; // iOS handles in DarwinInitializationSettings
   }
   
   /// Check and request exact alarm permission with user dialog
@@ -181,7 +179,7 @@ class NotificationService {
     }
   }
 
-  /// Schedule multiple daily reminders (morning and evening)
+  /// Schedule multiple daily reminders (09:00, 12:00, 18:00)
   Future<bool> scheduleDailyReminders(BuildContext? context) async {
     if (!_isInitialized) {
       await initialize();
@@ -217,17 +215,26 @@ class NotificationService {
         notificationId: 0,
       );
 
+      // Schedule midday notification (12:00) - extra engagement
+      final middaySuccess = await scheduleDailyReminder(
+        hour: 12,
+        minute: 0,
+        customMessage: 'Öğle molası! Bugünkü içeriği okumayı unutma 📖',
+        context: context,
+        notificationId: 1,
+      );
+
       // Schedule evening notification (6:00 PM / 18:00)
       final eveningSuccess = await scheduleDailyReminder(
         hour: 18,
         minute: 0,
         customMessage: 'İyi akşamlar! Bugünkü duayı, hadisi veya ayeti okumayı unutma! 🌙',
         context: context,
-        notificationId: 1,
+        notificationId: 2,
       );
 
-      if (morningSuccess && eveningSuccess) {
-        print('✅ Both daily reminders scheduled successfully');
+      if (morningSuccess && middaySuccess && eveningSuccess) {
+        print('✅ All 3 daily reminders scheduled (09:00, 12:00, 18:00)');
         return true;
       } else {
         print('⚠️ Some reminders could not be scheduled');

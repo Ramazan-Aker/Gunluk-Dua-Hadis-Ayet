@@ -289,7 +289,7 @@ class _MessagesScreenState extends State<MessagesScreen> {
         flexibleSpace: Container(
           decoration: const BoxDecoration(
             gradient: LinearGradient(
-              colors: [Color(0xFF6B8E23), Color(0xFF8FBC8F)],
+              colors: [Color(0xFF0D9488), Color(0xFF14B8A6)],
               begin: Alignment.topLeft,
               end: Alignment.bottomRight,
             ),
@@ -305,14 +305,21 @@ class _MessagesScreenState extends State<MessagesScreen> {
       body: Container(
         decoration: const BoxDecoration(
           gradient: LinearGradient(
-            colors: [Color(0xFFF5F5DC), Color(0xFFE8F5E9)],
+            colors: [Color(0xFFF0FDFA), Color(0xFFCCFBF1)],
             begin: Alignment.topCenter,
             end: Alignment.bottomCenter,
           ),
         ),
-        child: _isLoading
-            ? const Center(child: CircularProgressIndicator())
-            : _buildContent(),
+        child: Column(
+          children: [
+            Expanded(
+              child: _isLoading
+                  ? const Center(child: CircularProgressIndicator())
+                  : _buildContent(),
+            ),
+            const AdBannerWidget(),
+          ],
+        ),
       ),
     );
   }
@@ -350,7 +357,7 @@ class _MessagesScreenState extends State<MessagesScreen> {
             style: TextStyle(
               fontSize: 18,
               fontWeight: FontWeight.bold,
-              color: Color(0xFF2D5016),
+              color: Color(0xFF0F766E),
             ),
           ),
           const SizedBox(height: 20),
@@ -394,18 +401,18 @@ class _MessagesScreenState extends State<MessagesScreen> {
           padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 16),
           child: Row(
             children: [
-              Icon(icon, color: const Color(0xFF6B8E23), size: 28),
+              Icon(icon, color: const Color(0xFF0D9488), size: 28),
               const SizedBox(width: 16),
               Text(
                 label,
                 style: const TextStyle(
                   fontSize: 18,
                   fontWeight: FontWeight.w600,
-                  color: Color(0xFF2D5016),
+                  color: Color(0xFF0F766E),
                 ),
               ),
               const Spacer(),
-              const Icon(Icons.arrow_forward_ios, size: 16, color: Color(0xFF6B8E23)),
+              const Icon(Icons.arrow_forward_ios, size: 16, color: Color(0xFF0D9488)),
             ],
           ),
         ),
@@ -426,7 +433,7 @@ class _MessagesScreenState extends State<MessagesScreen> {
           style: TextStyle(
             fontSize: 18,
             fontWeight: FontWeight.bold,
-            color: Color(0xFF2D5016),
+            color: Color(0xFF0F766E),
           ),
         ),
         const SizedBox(height: 16),
@@ -457,7 +464,7 @@ class _MessagesScreenState extends State<MessagesScreen> {
                 style: TextStyle(
                   fontSize: 18,
                   fontWeight: FontWeight.bold,
-                  color: Color(0xFF2D5016),
+                  color: Color(0xFF0F766E),
                 ),
               ),
               const SizedBox(height: 16),
@@ -467,7 +474,7 @@ class _MessagesScreenState extends State<MessagesScreen> {
                   )),
               const SizedBox(height: 12),
               Material(
-                color: const Color(0xFF6B8E23).withValues(alpha: 0.15),
+                color: const Color(0xFF0D9488).withValues(alpha: 0.15),
                 borderRadius: BorderRadius.circular(16),
                 child: InkWell(
                   onTap: () => _showCustomMessageDialog(),
@@ -477,7 +484,7 @@ class _MessagesScreenState extends State<MessagesScreen> {
                     child: Row(
                       children: [
                         Icon(Icons.edit_note,
-                            color: const Color(0xFF6B8E23), size: 28),
+                            color: const Color(0xFF0D9488), size: 28),
                         const SizedBox(width: 16),
                         const Expanded(
                           child: Text(
@@ -485,7 +492,7 @@ class _MessagesScreenState extends State<MessagesScreen> {
                             style: TextStyle(
                               fontSize: 16,
                               fontWeight: FontWeight.w600,
-                              color: Color(0xFF2D5016),
+                              color: Color(0xFF0F766E),
                             ),
                           ),
                         ),
@@ -555,7 +562,7 @@ class _MessagesScreenState extends State<MessagesScreen> {
                 Navigator.pop(ctx);
               }
             },
-            style: ElevatedButton.styleFrom(backgroundColor: const Color(0xFF6B8E23)),
+            style: ElevatedButton.styleFrom(backgroundColor: const Color(0xFF0D9488)),
             child: const Text('Kullan'),
           ),
         ],
@@ -638,7 +645,7 @@ class _MessagesScreenState extends State<MessagesScreen> {
                   ),
                 ),
                 style: ElevatedButton.styleFrom(
-                  backgroundColor: const Color(0xFF4A7C23),
+                  backgroundColor: const Color(0xFF0D9488),
                   foregroundColor: Colors.white,
                   padding: const EdgeInsets.symmetric(vertical: 18),
                   elevation: 2,

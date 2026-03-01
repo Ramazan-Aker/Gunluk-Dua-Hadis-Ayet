@@ -7,6 +7,7 @@ import 'services/firebase_service.dart';
 import 'screens/home_screen.dart';
 import 'screens/ramadan_screen.dart';
 import 'screens/messages_screen.dart';
+import 'screens/religious_days_screen.dart';
 
 /// Main entry point of the Daily Dua & Hadith app
 void main() async {
@@ -80,14 +81,14 @@ class DailyDuaApp extends StatelessWidget {
       
       // Theme configuration
       theme: ThemeData(
-        // Primary color scheme (green/olive theme)
-        primarySwatch: Colors.green,
-        primaryColor: const Color(0xFF6B8E23),
-        scaffoldBackgroundColor: const Color(0xFFF5F5DC),
+        // Primary color scheme (teal theme)
+        primarySwatch: Colors.teal,
+        primaryColor: const Color(0xFF0D9488),
+        scaffoldBackgroundColor: const Color(0xFFF0FDFA),
         
         // AppBar theme
         appBarTheme: const AppBarTheme(
-          backgroundColor: Color(0xFF6B8E23),
+          backgroundColor: Color(0xFF0D9488),
           foregroundColor: Colors.white,
           elevation: 0,
           centerTitle: true,
@@ -98,12 +99,12 @@ class DailyDuaApp extends StatelessWidget {
           displayLarge: TextStyle(
             fontSize: 32,
             fontWeight: FontWeight.bold,
-            color: Color(0xFF2D5016),
+            color: Color(0xFF0F766E),
           ),
           displayMedium: TextStyle(
             fontSize: 24,
             fontWeight: FontWeight.bold,
-            color: Color(0xFF2D5016),
+            color: Color(0xFF0F766E),
           ),
           bodyLarge: TextStyle(
             fontSize: 18,
@@ -119,7 +120,7 @@ class DailyDuaApp extends StatelessWidget {
         // Button theme
         elevatedButtonTheme: ElevatedButtonThemeData(
           style: ElevatedButton.styleFrom(
-            backgroundColor: const Color(0xFF6B8E23),
+            backgroundColor: const Color(0xFF0D9488),
             foregroundColor: Colors.white,
             padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 12),
             shape: RoundedRectangleBorder(
@@ -140,10 +141,10 @@ class DailyDuaApp extends StatelessWidget {
         
         // Color scheme
         colorScheme: ColorScheme.fromSeed(
-          seedColor: const Color(0xFF6B8E23),
-          primary: const Color(0xFF6B8E23),
-          secondary: const Color(0xFF8FBC8F),
-          surface: const Color(0xFFF5F5DC),
+          seedColor: const Color(0xFF0D9488),
+          primary: const Color(0xFF0D9488),
+          secondary: const Color(0xFF14B8A6),
+          surface: const Color(0xFFF0FDFA),
         ),
       ),
       
@@ -169,6 +170,7 @@ class _MainNavigationScreenState extends State<MainNavigationScreen> {
     const HomeScreen(),
     const RamadanScreen(),
     const MessagesScreen(),
+    const ReligiousDaysScreen(),
   ];
 
   void _onItemTapped(int index) {
@@ -185,7 +187,7 @@ class _MainNavigationScreenState extends State<MainNavigationScreen> {
         currentIndex: _selectedIndex,
         onTap: _onItemTapped,
         type: BottomNavigationBarType.fixed,
-        backgroundColor: const Color(0xFF6B8E23),
+        backgroundColor: const Color(0xFF0D9488),
         selectedItemColor: Colors.white,
         unselectedItemColor: Colors.white70,
         selectedFontSize: 14,
@@ -203,6 +205,10 @@ class _MainNavigationScreenState extends State<MainNavigationScreen> {
           BottomNavigationBarItem(
             icon: Icon(Icons.celebration),
             label: 'Mesajlar',
+          ),
+          BottomNavigationBarItem(
+            icon: Icon(Icons.calendar_month),
+            label: 'Dini Günler',
           ),
         ],
       ),

@@ -142,7 +142,7 @@ class DailyReminderService {
       
       final notificationService = NotificationService();
       if (enabled) {
-        // Schedule notifications if enabling (morning and evening)
+        // Schedule notifications if enabling (09:00, 12:00, 18:00)
         await initializeDailyReminder();
       } else {
         // Cancel all notifications if disabling
@@ -164,13 +164,13 @@ class DailyReminderService {
   }
 
   /// Set reminder time (format: "HH:mm")
-  /// Note: This now schedules both morning (9:00) and evening (18:00) reminders
+  /// Note: Schedules reminders at 09:00, 12:00, and 18:00
   Future<void> setReminderTime(String time) async {
     try {
       final prefs = await SharedPreferences.getInstance();
       await prefs.setString(_keyReminderTime, time);
       
-      // Schedule both morning and evening reminders
+      // Schedule all daily reminders (09:00, 12:00, 18:00)
       final notificationService = NotificationService();
       await notificationService.scheduleDailyReminders(null);
     } catch (e) {
@@ -178,7 +178,7 @@ class DailyReminderService {
     }
   }
   
-  /// Initialize daily reminder notifications (morning and evening)
+  /// Initialize daily reminder notifications (09:00, 12:00, 18:00)
   Future<void> initializeDailyReminder() async {
     try {
       final reminderEnabled = await isReminderEnabled();
@@ -189,7 +189,7 @@ class DailyReminderService {
         if (!success) {
           print('⚠️ Could not schedule notifications - permissions may be missing');
         } else {
-          print('✅ Daily reminders initialized: 09:00 and 18:00');
+          print('✅ Daily reminders initialized: 09:00, 12:00, 18:00');
         }
       }
     } catch (e) {

@@ -47,9 +47,15 @@ class GreetingService {
     }
   }
 
-  /// Dua-Dhikr API'den günlük dua/zikir mesajları yükle
+  /// Günlük dua/zikir: Önce JSON'dan (Türkçe) yükle; yoksa API'den dene (İngilizce)
   Future<void> _loadApiMessages() async {
     if (_apiMessagesLoaded) return;
+    // JSON'da günlük_dua varsa (Türkçe mesajlar) API'yi atla - anlamlı Türkçe içerik öncelikli
+    if (_messages.containsKey('günlük_dua') && _messages['günlük_dua']!.isNotEmpty) {
+      _apiMessagesLoaded = true;
+      print('✅ Günlük dua: Türkçe mesajlar kullanılıyor (${_messages['günlük_dua']!.length} adet)');
+      return;
+    }
     try {
       final duas = await _duaApi.fetchDuasFromCategory('daily-dua');
       if (duas.isNotEmpty) {

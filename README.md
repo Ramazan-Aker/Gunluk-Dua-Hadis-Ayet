@@ -224,8 +224,8 @@ daily_dua_hadith/
 To change the app colors, edit `lib/main.dart`:
 
 ```dart
-primaryColor: const Color(0xFF6B8E23),  // Main green color
-scaffoldBackgroundColor: const Color(0xFFF5F5DC),  // Beige background
+primaryColor: const Color(0xFF0D9488),  // Main teal color
+scaffoldBackgroundColor: const Color(0xFFF0FDFA),  // Light mint background
 ```
 
 ### Fonts

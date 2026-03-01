@@ -83,7 +83,7 @@ class GreetingShareableCard extends StatelessWidget {
           fit: BoxFit.cover,
           fadeInDuration: const Duration(milliseconds: 300),
           placeholder: (_, __) => Container(
-            color: const Color(0xFFE8F0E8),
+            color: const Color(0xFFCCFBF1),
           ),
           errorWidget: (_, __, ___) => const SizedBox.shrink(),
         ),
@@ -128,9 +128,9 @@ class GreetingShareableCard extends StatelessWidget {
       decoration: BoxDecoration(
         gradient: LinearGradient(
           colors: [
-            const Color(0xFFE8F0E8),
-            const Color(0xFFF5F7F0),
-            const Color(0xFFE0EDE0),
+            const Color(0xFFCCFBF1),
+            const Color(0xFFF0FDFA),
+            const Color(0xFF99F6E4),
           ],
           begin: Alignment.topCenter,
           end: Alignment.bottomCenter,
@@ -150,7 +150,7 @@ class GreetingShareableCard extends StatelessWidget {
               child: Icon(
                 Icons.mosque,
                 size: 200,
-                color: const Color(0xFF4A5D4A),
+                color: const Color(0xFF0F766E),
               ),
             ),
           ),
@@ -159,13 +159,13 @@ class GreetingShareableCard extends StatelessWidget {
             top: 50,
             left: 50,
             child: Icon(Icons.local_florist,
-                size: 55, color: const Color(0xFF6B8E23).withValues(alpha: 0.5)),
+                size: 55, color: const Color(0xFF0D9488).withValues(alpha: 0.5)),
           ),
           Positioned(
             bottom: 100,
             right: 55,
             child: Icon(Icons.local_florist,
-                size: 42, color: const Color(0xFF8FBC8F).withValues(alpha: 0.5)),
+                size: 42, color: const Color(0xFF14B8A6).withValues(alpha: 0.5)),
           ),
           // Main content - görsel varsa altta karartılmış alan üzerinde beyaz metin
           imageUrl != null && imageUrl!.isNotEmpty
@@ -178,7 +178,7 @@ class GreetingShareableCard extends StatelessWidget {
                       mainAxisSize: MainAxisSize.min,
                       mainAxisAlignment: MainAxisAlignment.center,
                       children: [
-                        _buildMessageContent(38, const Color(0xFF1a3d1a), hasImage: true),
+                        _buildMessageContent(38, const Color(0xFF0F766E), hasImage: true),
                         const SizedBox(height: 40),
                         _appBadge(compact: true, onDark: true),
                       ],
@@ -192,7 +192,7 @@ class GreetingShareableCard extends StatelessWidget {
                       mainAxisAlignment: MainAxisAlignment.center,
                       mainAxisSize: MainAxisSize.min,
                       children: [
-                        _buildMessageContent(40, const Color(0xFF2D5016)),
+                        _buildMessageContent(40, const Color(0xFF0F766E)),
                         const SizedBox(height: 60),
                         _appBadge(),
                       ],

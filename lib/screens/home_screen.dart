@@ -1,5 +1,5 @@
 import 'package:flutter/material.dart';
-import 'package:flutter/foundation.dart' show kDebugMode;
+import 'package:shared_preferences/shared_preferences.dart';
 import 'package:widgets_to_image/widgets_to_image.dart';
 import 'package:share_plus/share_plus.dart';
 import 'package:path_provider/path_provider.dart';
@@ -28,7 +28,6 @@ class _HomeScreenState extends State<HomeScreen> {
   DailyItem? _currentItem;
   bool _isLoading = true;
   bool _isRefreshing = false;
-  bool _isUsingApi = false;
   bool _isSharing = false;
   bool _isRead = false;
   int _readingStreak = 0;
@@ -39,7 +38,6 @@ class _HomeScreenState extends State<HomeScreen> {
   void initState() {
     super.initState();
     _loadDailyItem();
-    _checkApiStatus();
     _checkReadingStatus();
     _showReminderIfNeeded();
     
@@ -59,17 +57,76 @@ class _HomeScreenState extends State<HomeScreen> {
   }
   
   /// Setup notifications and request necessary permissions
+  /// Shows value proposition dialog on first launch for better opt-in rate
   Future<void> _setupNotificationsAndPermissions() async {
     try {
       final notificationService = NotificationService();
-      
-      // Schedule daily reminders (morning and evening)
-      await notificationService.scheduleDailyReminders(context);
-      print('✅ Daily reminders scheduled');
-      
-      // Don't request battery optimization automatically - it's too intrusive
-      // Users can check notification settings in debug mode if needed
-      // await notificationService.requestBatteryOptimizationExemption(context);
+      final prefs = await SharedPreferences.getInstance();
+      const key = 'notification_prompt_shown';
+
+      // Check if we need to show the value proposition dialog (first launch)
+      final hasShownPrompt = prefs.getBool(key) ?? false;
+      final hasPermission = await notificationService.areNotificationsEnabled();
+
+      if (!hasShownPrompt && !hasPermission && mounted) {
+        // Show friendly dialog explaining why notifications help
+        final shouldRequest = await showDialog<bool>(
+          context: context,
+          barrierDismissible: false,
+          builder: (ctx) => AlertDialog(
+            title: const Row(
+              children: [
+                Icon(Icons.notifications_active, color: Color(0xFF0D9488), size: 28),
+                SizedBox(width: 12),
+                Text('Bildirimler', style: TextStyle(fontSize: 20)),
+              ],
+            ),
+            content: const Text(
+              'Günlük duayı, hadisi veya ayeti kaçırmamak için bildirimlere izin verin.\n\n'
+              '🌅 Sabah 09:00\n'
+              '📖 Öğle 12:00\n'
+              '🌙 Akşam 18:00\n\n'
+              'Her gün 3 kez hatırlatma alacaksınız.',
+              style: TextStyle(fontSize: 16, height: 1.5),
+            ),
+            actions: [
+              TextButton(
+                onPressed: () => Navigator.of(ctx).pop(false),
+                child: const Text('Daha Sonra'),
+              ),
+              ElevatedButton(
+                onPressed: () => Navigator.of(ctx).pop(true),
+                style: ElevatedButton.styleFrom(backgroundColor: const Color(0xFF0D9488)),
+                child: const Text('Bildirimleri Aç'),
+              ),
+            ],
+          ),
+        );
+        await prefs.setBool(key, true);
+
+        if (shouldRequest == true) {
+          final granted = await notificationService.requestPermission();
+          if (granted) {
+            await notificationService.scheduleDailyReminders(context);
+            print('✅ Daily reminders scheduled');
+            if (mounted) {
+              ScaffoldMessenger.of(context).showSnackBar(
+                const SnackBar(
+                  content: Text('Bildirimler açıldı. Sabah ve akşam hatırlatma alacaksınız.'),
+                  backgroundColor: Colors.green,
+                  duration: Duration(seconds: 3),
+                ),
+              );
+            }
+          }
+        }
+      } else {
+        // Already asked or has permission - just schedule
+        await notificationService.scheduleDailyReminders(context);
+        if (hasPermission) {
+          print('✅ Daily reminders scheduled');
+        }
+      }
     } catch (e) {
       print('❌ Error setting up notifications: $e');
     }
@@ -137,7 +194,7 @@ class _HomeScreenState extends State<HomeScreen> {
                   style: TextStyle(
                     fontSize: 20,
                     fontWeight: FontWeight.bold,
-                    color: Color(0xFF2D5016),
+                    color: Color(0xFF0F766E),
                   ),
                 ),
               ),
@@ -159,14 +216,14 @@ class _HomeScreenState extends State<HomeScreen> {
                 Container(
                   padding: const EdgeInsets.all(12),
                   decoration: BoxDecoration(
-                    color: const Color(0xFFE8F5E9),
+                    color: const Color(0xFFCCFBF1),
                     borderRadius: BorderRadius.circular(12),
                   ),
                   child: Row(
                     children: [
                       const Icon(
                         Icons.local_fire_department,
-                        color: Color(0xFF4CAF50),
+                        color: Color(0xFFF59E0B),
                         size: 20,
                       ),
                       const SizedBox(width: 8),
@@ -176,7 +233,7 @@ class _HomeScreenState extends State<HomeScreen> {
                           style: const TextStyle(
                             fontSize: 14,
                             fontWeight: FontWeight.w600,
-                            color: Color(0xFF2D5016),
+                            color: Color(0xFF0F766E),
                           ),
                         ),
                       ),
@@ -192,7 +249,7 @@ class _HomeScreenState extends State<HomeScreen> {
               },
               child: const Text(
                 'Daha Sonra',
-                style: TextStyle(color: Color(0xFF6B8E23)),
+                style: TextStyle(color: Color(0xFF0D9488)),
               ),
             ),
             ElevatedButton(
@@ -201,7 +258,7 @@ class _HomeScreenState extends State<HomeScreen> {
                 _markAsRead();
               },
               style: ElevatedButton.styleFrom(
-                backgroundColor: const Color(0xFF6B8E23),
+                backgroundColor: const Color(0xFF0D9488),
                 foregroundColor: Colors.white,
               ),
               child: const Text('Okudum'),
@@ -244,19 +301,11 @@ class _HomeScreenState extends State<HomeScreen> {
               ),
             ],
           ),
-          backgroundColor: const Color(0xFF4CAF50),
+          backgroundColor: const Color(0xFF14B8A6),
           duration: const Duration(seconds: 3),
         ),
       );
     }
-  }
-
-  /// Check if API is being used
-  Future<void> _checkApiStatus() async {
-    final usingApi = await _dataService.isUsingApi();
-    setState(() {
-      _isUsingApi = usingApi;
-    });
   }
 
   /// Load the daily item
@@ -269,13 +318,11 @@ class _HomeScreenState extends State<HomeScreen> {
 
     try {
       final item = await _dataService.getDailyItem(forceRefresh: forceRefresh);
-      final usingApi = await _dataService.isUsingApi();
       
       setState(() {
         _currentItem = item;
         _isLoading = false;
         _isRefreshing = false;
-        _isUsingApi = usingApi;
       });
       
       // Check reading status after loading item
@@ -330,156 +377,6 @@ class _HomeScreenState extends State<HomeScreen> {
     }
   }
 
-  /// Show notification settings and test dialog
-  Future<void> _showNotificationSettings() async {
-    final notificationService = NotificationService();
-    final pendingNotifications = await notificationService.getPendingNotifications();
-    final reminderEnabled = await _reminderService.isReminderEnabled();
-    final notificationsEnabled = await notificationService.areNotificationsEnabled();
-    
-    if (!mounted) return;
-    
-    showDialog(
-      context: context,
-      builder: (BuildContext dialogContext) {
-        return AlertDialog(
-          title: const Row(
-            children: [
-              Icon(Icons.notifications_active, color: Color(0xFF6B8E23)),
-              SizedBox(width: 8),
-              Text('Bildirim Ayarları'),
-            ],
-          ),
-          content: SingleChildScrollView(
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                // Status information
-                _buildInfoRow('Sistem Bildirimleri:', notificationsEnabled ? '✅ Açık' : '❌ Kapalı'),
-                const SizedBox(height: 8),
-                _buildInfoRow('Hatırlatıcılar:', reminderEnabled ? '✅ Aktif' : '❌ Pasif'),
-                const SizedBox(height: 8),
-                _buildInfoRow('Planlanan Bildirimler:', '${pendingNotifications.length} adet'),
-                const Divider(height: 24),
-                
-                // Scheduled notifications list
-                if (pendingNotifications.isNotEmpty) ...[
-                  const Text(
-                    'Planlanan Bildirimler:',
-                    style: TextStyle(fontWeight: FontWeight.bold),
-                  ),
-                  const SizedBox(height: 8),
-                  ...pendingNotifications.map((notification) => Padding(
-                    padding: const EdgeInsets.only(bottom: 4.0),
-                    child: Text(
-                      '• ID: ${notification.id} - ${notification.title ?? "Bildirim"}',
-                      style: const TextStyle(fontSize: 12),
-                    ),
-                  )),
-                  const Divider(height: 24),
-                ],
-                
-                // Help text
-                const Text(
-                  'Bildirim Zamanları:\n'
-                  '🌅 Sabah: 09:00\n'
-                  '🌙 Akşam: 18:00',
-                  style: TextStyle(fontSize: 13, color: Colors.black54),
-                ),
-                const SizedBox(height: 12),
-                const Text(
-                  'Not: Bildirimlerin düzgün çalışması için:\n'
-                  '1. Sistem bildirim izni verilmeli\n'
-                  '2. Tam zamanlı alarm izni verilmeli\n'
-                  '3. Batarya optimizasyonlarından muaf tutulmalı',
-                  style: TextStyle(fontSize: 11, color: Colors.red, fontStyle: FontStyle.italic),
-                ),
-              ],
-            ),
-          ),
-          actions: [
-            // Test immediate notification button
-            TextButton.icon(
-              onPressed: () async {
-                try {
-                  await notificationService.showNotification(
-                    title: 'Test Bildirimi',
-                    body: 'Bildirimler çalışıyor! ✅',
-                  );
-                  if (dialogContext.mounted) {
-                    ScaffoldMessenger.of(context).showSnackBar(
-                      const SnackBar(
-                        content: Text('✅ Test bildirimi gönderildi!'),
-                        backgroundColor: Colors.green,
-                      ),
-                    );
-                  }
-                } catch (e) {
-                  if (dialogContext.mounted) {
-                    ScaffoldMessenger.of(context).showSnackBar(
-                      SnackBar(
-                        content: Text('❌ Hata: $e'),
-                        backgroundColor: Colors.red,
-                      ),
-                    );
-                  }
-                }
-              },
-              icon: const Icon(Icons.send),
-              label: const Text('Şimdi Gönder'),
-            ),
-            // Test delayed notification button
-            TextButton.icon(
-              onPressed: () async {
-                try {
-                  await notificationService.showTestNotificationAfter5Seconds();
-                  if (dialogContext.mounted) {
-                    ScaffoldMessenger.of(context).showSnackBar(
-                      const SnackBar(
-                        content: Text('⏰ 5 saniye sonra bildirim gelecek!'),
-                        backgroundColor: Colors.orange,
-                      ),
-                    );
-                  }
-                } catch (e) {
-                  if (dialogContext.mounted) {
-                    ScaffoldMessenger.of(context).showSnackBar(
-                      SnackBar(
-                        content: Text('❌ Hata: $e'),
-                        backgroundColor: Colors.red,
-                      ),
-                    );
-                  }
-                }
-              },
-              icon: const Icon(Icons.schedule),
-              label: const Text('5 sn sonra'),
-            ),
-            // Close button
-            ElevatedButton(
-              onPressed: () => Navigator.of(dialogContext).pop(),
-              style: ElevatedButton.styleFrom(
-                backgroundColor: const Color(0xFF6B8E23),
-              ),
-              child: const Text('Kapat'),
-            ),
-          ],
-        );
-      },
-    );
-  }
-  
-  Widget _buildInfoRow(String label, String value) {
-    return Row(
-      mainAxisAlignment: MainAxisAlignment.spaceBetween,
-      children: [
-        Text(label, style: const TextStyle(fontWeight: FontWeight.w500)),
-        Text(value, style: const TextStyle(color: Colors.black87)),
-      ],
-    );
-  }
-  
   /// Refresh data from API
   Future<void> _refreshData() async {
     setState(() {
@@ -596,28 +493,7 @@ class _HomeScreenState extends State<HomeScreen> {
     }
 
     try {
-      // Show loading indicator
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-            content: Row(
-              children: [
-                SizedBox(
-                  width: 20,
-                  height: 20,
-                  child: CircularProgressIndicator(
-                    strokeWidth: 2,
-                    valueColor: AlwaysStoppedAnimation<Color>(Colors.white),
-                  ),
-                ),
-                SizedBox(width: 12),
-                Text('Kart görseli oluşturuluyor...'),
-              ],
-            ),
-            duration: Duration(seconds: 3),
-          ),
-        );
-      }
+      // Yükleme göstergesi sadece Paylaş butonunda (Oluşturuluyor...) - SnackBar yok
 
       // Show overlay with shareable card
       if (!mounted) return;
@@ -687,7 +563,6 @@ class _HomeScreenState extends State<HomeScreen> {
 
         // Show success message
         if (mounted) {
-          ScaffoldMessenger.of(context).hideCurrentSnackBar();
           ScaffoldMessenger.of(context).showSnackBar(
             const SnackBar(
               content: Text('✅ Kart görsel olarak paylaşıldı!'),
@@ -765,12 +640,19 @@ Günlük Dua & Hadis Uygulamasından paylaşıldı
               ),
             ),
             if (_readingStreak > 0)
-              Text(
-                '🔥 $_readingStreak gün',
-                style: const TextStyle(
-                  fontSize: 12,
-                  fontWeight: FontWeight.normal,
-                ),
+              Row(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  const Icon(Icons.local_fire_department, color: Color(0xFFF59E0B), size: 16),
+                  const SizedBox(width: 4),
+                  Text(
+                    '$_readingStreak gün',
+                    style: const TextStyle(
+                      fontSize: 12,
+                      fontWeight: FontWeight.normal,
+                    ),
+                  ),
+                ],
               ),
           ],
         ),
@@ -779,54 +661,19 @@ Günlük Dua & Hadis Uygulamasından paylaşıldı
         flexibleSpace: Container(
           decoration: const BoxDecoration(
             gradient: LinearGradient(
-              colors: [Color(0xFF6B8E23), Color(0xFF8FBC8F)],
+              colors: [Color(0xFF0D9488), Color(0xFF14B8A6)],
               begin: Alignment.topLeft,
               end: Alignment.bottomRight,
             ),
           ),
         ),
-        actions: [
-          // Notification settings button (only in debug mode)
-          if (kDebugMode)
-            IconButton(
-              icon: const Icon(Icons.notifications_outlined),
-              onPressed: _showNotificationSettings,
-              tooltip: 'Bildirim Ayarları (Debug)',
-            ),
-          // Refresh button
-          IconButton(
-            icon: _isRefreshing
-                ? const SizedBox(
-                    width: 20,
-                    height: 20,
-                    child: CircularProgressIndicator(
-                      strokeWidth: 2,
-                      valueColor: AlwaysStoppedAnimation<Color>(Colors.white),
-                    ),
-                  )
-                : const Icon(Icons.refresh),
-            onPressed: _isRefreshing ? null : _refreshData,
-            tooltip: 'Yenile',
-          ),
-          // API status indicator
-          Padding(
-            padding: const EdgeInsets.only(right: 8.0),
-            child: Center(
-              child: Icon(
-                _isUsingApi ? Icons.cloud_done : Icons.cloud_off,
-                size: 20,
-                color: _isUsingApi ? Colors.lightGreenAccent : Colors.orangeAccent,
-              ),
-            ),
-          ),
-        ],
       ),
       
       // Body with gradient background
       body: Container(
         decoration: const BoxDecoration(
           gradient: LinearGradient(
-            colors: [Color(0xFFF5F5DC), Color(0xFFE8F5E9)],
+            colors: [Color(0xFFF0FDFA), Color(0xFFCCFBF1)],
             begin: Alignment.topCenter,
             end: Alignment.bottomCenter,
           ),
@@ -912,7 +759,7 @@ Günlük Dua & Hadis Uygulamasından paylaşıldı
               ElevatedButton(
                 onPressed: () => _loadDailyItem(),
                 style: ElevatedButton.styleFrom(
-                  backgroundColor: const Color(0xFF6B8E23),
+                  backgroundColor: const Color(0xFF0D9488),
                   foregroundColor: Colors.white,
                 ),
                 child: const Text('Tekrar Dene'),
@@ -923,7 +770,7 @@ Günlük Dua & Hadis Uygulamasından paylaşıldı
                 icon: const Icon(Icons.refresh, size: 18),
                 label: const Text('Yenile'),
                 style: ElevatedButton.styleFrom(
-                  backgroundColor: const Color(0xFF8FBC8F),
+                  backgroundColor: const Color(0xFFF59E0B),
                   foregroundColor: Colors.white,
                 ),
               ),
