@@ -34,10 +34,7 @@ class PixabayImageService {
   /// [categoryId] - Mesaj kategorisi (cuma, mevlid, ramazan_bayrami vb.)
   /// [messageId] - Mesaj ID'si (her mesajda farklı görsel için). Boşsa rastgele.
   Future<String?> fetchRandomImage(String categoryId, {String? messageId}) async {
-    if (apiKey.isEmpty) {
-      print('⚠️ Pixabay API key tanımlı değil');
-      return null;
-    }
+    if (apiKey.isEmpty) return null;
 
     final cacheKey = messageId != null && messageId.isNotEmpty
         ? '${categoryId}_$messageId'
@@ -64,10 +61,7 @@ class PixabayImageService {
 
         final response = await http.get(uri).timeout(_timeout);
 
-        if (response.statusCode != 200) {
-          print('❌ Pixabay API: ${response.statusCode}');
-          return null;
-        }
+        if (response.statusCode != 200) return null;
 
         final data = json.decode(response.body);
         final hits = data['hits'] as List? ?? [];
@@ -87,7 +81,6 @@ class PixabayImageService {
       }
       return null;
     } catch (e) {
-      print('❌ Pixabay hatası: $e');
       return null;
     }
   }

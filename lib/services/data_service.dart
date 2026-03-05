@@ -38,7 +38,6 @@ class DataService {
       final cachedItems = await _loadCachedItems();
       if (cachedItems != null && cachedItems.isNotEmpty) {
         _items = cachedItems;
-        print('✅ Loaded ${_items.length} items from cache');
         return;
       }
     }
@@ -71,17 +70,14 @@ class DataService {
             .map((json) => DailyItem.fromJson(json))
             .where((item) => item.type != 'ayah') // Remove local ayahs
             .toList();
-        print('✅ Loaded ${_items.length} items from local JSON (hadith & dua only, ayahs from Quran API)');
       } else {
         _items = jsonList.map((json) => DailyItem.fromJson(json)).toList();
-        print('✅ Loaded ${_items.length} items from local JSON (all types)');
       }
       
       await SharedPreferences.getInstance().then((prefs) {
         prefs.setBool(_keyUseApi, false);
       });
     } catch (e) {
-      print('❌ Error loading data from local JSON: $e');
       _items = [];
     }
   }
@@ -108,9 +104,7 @@ class DataService {
           await prefs.remove(_keyCacheDate);
         }
       }
-    } catch (e) {
-      print('⚠️ Error loading cached items: $e');
-    }
+    } catch (e) {}
     return null;
   }
 
@@ -131,21 +125,15 @@ class DataService {
       // If ayah and Quran API enabled, fetch from API
       if (selectedType == 'ayah' && _useQuranApi) {
         try {
-          print('🕌 Fetching daily ayah from Quran API...');
           final ayah = await _quranApiService.fetchRandomAyah();
           if (ayah != null) {
             _currentItem = ayah;
             await prefs.setString(_keyLastDate, today);
             await prefs.setString('last_type', 'ayah');
             await prefs.setString('last_item_api', 'true');
-            print('✅ Daily ayah fetched from Quran API: ${ayah.source}');
             return ayah;
-          } else {
-            print('⚠️ Quran API returned null, falling back to local items');
           }
-        } catch (e) {
-          print('❌ Failed to fetch ayah from Quran API: $e, falling back to local');
-        }
+        } catch (e) {}
       }
 
       // Load local items if empty
@@ -170,8 +158,6 @@ class DataService {
       await prefs.setInt(_keyLastItemIndex, newIndex);
       await prefs.setStringList(_keyShownItems, [newIndex.toString()]);
       await prefs.setString('last_item_api', 'false');
-      
-      print('📅 New day! Showing ${selectedType} #$newIndex');
     } else {
       // Same day - load saved item
       final String? lastItemApi = prefs.getString('last_item_api');
@@ -208,18 +194,12 @@ class DataService {
     // If type is 'ayah' and Quran API is enabled, fetch from API
     if (actualType == 'ayah' && _useQuranApi) {
       try {
-        print('🕌 Fetching random ayah from Quran API...');
         final ayah = await _quranApiService.fetchRandomAyah();
         if (ayah != null) {
           _currentItem = ayah;
-          print('✅ Random ayah fetched from Quran API: ${ayah.source}');
           return ayah;
-        } else {
-          print('⚠️ Quran API returned null, falling back to local');
         }
-      } catch (e) {
-        print('❌ Failed to fetch ayah from Quran API: $e, falling back to local');
-      }
+      } catch (e) {}
     }
 
     // Load local items if empty
@@ -263,7 +243,6 @@ class DataService {
     shownItems.add(randomIndex);
     await prefs.setStringList(_keyShownItems, shownItems.map((i) => i.toString()).toList());
 
-    print('🎲 Random item selected (type: ${_currentItem!.type})');
     return _currentItem;
   }
 
@@ -279,7 +258,6 @@ class DataService {
       await loadData(forceRefresh: true);
       return _items.isNotEmpty;
     } catch (e) {
-      print('❌ Error refreshing data: $e');
       return false;
     }
   }

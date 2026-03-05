@@ -9,8 +9,7 @@
     <uses-permission android:name="android.permission.POST_NOTIFICATIONS"/>
     <!-- SCHEDULE_EXACT_ALARM: For exact time notifications (optional, falls back to inexact if not granted) -->
     <uses-permission android:name="android.permission.SCHEDULE_EXACT_ALARM"/>
-    <!-- USE_FULL_SCREEN_INTENT: For showing notifications even in Doze mode -->
-    <uses-permission android:name="android.permission.USE_FULL_SCREEN_INTENT"/>
+    <!-- USE_FULL_SCREEN_INTENT removed - Play Store restricts this to alarm/calling apps -->
     <!-- WAKE_LOCK: Required for waking device for notifications -->
     <uses-permission android:name="android.permission.WAKE_LOCK"/>
     <!-- RECEIVE_BOOT_COMPLETED: Required for rescheduling notifications after device reboot -->
@@ -21,7 +20,7 @@
     <uses-permission android:name="android.permission.VIBRATE"/>
     
    <application
-        android:label="Günlük Dua &amp; Hadis"
+        android:label="Her Gün İslam"
         android:name="${applicationName}"
         android:icon="@mipmap/ic_launcher">
         

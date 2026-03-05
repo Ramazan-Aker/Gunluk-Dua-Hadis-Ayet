@@ -88,7 +88,6 @@ class _RamadanScreenState extends State<RamadanScreen> {
         });
       }
     } catch (e) {
-      print('❌ Error loading saved city: $e');
       setState(() {
         _isLoading = false;
         _errorMessage = 'Şehir bilgisi yüklenemedi';
@@ -109,7 +108,6 @@ class _RamadanScreenState extends State<RamadanScreen> {
         parameters: {AnalyticsParams.cityName: city.name},
       );
     } catch (e) {
-      print('❌ Error saving city: $e');
     }
   }
 
@@ -178,7 +176,6 @@ class _RamadanScreenState extends State<RamadanScreen> {
         },
       );
     } catch (e) {
-      print('❌ Error loading prayer times: $e');
       setState(() {
         _isLoading = false;
         _errorMessage = 'Namaz vakitleri yüklenirken hata oluştu: ${e.toString()}';
@@ -459,10 +456,14 @@ class _RamadanScreenState extends State<RamadanScreen> {
               SliverList(
                 delegate: SliverChildBuilderDelegate(
                   (context, index) {
+                    final horizontalPadding = MediaQuery.of(context).size.width < 360 ? 12.0 : 20.0;
                     return Container(
                       margin: const EdgeInsets.symmetric(horizontal: 16),
                       color: Colors.white,
-                      child: _buildTableRow(_prayerTimesList[index], index),
+                      child: Padding(
+                        padding: EdgeInsets.symmetric(horizontal: horizontalPadding),
+                        child: _buildTableRow(_prayerTimesList[index], index),
+                      ),
                     );
                   },
                   childCount: _prayerTimesList.length,
@@ -505,18 +506,26 @@ class _RamadanScreenState extends State<RamadanScreen> {
         mainAxisSize: MainAxisSize.min,
         children: [
           Padding(
-            padding: const EdgeInsets.fromLTRB(20, 20, 20, 16),
+            padding: EdgeInsets.fromLTRB(
+              MediaQuery.of(context).size.width < 360 ? 12 : 20,
+              20,
+              MediaQuery.of(context).size.width < 360 ? 12 : 20,
+              16,
+            ),
             child: Text(
               '${_selectedCity?.name ?? ''} İmsakiye ${_apiService.getCurrentRamadanYear()}',
-              style: const TextStyle(
-                fontSize: 18,
+              style: TextStyle(
+                fontSize: MediaQuery.of(context).size.width < 360 ? 16 : 18,
                 fontWeight: FontWeight.bold,
-                color: Color(0xFF0F766E),
+                color: const Color(0xFF0F766E),
               ),
+              overflow: TextOverflow.ellipsis,
             ),
           ),
           Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 20),
+            padding: EdgeInsets.symmetric(
+              horizontal: MediaQuery.of(context).size.width < 360 ? 12 : 20,
+            ),
             child: _buildTableHeader(),
           ),
           const Divider(height: 1, thickness: 1),
@@ -549,15 +558,22 @@ class _RamadanScreenState extends State<RamadanScreen> {
     );
   }
 
-  /// Build today's prayer times card
+  /// Build today's prayer times card - responsive for different screen sizes
   Widget _buildTodaysPrayerTimesCard() {
     if (_todaysPrayerTimes == null) return const SizedBox.shrink();
     
     final pt = _todaysPrayerTimes!;
+    final mediaQuery = MediaQuery.of(context);
+    final screenWidth = mediaQuery.size.width;
+    final isSmallScreen = screenWidth < 360 || mediaQuery.size.height < 600;
+    
+    final cardPadding = isSmallScreen ? 10.0 : 16.0;
+    final titleFontSize = isSmallScreen ? 15.0 : 17.0;
+    final spacing = isSmallScreen ? 10.0 : 16.0;
     
     return Container(
-      margin: const EdgeInsets.symmetric(horizontal: 16),
-      padding: const EdgeInsets.all(20),
+      margin: EdgeInsets.symmetric(horizontal: isSmallScreen ? 12 : 16),
+      padding: EdgeInsets.all(cardPadding),
       decoration: BoxDecoration(
         color: Colors.white,
         borderRadius: BorderRadius.circular(20),
@@ -570,102 +586,130 @@ class _RamadanScreenState extends State<RamadanScreen> {
         ],
       ),
       child: Column(
+        mainAxisSize: MainAxisSize.min,
         children: [
           Text(
             'Bugünkü Vakitler - ${pt.dateLabel}',
-            style: const TextStyle(
-              fontSize: 18,
+            style: TextStyle(
+              fontSize: titleFontSize,
               fontWeight: FontWeight.bold,
-              color: Color(0xFF0F766E),
+              color: const Color(0xFF0F766E),
             ),
           ),
-          const SizedBox(height: 20),
-          GridView.count(
-            shrinkWrap: true,
-            physics: const NeverScrollableScrollPhysics(),
-            crossAxisCount: 2,
-            childAspectRatio: 2.5,
-            crossAxisSpacing: 12,
-            mainAxisSpacing: 12,
-            children: [
-              _buildPrayerTimeItem('İmsak', pt.imsak, Icons.bedtime, isSpecial: true),
-              _buildPrayerTimeItem('Güneş', pt.gunes, Icons.wb_sunny),
-              _buildPrayerTimeItem('Öğle', pt.ogle, Icons.light_mode),
-              _buildPrayerTimeItem('İkindi', pt.ikindi, Icons.brightness_6),
-              _buildPrayerTimeItem('Akşam', pt.aksam, Icons.nightlight, isIftar: true),
-              _buildPrayerTimeItem('Yatsı', pt.yatsi, Icons.dark_mode),
-            ],
-          ),
+          SizedBox(height: spacing),
+          // Column+Row - overflow önlemek için GridView yerine (sabit aspect ratio sorun çıkarıyordu)
+          Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Row(
+                  children: [
+                    Expanded(child: _buildPrayerTimeItem(context, 'İmsak', pt.imsak, Icons.bedtime, isSpecial: true)),
+                    SizedBox(width: isSmallScreen ? 8 : 10),
+                    Expanded(child: _buildPrayerTimeItem(context, 'Güneş', pt.gunes, Icons.wb_sunny)),
+                  ],
+                ),
+                SizedBox(height: isSmallScreen ? 8 : 10),
+                Row(
+                  children: [
+                    Expanded(child: _buildPrayerTimeItem(context, 'Öğle', pt.ogle, Icons.light_mode)),
+                    SizedBox(width: isSmallScreen ? 8 : 10),
+                    Expanded(child: _buildPrayerTimeItem(context, 'İkindi', pt.ikindi, Icons.brightness_6)),
+                  ],
+                ),
+                SizedBox(height: isSmallScreen ? 8 : 10),
+                Row(
+                  children: [
+                    Expanded(child: _buildPrayerTimeItem(context, 'Akşam', pt.aksam, Icons.nightlight, isIftar: true)),
+                    SizedBox(width: isSmallScreen ? 8 : 10),
+                    Expanded(child: _buildPrayerTimeItem(context, 'Yatsı', pt.yatsi, Icons.dark_mode)),
+                  ],
+                ),
+              ],
+            ),
         ],
       ),
     );
   }
 
-  /// Build individual prayer time item
-  Widget _buildPrayerTimeItem(String name, String time, IconData icon, {bool isSpecial = false, bool isIftar = false}) {
+  /// Build individual prayer time item - responsive, overflow-safe
+  Widget _buildPrayerTimeItem(BuildContext context, String name, String time, IconData icon, {bool isSpecial = false, bool isIftar = false}) {
+    final isSmallScreen = MediaQuery.of(context).size.width < 360;
+    final iconSize = isSmallScreen ? 16.0 : 18.0;
+    final nameFontSize = isSmallScreen ? 10.0 : 11.0;
+    final timeFontSize = isSmallScreen ? 13.0 : 14.0;
+    final padding = isSmallScreen ? 4.0 : 6.0;
+    
     return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-      decoration: BoxDecoration(
-        color: isSpecial 
-            ? const Color(0xFFCCFBF1) 
-            : isIftar 
-                ? const Color(0xFFFFF3E0)
-                : const Color(0xFFF5F5F5),
-        borderRadius: BorderRadius.circular(12),
-        border: Border.all(
+        padding: EdgeInsets.symmetric(horizontal: 10, vertical: padding),
+        decoration: BoxDecoration(
           color: isSpecial 
-              ? const Color(0xFF0D9488)
-              : isIftar
-                  ? const Color(0xFFFF9800)
-                  : Colors.transparent,
-          width: 2,
-        ),
-      ),
-      child: Row(
-        children: [
-          Icon(
-            icon,
-            size: 20,
+              ? const Color(0xFFCCFBF1) 
+              : isIftar 
+                  ? const Color(0xFFFFF3E0)
+                  : const Color(0xFFF5F5F5),
+          borderRadius: BorderRadius.circular(10),
+          border: Border.all(
             color: isSpecial 
                 ? const Color(0xFF0D9488)
                 : isIftar
                     ? const Color(0xFFFF9800)
-                    : const Color(0xFF757575),
+                    : Colors.transparent,
+            width: 2,
           ),
-          const SizedBox(width: 8),
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              mainAxisAlignment: MainAxisAlignment.center,
-              children: [
-                Text(
-                  name,
-                  style: const TextStyle(
-                    fontSize: 12,
-                    fontWeight: FontWeight.w600,
-                    color: Color(0xFF2C3E50),
+        ),
+        child: FittedBox(
+          fit: BoxFit.scaleDown,
+          alignment: Alignment.centerLeft,
+          child: Row(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Icon(
+                icon,
+                size: iconSize,
+                color: isSpecial 
+                    ? const Color(0xFF0D9488)
+                    : isIftar
+                        ? const Color(0xFFFF9800)
+                        : const Color(0xFF757575),
+              ),
+              const SizedBox(width: 6),
+              Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                mainAxisSize: MainAxisSize.min,
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  Text(
+                    name,
+                    style: TextStyle(
+                      fontSize: nameFontSize,
+                      fontWeight: FontWeight.w600,
+                      color: const Color(0xFF2C3E50),
+                    ),
                   ),
-                ),
-                Text(
-                  time,
-                  style: const TextStyle(
-                    fontSize: 16,
-                    fontWeight: FontWeight.bold,
-                    color: Color(0xFF0F766E),
+                  Text(
+                    time,
+                    style: TextStyle(
+                      fontSize: timeFontSize,
+                      fontWeight: FontWeight.bold,
+                      color: const Color(0xFF0F766E),
+                    ),
                   ),
-                ),
-              ],
-            ),
+                ],
+              ),
+            ],
           ),
-        ],
-      ),
-    );
+        ),
+      );
   }
 
-  /// Build table header
+  /// Build table header - responsive padding
   Widget _buildTableHeader() {
+    final isSmallScreen = MediaQuery.of(context).size.width < 360;
     return Container(
-      padding: const EdgeInsets.symmetric(vertical: 8, horizontal: 4),
+      padding: EdgeInsets.symmetric(
+        vertical: isSmallScreen ? 6 : 8,
+        horizontal: isSmallScreen ? 2 : 4,
+      ),
       decoration: BoxDecoration(
         color: const Color(0xFF0D9488).withValues(alpha: 0.1),
         borderRadius: const BorderRadius.vertical(top: Radius.circular(8)),
@@ -684,18 +728,20 @@ class _RamadanScreenState extends State<RamadanScreen> {
     );
   }
 
-  /// Build header cell
+  /// Build header cell - responsive font size
   Widget _buildHeaderCell(String text, {int flex = 1}) {
+    final isSmallScreen = MediaQuery.of(context).size.width < 360;
     return Expanded(
       flex: flex,
       child: Text(
         text,
-        style: const TextStyle(
-          fontSize: 11,
+        style: TextStyle(
+          fontSize: isSmallScreen ? 9 : 11,
           fontWeight: FontWeight.bold,
-          color: Color(0xFF0F766E),
+          color: const Color(0xFF0F766E),
         ),
         textAlign: TextAlign.center,
+        overflow: TextOverflow.ellipsis,
       ),
     );
   }
@@ -707,8 +753,12 @@ class _RamadanScreenState extends State<RamadanScreen> {
     final ramadanDayNum = index + 1;
     final dateColumnText = '${ramadanDayNum}. Gün\n${prayerTime.fullDateLabel}';
 
+    final isSmallScreen = MediaQuery.of(context).size.width < 360;
     return Container(
-      padding: const EdgeInsets.symmetric(vertical: 8, horizontal: 4),
+      padding: EdgeInsets.symmetric(
+        vertical: isSmallScreen ? 6 : 8,
+        horizontal: isSmallScreen ? 2 : 4,
+      ),
       decoration: BoxDecoration(
         color: isToday
             ? const Color(0xFFCCFBF1)
@@ -740,15 +790,19 @@ class _RamadanScreenState extends State<RamadanScreen> {
     );
   }
 
-  /// Build data cell
+  /// Build data cell - responsive font size
   Widget _buildDataCell(String text,
       {int flex = 1, bool isBold = false, bool isMultiline = false}) {
+    final isSmallScreen = MediaQuery.of(context).size.width < 360;
+    final fontSize = isSmallScreen 
+        ? (isMultiline ? 9.0 : 10.0) 
+        : (isMultiline ? 10.0 : 11.0);
     return Expanded(
       flex: flex,
       child: Text(
         text,
         style: TextStyle(
-          fontSize: isMultiline ? 10 : 11,
+          fontSize: fontSize,
           fontWeight: isBold ? FontWeight.bold : FontWeight.normal,
           color: isBold ? const Color(0xFF0F766E) : const Color(0xFF2C3E50),
         ),
@@ -1113,7 +1167,10 @@ class _ImsakiyeHeaderDelegate extends SliverPersistentHeaderDelegate {
             left: 0,
             right: 0,
             height: _maxExtent,
-            child: child,
+            child: SingleChildScrollView(
+              physics: const ClampingScrollPhysics(),
+              child: child,
+            ),
           ),
         ],
       ),

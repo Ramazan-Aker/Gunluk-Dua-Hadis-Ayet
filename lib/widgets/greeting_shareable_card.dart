@@ -382,7 +382,7 @@ class GreetingShareableCard extends StatelessWidget {
 
   Widget _appBadge({bool compact = false, bool onDark = false}) {
     return Text(
-      'Günlük Dua & Hadis',
+      'Her Gün İslam',
       style: TextStyle(
         fontSize: compact ? 18 : 22,
         color: onDark ? Colors.white70 : Colors.grey[600],

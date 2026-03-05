@@ -132,83 +132,65 @@ class _MessagesScreenState extends State<MessagesScreen> {
     setState(() => _isSharing = true);
 
     try {
-      final adShown = await _adService.showInterstitialAd();
-      if (adShown) {
-        print('✅ Interstitial ad shown before greeting share');
-      } else {
-        print('⚠️ Interstitial ad not ready, proceeding with share');
-      }
-    } catch (e) {
-      print('❌ Error showing ad: $e');
-    }
-
-    try {
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-            content: Row(
-              children: [
-                SizedBox(
-                  width: 20,
-                  height: 20,
-                  child: CircularProgressIndicator(
-                    strokeWidth: 2,
-                    valueColor: AlwaysStoppedAnimation<Color>(Colors.white),
-                  ),
-                ),
-                SizedBox(width: 12),
-                Text('Kart görseli oluşturuluyor...'),
-              ],
-            ),
-            duration: Duration(seconds: 3),
-          ),
-        );
-      }
-
       if (!mounted) return;
+      final categoryId = _selectedCategoryId!;
+      final messageText = _messageText;
+      final messageTitle = _messageTitle;
+      final messageId = _selectedMessageId;
       final overlay = Overlay.of(context);
       late OverlayEntry overlayEntry;
       final controller = WidgetsToImageController();
 
-      final imageUrl = await _greetingService.fetchImageForMessage(
-        _selectedCategoryId!,
-        messageId: _selectedMessageId,
-      );
-      if (imageUrl != null && imageUrl.isNotEmpty && mounted) {
-        await precacheImage(NetworkImage(imageUrl), context);
-      }
-      overlayEntry = OverlayEntry(
-        builder: (context) => Stack(
-          children: [
-            Positioned(
-              left: -10000,
-              top: -10000,
-              child: WidgetsToImage(
-                controller: controller,
-                child: Material(
-                  child: Directionality(
-                    textDirection: TextDirection.ltr,
-                    child: GreetingShareableCard(
-                      categoryId: _selectedCategoryId!,
-                      messageText: _messageText,
-                      messageTitle: _messageTitle,
-                      imageUrl: imageUrl,
-                      width: 1080,
-                      height: 1080,
+      // Paralel: görsel oluşturma (reklam sırasında arka planda hazırlanır)
+      final imageFuture = () async {
+        final imageUrl = await _greetingService.fetchImageForMessage(
+          categoryId,
+          messageId: messageId,
+        );
+        if (imageUrl != null && imageUrl.isNotEmpty && mounted) {
+          await precacheImage(NetworkImage(imageUrl), context);
+        }
+        if (!mounted) return null;
+        overlayEntry = OverlayEntry(
+          builder: (context) => Stack(
+            children: [
+              Positioned(
+                left: -10000,
+                top: -10000,
+                child: WidgetsToImage(
+                  controller: controller,
+                  child: Material(
+                    child: Directionality(
+                      textDirection: TextDirection.ltr,
+                      child: GreetingShareableCard(
+                        categoryId: categoryId,
+                        messageText: messageText,
+                        messageTitle: messageTitle,
+                        imageUrl: imageUrl,
+                        width: 1080,
+                        height: 1080,
+                      ),
                     ),
                   ),
                 ),
               ),
-            ),
-          ],
-        ),
-      );
+            ],
+          ),
+        );
+        overlay.insert(overlayEntry);
+        await Future.delayed(Duration(milliseconds: imageUrl != null && imageUrl.isNotEmpty ? 800 : 500));
+        final bytes = await controller.capture();
+        if (mounted) overlayEntry.remove();
+        return bytes;
+      }();
 
-      overlay.insert(overlayEntry);
-      await Future.delayed(Duration(milliseconds: imageUrl != null && imageUrl.isNotEmpty ? 800 : 500));
+      // Paralel: reklam göster (kullanıcı izler)
+      final adFuture = _adService.showInterstitialAd().catchError((e) {
+        return false;
+      });
 
-      final bytes = await controller.capture();
-      overlayEntry.remove();
+      await adFuture;
+      final bytes = await imageFuture;
 
       if (bytes != null && bytes.isNotEmpty) {
         final directory = await getTemporaryDirectory();
@@ -219,14 +201,13 @@ class _MessagesScreenState extends State<MessagesScreen> {
 
         await Share.shareXFiles(
           [XFile(imagePath)],
-          text: '$_messageTitle\n\n$_messageText\n\nGünlük Dua & Hadis Uygulamasından paylaşıldı',
-          subject: _messageTitle,
+          text: 'Her Gün İslam uygulamasından paylaşıldı',
         );
 
         FirebaseService.logEvent(
           name: AnalyticsEvents.greetingShared,
           parameters: {
-            AnalyticsParams.category: _selectedCategoryId!,
+            AnalyticsParams.category: categoryId,
             AnalyticsParams.messageType: _isCustomMessage ? 'custom' : 'predefined',
           },
         );
@@ -251,7 +232,6 @@ class _MessagesScreenState extends State<MessagesScreen> {
         _shareAsText();
       }
     } catch (e) {
-      print('❌ Error sharing: $e');
       if (mounted) {
         ScaffoldMessenger.of(context).hideCurrentSnackBar();
         ScaffoldMessenger.of(context).showSnackBar(
@@ -270,7 +250,7 @@ class _MessagesScreenState extends State<MessagesScreen> {
   void _shareAsText() {
     if (_messageText.isEmpty) return;
     Share.share(
-      '$_messageTitle\n\n$_messageText\n\nGünlük Dua & Hadis Uygulamasından paylaşıldı',
+      '$_messageTitle\n\n$_messageText\n\nHer Gün İslam uygulamasından paylaşıldı',
     );
   }
 

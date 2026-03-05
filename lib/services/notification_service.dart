@@ -52,9 +52,8 @@ class NotificationService {
       // in HomeScreen._setupNotificationsAndPermissions for better opt-in rate
 
       _isInitialized = true;
-      print('✅ Notification service initialized');
     } catch (e) {
-      print('❌ Error initializing notification service: $e');
+      // Init failed
     }
   }
 
@@ -69,7 +68,6 @@ class NotificationService {
           AndroidFlutterLocalNotificationsPlugin>();
       if (androidImplementation != null) {
         final bool? granted = await androidImplementation.requestNotificationsPermission();
-        print('📱 Notification permission granted: $granted');
         return granted ?? false;
       }
     }
@@ -88,7 +86,6 @@ class NotificationService {
         // Don't show dialog to user - just return the status
         // If not granted, we'll use inexact mode which is good enough for daily reminders
         if (canScheduleExactAlarms == false) {
-          print('⚠️ Exact alarm permission not granted - will use inexact mode (this is OK)');
           return false;
         }
         return canScheduleExactAlarms ?? false;
@@ -99,7 +96,6 @@ class NotificationService {
 
   /// Handle notification tap
   void _onNotificationTapped(NotificationResponse response) {
-    print('📱 Notification tapped: ${response.payload}');
     // You can add navigation logic here if needed
   }
 
@@ -118,10 +114,7 @@ class NotificationService {
     try {
       // Check if notifications are enabled
       final bool notificationsEnabled = await areNotificationsEnabled();
-      if (!notificationsEnabled) {
-        print('⚠️ Notifications are not enabled');
-        return false;
-      }
+      if (!notificationsEnabled) return false;
 
       // Check exact alarm permission for Android 12+ and determine schedule mode
       AndroidScheduleMode scheduleMode = AndroidScheduleMode.exactAllowWhileIdle;
@@ -129,23 +122,20 @@ class NotificationService {
       if (Platform.isAndroid) {
         final bool hasPermission = await checkAndRequestExactAlarmPermission(context);
         if (!hasPermission) {
-          print('⚠️ Exact alarm permission not granted, using inexact schedule mode as fallback');
           scheduleMode = AndroidScheduleMode.inexactAllowWhileIdle;
-        } else {
-          print('✅ Exact alarm permission granted, using exact schedule mode');
         }
       }
 
       // Schedule new notification with appropriate schedule mode
       await _notifications.zonedSchedule(
         notificationId, // Notification ID
-        'Günlük Dua & Hadis',
+        'Her Gün İslam',
         customMessage ?? 'Bugünkü duayı, hadisi veya ayeti okudun mu? 🤲',
         _nextInstanceOfTime(hour, minute),
         const NotificationDetails(
           android: AndroidNotificationDetails(
             'daily_reminder',
-            'Günlük Hatırlatmalar',
+            'Her Gün İslam Hatırlatmaları',
             channelDescription: 'Her gün günlük dua, hadis veya ayet için hatırlatmalar',
             importance: Importance.max,
             priority: Priority.high,
@@ -156,8 +146,6 @@ class NotificationService {
             visibility: NotificationVisibility.public,
             autoCancel: false,
             ongoing: false,
-            // Critical for showing notifications even in Doze mode
-            fullScreenIntent: true,
           ),
           iOS: DarwinNotificationDetails(
             presentAlert: true,
@@ -170,11 +158,8 @@ class NotificationService {
         uiLocalNotificationDateInterpretation: UILocalNotificationDateInterpretation.absoluteTime,
         matchDateTimeComponents: DateTimeComponents.time,
       );
-
-      print('✅ Daily reminder scheduled for $hour:$minute (ID: $notificationId, Mode: $scheduleMode)');
       return true;
     } catch (e) {
-      print('❌ Error scheduling daily reminder: $e');
       return false;
     }
   }
@@ -188,19 +173,10 @@ class NotificationService {
     try {
       // Check if notifications are enabled
       final bool notificationsEnabled = await areNotificationsEnabled();
-      if (!notificationsEnabled) {
-        print('⚠️ Notifications are not enabled');
-        return false;
-      }
+      if (!notificationsEnabled) return false;
 
-      // Check exact alarm permission for Android 12+ (but don't block if not granted)
       if (Platform.isAndroid) {
-        final bool hasPermission = await checkAndRequestExactAlarmPermission(context);
-        if (!hasPermission) {
-          print('⚠️ Exact alarm permission not granted, will use inexact schedule mode');
-        } else {
-          print('✅ Exact alarm permission granted');
-        }
+        await checkAndRequestExactAlarmPermission(context);
       }
 
       // Cancel existing notifications first
@@ -233,15 +209,8 @@ class NotificationService {
         notificationId: 2,
       );
 
-      if (morningSuccess && middaySuccess && eveningSuccess) {
-        print('✅ All 3 daily reminders scheduled (09:00, 12:00, 18:00)');
-        return true;
-      } else {
-        print('⚠️ Some reminders could not be scheduled');
-        return false;
-      }
+      return morningSuccess && middaySuccess && eveningSuccess;
     } catch (e) {
-      print('❌ Error scheduling daily reminders: $e');
       return false;
     }
   }
@@ -268,7 +237,7 @@ class NotificationService {
 
   /// Show immediate notification (for testing)
   Future<void> showNotification({
-    String title = 'Günlük Dua & Hadis',
+    String title = 'Her Gün İslam',
     String body = 'Bugünkü içeriği okumayı unutma!',
   }) async {
     if (!_isInitialized) {
@@ -283,7 +252,7 @@ class NotificationService {
         const NotificationDetails(
           android: AndroidNotificationDetails(
             'daily_reminder',
-            'Günlük Hatırlatmalar',
+            'Her Gün İslam Hatırlatmaları',
             channelDescription: 'Her gün günlük dua, hadis veya ayet için hatırlatmalar',
             importance: Importance.max,
             priority: Priority.high,
@@ -301,9 +270,7 @@ class NotificationService {
           ),
         ),
       );
-      print('✅ Test notification shown successfully');
     } catch (e) {
-      print('❌ Error showing notification: $e');
       rethrow;
     }
   }
@@ -325,7 +292,7 @@ class NotificationService {
         const NotificationDetails(
           android: AndroidNotificationDetails(
             'daily_reminder',
-            'Günlük Hatırlatmalar',
+            'Her Gün İslam Hatırlatmaları',
             channelDescription: 'Her gün günlük dua, hadis veya ayet için hatırlatmalar',
             importance: Importance.max,
             priority: Priority.high,
@@ -345,9 +312,7 @@ class NotificationService {
         androidScheduleMode: AndroidScheduleMode.exactAllowWhileIdle,
         uiLocalNotificationDateInterpretation: UILocalNotificationDateInterpretation.absoluteTime,
       );
-      print('✅ Test notification scheduled for 5 seconds from now');
     } catch (e) {
-      print('❌ Error scheduling test notification: $e');
       rethrow;
     }
   }
@@ -356,9 +321,8 @@ class NotificationService {
   Future<void> cancelAllNotifications() async {
     try {
       await _notifications.cancelAll();
-      print('✅ All notifications cancelled');
     } catch (e) {
-      print('❌ Error cancelling notifications: $e');
+      // Ignore
     }
   }
 
@@ -367,7 +331,7 @@ class NotificationService {
     try {
       await _notifications.cancel(id);
     } catch (e) {
-      print('❌ Error cancelling notification $id: $e');
+      // Ignore
     }
   }
 
@@ -391,7 +355,6 @@ class NotificationService {
         final bool? shouldReschedule = await _channel.invokeMethod<bool>('shouldRescheduleNotifications');
         return shouldReschedule ?? false;
       } catch (e) {
-        print('❌ Error checking shouldRescheduleNotifications: $e');
         return false;
       }
     }
@@ -439,12 +402,12 @@ class NotificationService {
             try {
               await platform.invokeMethod('openBatterySettings');
             } catch (e) {
-              print('❌ Error opening battery settings: $e');
+              // Ignore
             }
           }
         }
       } catch (e) {
-        print('❌ Error requesting battery optimization exemption: $e');
+        // Ignore
       }
     }
   }
@@ -454,7 +417,6 @@ class NotificationService {
     try {
       return await _notifications.pendingNotificationRequests();
     } catch (e) {
-      print('❌ Error getting pending notifications: $e');
       return [];
     }
   }

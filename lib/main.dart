@@ -15,18 +15,10 @@ void main() async {
   WidgetsFlutterBinding.ensureInitialized();
   
   // Initialize Firebase (Analytics & Crashlytics)
-  debugPrint('🚀 ========== FIREBASE INIT START ==========');
-  debugPrint('🚀 Initializing Firebase...');
   try {
     await FirebaseService.initialize();
-    debugPrint('🚀 Firebase initialization attempt completed');
-    debugPrint('🚀 ========== FIREBASE INIT END ==========');
   } catch (e, stackTrace) {
-    debugPrint('⚠️ ========== FIREBASE INIT ERROR ==========');
-    debugPrint('⚠️ Firebase initialization failed in main: $e');
-    debugPrint('⚠️ Stack trace: $stackTrace');
-    debugPrint('⚠️ App will continue without Firebase');
-    debugPrint('⚠️ ==========================================');
+    // Firebase init failed - app continues without it
   }
   
   // Initialize AdMob
@@ -38,17 +30,10 @@ void main() async {
   
   // Check if we need to reschedule notifications (after boot)
   final shouldReschedule = await notificationService.shouldRescheduleNotifications();
-  if (shouldReschedule) {
-    debugPrint('🔄 Rescheduling notifications after device boot/update...');
-  }
   
   // Initialize daily reminder notifications
   final reminderService = DailyReminderService();
   await reminderService.initializeDailyReminder();
-  
-  if (shouldReschedule) {
-    debugPrint('✅ Notifications rescheduled successfully');
-  }
   
   // Set preferred orientations (portrait only for better UX)
   await SystemChrome.setPreferredOrientations([
@@ -76,7 +61,7 @@ class DailyDuaApp extends StatelessWidget {
   Widget build(BuildContext context) {
     return MaterialApp(
       // App metadata
-      title: 'Günlük Dua & Hadis',
+      title: 'Her Gün İslam',
       debugShowCheckedModeBanner: false,
       
       // Theme configuration

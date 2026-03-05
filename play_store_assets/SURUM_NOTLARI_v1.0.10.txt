@@ -1,0 +1,25 @@
+===========================================
+PLAY STORE SÜRÜM NOTLARI - v1.0.10
+===========================================
+(500 karakter sınırı - Play Console'da "Sürüm notları" alanına yapıştırın)
+
+Kısa versiyon (önerilen - ~200 karakter):
+-----------------------------------------
+• Performans iyileştirmeleri
+• Hata düzeltmeleri
+• Daha stabil deneyim
+• Genel güncellemeler
+
+Tam versiyon (500 karaktere kadar):
+-----------------------------------------
+• Performans iyileştirmeleri ve optimizasyonlar
+• Çeşitli hata düzeltmeleri
+• Daha akıcı ve stabil kullanıcı deneyimi
+• Günlük dua, hadis ve ayet içerikleri güncellendi
+• Ramazan imsakiyesi ve bildirimler iyileştirildi
+• Genel iyileştirmeler
+
+===========================================
+ÖNCEKİ SÜRÜMLER (Referans)
+===========================================
+v1.0.9: Önceki sürüm

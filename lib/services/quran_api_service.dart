@@ -162,8 +162,6 @@ class QuranApiService {
           
           if (translationResponse.statusCode == 200) {
             final translationData = json.decode(translationResponse.body);
-            print('🔍 API Response from $edition: ${translationResponse.body.substring(0, translationResponse.body.length > 200 ? 200 : translationResponse.body.length)}...');
-            
             final data = translationData['data'];
             
             // API response structure: data['text'] contains the translation
@@ -182,27 +180,13 @@ class QuranApiService {
               }
             }
             
-            // Debug: Print what we found
-            if (text != null) {
-              print('📝 Text from $edition: ${text.substring(0, text.length > 100 ? 100 : text.length)}...');
-              print('🔤 Is Arabic: ${_isArabic(text)}');
-            } else {
-              print('⚠️ No text found in response from $edition');
-            }
-            
             // Check if it's actually Turkish (not Arabic)
             if (text != null && text.isNotEmpty && !_isArabic(text)) {
               translationText = text;
-              print('✅ Turkish translation found from $edition');
               break;
-            } else if (text != null && _isArabic(text)) {
-              print('⚠️ $edition returned Arabic text instead of Turkish');
             }
-          } else {
-            print('❌ $edition returned status code: ${translationResponse.statusCode}');
           }
         } catch (e) {
-          print('⚠️ Failed to fetch from $edition: $e');
           continue;
         }
       }
@@ -223,14 +207,11 @@ class QuranApiService {
                 final text = ayahObj['text'] as String;
                 if (!_isArabic(text)) {
                   translationText = text;
-                  print('✅ Turkish translation found from surah endpoint');
                 }
               }
             }
           }
-        } catch (e) {
-          print('⚠️ Could not fetch Turkish translation from surah: $e');
-        }
+        } catch (e) {}
       }
       
       // Get Turkish surah name
@@ -246,8 +227,6 @@ class QuranApiService {
       } else if (translationText.isNotEmpty) {
         displayText = translationText;
       } else {
-        // Fallback: return null if no data
-        print('⚠️ No text found for ayah $surah:$ayah');
         return null;
       }
       
@@ -256,9 +235,7 @@ class QuranApiService {
         text: displayText,
         source: '$turkishSurahName Suresi $ayah',
       );
-    } catch (e) {
-      print('❌ Error fetching ayah from Quran API: $e');
-    }
+    } catch (e) {}
     return null;
   }
 
@@ -279,9 +256,7 @@ class QuranApiService {
         final jsonData = json.decode(response.body);
         return jsonData['data'] as Map<String, dynamic>?;
       }
-    } catch (e) {
-      print('❌ Error fetching surah info: $e');
-    }
+    } catch (e) {}
     return null;
   }
 
@@ -350,9 +325,7 @@ class QuranApiService {
               }
             }
           }
-        } catch (e) {
-          print('⚠️ Could not fetch Turkish translation: $e');
-        }
+        } catch (e) {}
       }
       
       final turkishSurahName = _turkishSurahNames[surah] ?? 'Sure $surah';
@@ -372,9 +345,7 @@ class QuranApiService {
         text: displayText,
         source: '$turkishSurahName Suresi $ayah',
       );
-    } catch (e) {
-      print('❌ Error fetching specific ayah: $e');
-    }
+    } catch (e) {}
     return null;
   }
 
@@ -398,9 +369,7 @@ class QuranApiService {
           );
         }).toList();
       }
-    } catch (e) {
-      print('❌ Error fetching surah: $e');
-    }
+    } catch (e) {}
     return [];
   }
 }

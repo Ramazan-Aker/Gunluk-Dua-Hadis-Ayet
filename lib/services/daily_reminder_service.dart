@@ -24,7 +24,6 @@ class DailyReminderService {
       
       return lastReadDate == today;
     } catch (e) {
-      print('❌ Error checking if read today: $e');
       return false;
     }
   }
@@ -57,11 +56,7 @@ class DailyReminderService {
       await prefs.setString(_keyLastReadDate, today);
       await prefs.setString(_keyLastReadTime, now.toIso8601String());
       await prefs.setInt(_keyDailyReadingStreak, currentStreak);
-      
-      print('✅ Marked as read. Streak: $currentStreak days');
-    } catch (e) {
-      print('❌ Error marking as read: $e');
-    }
+    } catch (e) {}
   }
 
   /// Get current reading streak
@@ -87,7 +82,6 @@ class DailyReminderService {
       
       return streak;
     } catch (e) {
-      print('❌ Error getting reading streak: $e');
       return 0;
     }
   }
@@ -118,7 +112,6 @@ class DailyReminderService {
       
       return true;
     } catch (e) {
-      print('❌ Error checking if should show reminder: $e');
       return false;
     }
   }
@@ -129,9 +122,7 @@ class DailyReminderService {
       final prefs = await SharedPreferences.getInstance();
       final String today = DateTime.now().toIso8601String().split('T')[0];
       await prefs.setString(_keyLastReminderShown, today);
-    } catch (e) {
-      print('❌ Error marking reminder as shown: $e');
-    }
+    } catch (e) {}
   }
 
   /// Enable or disable reminders
@@ -148,9 +139,7 @@ class DailyReminderService {
         // Cancel all notifications if disabling
         await notificationService.cancelAllNotifications();
       }
-    } catch (e) {
-      print('❌ Error setting reminder enabled: $e');
-    }
+    } catch (e) {}
   }
 
   /// Check if reminders are enabled
@@ -173,9 +162,7 @@ class DailyReminderService {
       // Schedule all daily reminders (09:00, 12:00, 18:00)
       final notificationService = NotificationService();
       await notificationService.scheduleDailyReminders(null);
-    } catch (e) {
-      print('❌ Error setting reminder time: $e');
-    }
+    } catch (e) {}
   }
   
   /// Initialize daily reminder notifications (09:00, 12:00, 18:00)
@@ -185,16 +172,9 @@ class DailyReminderService {
       if (reminderEnabled) {
         final notificationService = NotificationService();
         // Schedule both morning (9:00) and evening (18:00) reminders
-        final success = await notificationService.scheduleDailyReminders(null);
-        if (!success) {
-          print('⚠️ Could not schedule notifications - permissions may be missing');
-        } else {
-          print('✅ Daily reminders initialized: 09:00, 12:00, 18:00');
-        }
+        await notificationService.scheduleDailyReminders(null);
       }
-    } catch (e) {
-      print('❌ Error initializing daily reminder: $e');
-    }
+    } catch (e) {}
   }
 
   /// Get reminder time (default: "09:00")
@@ -217,7 +197,6 @@ class DailyReminderService {
       }
       return null;
     } catch (e) {
-      print('❌ Error getting last read date: $e');
       return null;
     }
   }

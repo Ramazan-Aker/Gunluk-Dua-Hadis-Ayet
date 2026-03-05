@@ -40,9 +40,7 @@ class GreetingService {
       }
 
       await _loadApiMessages();
-      print('✅ Loaded greeting messages for ${_messages.length} categories');
     } catch (e) {
-      print('❌ Error loading greeting messages: $e');
       _messages = {};
     }
   }
@@ -53,7 +51,6 @@ class GreetingService {
     // JSON'da günlük_dua varsa (Türkçe mesajlar) API'yi atla - anlamlı Türkçe içerik öncelikli
     if (_messages.containsKey('günlük_dua') && _messages['günlük_dua']!.isNotEmpty) {
       _apiMessagesLoaded = true;
-      print('✅ Günlük dua: Türkçe mesajlar kullanılıyor (${_messages['günlük_dua']!.length} adet)');
       return;
     }
     try {
@@ -61,11 +58,8 @@ class GreetingService {
       if (duas.isNotEmpty) {
         _messages['günlük_dua'] = duas;
         _apiMessagesLoaded = true;
-        print('✅ Dua-Dhikr API: ${duas.length} mesaj yüklendi');
       }
-    } catch (e) {
-      print('⚠️ Dua-Dhikr API atlandı: $e');
-    }
+    } catch (e) {}
   }
 
   /// Mesaj için görsel URL getir - her mesajda farklı görsel (Pixabay)

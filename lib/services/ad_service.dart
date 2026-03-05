@@ -9,6 +9,9 @@ class AdService {
   factory AdService() => _instance;
   AdService._internal();
 
+  /// Ekran görüntüsü için geçici olarak false - sonra true yapın
+  static const bool _adsEnabled = true;
+
   BannerAd? _bannerAd;
   bool _isBannerAdReady = false;
   
@@ -29,7 +32,6 @@ class AdService {
   /// Initialize AdMob
   static Future<void> initialize() async {
     await MobileAds.instance.initialize();
-    print('✅ AdMob initialized');
   }
 
   /// Get Ad Unit IDs based on platform
@@ -88,30 +90,25 @@ class AdService {
 
   /// Load banner ad
   void loadBannerAd() {
+    if (!_adsEnabled) return;
     // Don't reload if already loading or loaded
-    if (_bannerAd != null) {
-      print('⚠️ Banner ad already exists, skipping reload');
-      return;
-    }
+    if (_bannerAd != null) return;
     
-    print('🔄 Loading banner ad...');
     _bannerAd = BannerAd(
       adUnitId: bannerAdUnitId,
       size: AdSize.banner,
       request: const AdRequest(),
       listener: BannerAdListener(
         onAdLoaded: (ad) {
-          print('✅ Banner ad loaded successfully');
           _isBannerAdReady = true;
         },
         onAdFailedToLoad: (ad, error) {
-          print('❌ Banner ad failed to load: $error');
           _isBannerAdReady = false;
           ad.dispose();
           _bannerAd = null;
         },
-        onAdOpened: (ad) => print('📱 Banner ad opened'),
-        onAdClosed: (ad) => print('🚪 Banner ad closed'),
+        onAdOpened: (ad) {},
+        onAdClosed: (ad) {},
       ),
     );
 
@@ -122,7 +119,7 @@ class AdService {
   BannerAd? get bannerAd => _bannerAd;
 
   /// Check if banner ad is ready
-  bool get isBannerAdReady => _isBannerAdReady;
+  bool get isBannerAdReady => _adsEnabled && _isBannerAdReady;
 
   /// Dispose banner ad
   void disposeBannerAd() {
@@ -133,30 +130,25 @@ class AdService {
   
   /// Load second banner ad (for use in item card area)
   void loadBannerAd2() {
+    if (!_adsEnabled) return;
     // Don't reload if already loading or loaded
-    if (_bannerAd2 != null) {
-      print('⚠️ Banner ad 2 already exists, skipping reload');
-      return;
-    }
+    if (_bannerAd2 != null) return;
     
-    print('🔄 Loading banner ad 2...');
     _bannerAd2 = BannerAd(
       adUnitId: bannerAd2UnitId,
       size: AdSize.banner,
       request: const AdRequest(),
       listener: BannerAdListener(
         onAdLoaded: (ad) {
-          print('✅ Banner ad 2 loaded successfully');
           _isBannerAd2Ready = true;
         },
         onAdFailedToLoad: (ad, error) {
-          print('❌ Banner ad 2 failed to load: $error');
           _isBannerAd2Ready = false;
           ad.dispose();
           _bannerAd2 = null;
         },
-        onAdOpened: (ad) => print('📱 Banner ad 2 opened'),
-        onAdClosed: (ad) => print('🚪 Banner ad 2 closed'),
+        onAdOpened: (ad) {},
+        onAdClosed: (ad) {},
       ),
     );
 
@@ -167,7 +159,7 @@ class AdService {
   BannerAd? get bannerAd2 => _bannerAd2;
 
   /// Check if second banner ad is ready
-  bool get isBannerAd2Ready => _isBannerAd2Ready;
+  bool get isBannerAd2Ready => _adsEnabled && _isBannerAd2Ready;
 
   /// Dispose second banner ad
   void disposeBannerAd2() {
@@ -178,12 +170,12 @@ class AdService {
 
   /// Load interstitial ad
   Future<void> loadInterstitialAd() async {
+    if (!_adsEnabled) return;
     InterstitialAd.load(
       adUnitId: interstitialAdUnitId,
       request: const AdRequest(),
       adLoadCallback: InterstitialAdLoadCallback(
         onAdLoaded: (InterstitialAd ad) {
-          print('✅ Interstitial ad loaded');
           _interstitialAd = ad;
           _isInterstitialAdReady = true;
           _numInterstitialLoadAttempts = 0;
@@ -191,17 +183,14 @@ class AdService {
           // Set up full screen content callback - will be reset when showing
           // (keeping this for initial setup, but will be overridden in show method)
           _interstitialAd!.fullScreenContentCallback = FullScreenContentCallback(
-            onAdShowedFullScreenContent: (InterstitialAd ad) =>
-                print('📱 Interstitial ad showed fullscreen'),
+            onAdShowedFullScreenContent: (InterstitialAd ad) {},
             onAdDismissedFullScreenContent: (InterstitialAd ad) {
-              print('🚪 Interstitial ad dismissed');
               ad.dispose();
               _interstitialAd = null;
               _isInterstitialAdReady = false;
               loadInterstitialAd();
             },
             onAdFailedToShowFullScreenContent: (InterstitialAd ad, AdError error) {
-              print('❌ Interstitial ad failed to show: $error');
               ad.dispose();
               _interstitialAd = null;
               _isInterstitialAdReady = false;
@@ -210,7 +199,6 @@ class AdService {
           );
         },
         onAdFailedToLoad: (LoadAdError error) {
-          print('❌ Interstitial ad failed to load: $error');
           _numInterstitialLoadAttempts += 1;
           _interstitialAd = null;
           _isInterstitialAdReady = false;
@@ -230,6 +218,7 @@ class AdService {
   /// Show interstitial ad and wait for it to be dismissed
   /// Returns true if ad was shown, false otherwise
   Future<bool> showInterstitialAd() async {
+    if (!_adsEnabled) return false;
     if (_isInterstitialAdReady && _interstitialAd != null) {
       try {
         // Create a completer to wait for ad dismissal
@@ -237,11 +226,8 @@ class AdService {
         
         // Set up callback that completes when ad is dismissed
         _interstitialAd!.fullScreenContentCallback = FullScreenContentCallback(
-          onAdShowedFullScreenContent: (InterstitialAd ad) {
-            print('📱 Interstitial ad showed fullscreen');
-          },
+          onAdShowedFullScreenContent: (InterstitialAd ad) {},
           onAdDismissedFullScreenContent: (InterstitialAd ad) {
-            print('🚪 Interstitial ad dismissed - continuing with share');
             ad.dispose();
             _interstitialAd = null;
             _isInterstitialAdReady = false;
@@ -255,7 +241,6 @@ class AdService {
             loadInterstitialAd();
           },
           onAdFailedToShowFullScreenContent: (InterstitialAd ad, AdError error) {
-            print('❌ Interstitial ad failed to show: $error');
             ad.dispose();
             _interstitialAd = null;
             _isInterstitialAdReady = false;
@@ -275,15 +260,11 @@ class AdService {
         
         // Wait for ad to be dismissed
         await _adDismissedCompleter!.future;
-        
-        print('✅ Interstitial ad flow completed');
         return true;
       } catch (e) {
-        print('❌ Error showing interstitial ad: $e');
         return false;
       }
     } else {
-      print('⚠️ Interstitial ad not ready yet');
       // Try to load for next time
       loadInterstitialAd();
       return false;
@@ -302,29 +283,26 @@ class AdService {
 
   /// Load next button interstitial ad
   Future<void> loadNextButtonInterstitialAd() async {
+    if (!_adsEnabled) return;
     InterstitialAd.load(
       adUnitId: nextButtonInterstitialAdUnitId,
       request: const AdRequest(),
       adLoadCallback: InterstitialAdLoadCallback(
         onAdLoaded: (InterstitialAd ad) {
-          print('✅ Next button interstitial ad loaded');
           _nextButtonInterstitialAd = ad;
           _isNextButtonInterstitialAdReady = true;
           _numNextButtonInterstitialLoadAttempts = 0;
           
           // Set up full screen content callback
           _nextButtonInterstitialAd!.fullScreenContentCallback = FullScreenContentCallback(
-            onAdShowedFullScreenContent: (InterstitialAd ad) =>
-                print('📱 Next button interstitial ad showed fullscreen'),
+            onAdShowedFullScreenContent: (InterstitialAd ad) {},
             onAdDismissedFullScreenContent: (InterstitialAd ad) {
-              print('🚪 Next button interstitial ad dismissed');
               ad.dispose();
               _nextButtonInterstitialAd = null;
               _isNextButtonInterstitialAdReady = false;
               loadNextButtonInterstitialAd();
             },
             onAdFailedToShowFullScreenContent: (InterstitialAd ad, AdError error) {
-              print('❌ Next button interstitial ad failed to show: $error');
               ad.dispose();
               _nextButtonInterstitialAd = null;
               _isNextButtonInterstitialAdReady = false;
@@ -333,7 +311,6 @@ class AdService {
           );
         },
         onAdFailedToLoad: (LoadAdError error) {
-          print('❌ Next button interstitial ad failed to load: $error');
           _numNextButtonInterstitialLoadAttempts += 1;
           _nextButtonInterstitialAd = null;
           _isNextButtonInterstitialAdReady = false;
@@ -353,6 +330,7 @@ class AdService {
   /// Show next button interstitial ad and wait for it to be dismissed
   /// Returns true if ad was shown, false otherwise
   Future<bool> showNextButtonInterstitialAd() async {
+    if (!_adsEnabled) return false;
     if (_isNextButtonInterstitialAdReady && _nextButtonInterstitialAd != null) {
       try {
         // Create a completer to wait for ad dismissal
@@ -360,11 +338,8 @@ class AdService {
         
         // Set up callback that completes when ad is dismissed
         _nextButtonInterstitialAd!.fullScreenContentCallback = FullScreenContentCallback(
-          onAdShowedFullScreenContent: (InterstitialAd ad) {
-            print('📱 Next button interstitial ad showed fullscreen');
-          },
+          onAdShowedFullScreenContent: (InterstitialAd ad) {},
           onAdDismissedFullScreenContent: (InterstitialAd ad) {
-            print('🚪 Next button interstitial ad dismissed');
             ad.dispose();
             _nextButtonInterstitialAd = null;
             _isNextButtonInterstitialAdReady = false;
@@ -378,7 +353,6 @@ class AdService {
             loadNextButtonInterstitialAd();
           },
           onAdFailedToShowFullScreenContent: (InterstitialAd ad, AdError error) {
-            print('❌ Next button interstitial ad failed to show: $error');
             ad.dispose();
             _nextButtonInterstitialAd = null;
             _isNextButtonInterstitialAdReady = false;
@@ -398,15 +372,11 @@ class AdService {
         
         // Wait for ad to be dismissed
         await _nextButtonAdDismissedCompleter!.future;
-        
-        print('✅ Next button interstitial ad flow completed');
         return true;
       } catch (e) {
-        print('❌ Error showing next button interstitial ad: $e');
         return false;
       }
     } else {
-      print('⚠️ Next button interstitial ad not ready yet');
       // Try to load for next time
       loadNextButtonInterstitialAd();
       return false;
@@ -454,6 +424,7 @@ class _AdBannerWidgetState extends State<AdBannerWidget> {
   }
 
   void _loadAd() {
+    if (!AdService._adsEnabled) return;
     // Load appropriate banner ad
     if (widget.useSecondAd) {
       _adService.loadBannerAd2();
@@ -477,9 +448,7 @@ class _AdBannerWidgetState extends State<AdBannerWidget> {
         }
         timer.cancel();
       } else if (attempts > 20) {
-        // Give up after 10 seconds
         timer.cancel();
-        print('⚠️ Banner ad loading timeout');
       }
     });
   }
@@ -493,6 +462,7 @@ class _AdBannerWidgetState extends State<AdBannerWidget> {
 
   @override
   Widget build(BuildContext context) {
+    if (!AdService._adsEnabled) return const SizedBox.shrink();
     final BannerAd? ad = widget.useSecondAd ? _adService.bannerAd2 : _adService.bannerAd;
     
     if (_isAdLoaded && ad != null) {

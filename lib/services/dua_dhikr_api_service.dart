@@ -20,10 +20,7 @@ class DuaDhikrApiService {
         headers: {'Accept-Language': language},
       ).timeout(_timeout);
 
-      if (response.statusCode != 200) {
-        print('❌ Dua-Dhikr API: ${response.statusCode}');
-        return [];
-      }
+      if (response.statusCode != 200) return [];
 
       final data = json.decode(response.body);
       final list = data is List ? data : (data['data'] as List? ?? data['items'] as List? ?? []);
@@ -46,7 +43,6 @@ class DuaDhikrApiService {
         );
       }).where((m) => m.text.isNotEmpty).toList();
     } catch (e) {
-      print('❌ Dua-Dhikr API hatası: $e');
       return [];
     }
   }
@@ -67,7 +63,6 @@ class DuaDhikrApiService {
         return e.toString();
       }).where((s) => s.isNotEmpty).toList();
     } catch (e) {
-      print('❌ Dua-Dhikr kategoriler: $e');
       return ['daily-dua', 'morning-dhikr', 'evening-dhikr'];
     }
   }

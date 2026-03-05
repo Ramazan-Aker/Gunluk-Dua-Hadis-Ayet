@@ -57,78 +57,42 @@ class _HomeScreenState extends State<HomeScreen> {
   }
   
   /// Setup notifications and request necessary permissions
-  /// Shows value proposition dialog on first launch for better opt-in rate
+  /// Doğrudan sistem izin diyaloğu gösterilir (ara ekran yok)
   Future<void> _setupNotificationsAndPermissions() async {
     try {
       final notificationService = NotificationService();
       final prefs = await SharedPreferences.getInstance();
-      const key = 'notification_prompt_shown';
+      const key = 'notification_permission_asked';
 
-      // Check if we need to show the value proposition dialog (first launch)
-      final hasShownPrompt = prefs.getBool(key) ?? false;
+      final hasAskedBefore = prefs.getBool(key) ?? false;
       final hasPermission = await notificationService.areNotificationsEnabled();
 
-      if (!hasShownPrompt && !hasPermission && mounted) {
-        // Show friendly dialog explaining why notifications help
-        final shouldRequest = await showDialog<bool>(
-          context: context,
-          barrierDismissible: false,
-          builder: (ctx) => AlertDialog(
-            title: const Row(
-              children: [
-                Icon(Icons.notifications_active, color: Color(0xFF0D9488), size: 28),
-                SizedBox(width: 12),
-                Text('Bildirimler', style: TextStyle(fontSize: 20)),
-              ],
-            ),
-            content: const Text(
-              'Günlük duayı, hadisi veya ayeti kaçırmamak için bildirimlere izin verin.\n\n'
-              '🌅 Sabah 09:00\n'
-              '📖 Öğle 12:00\n'
-              '🌙 Akşam 18:00\n\n'
-              'Her gün 3 kez hatırlatma alacaksınız.',
-              style: TextStyle(fontSize: 16, height: 1.5),
-            ),
-            actions: [
-              TextButton(
-                onPressed: () => Navigator.of(ctx).pop(false),
-                child: const Text('Daha Sonra'),
-              ),
-              ElevatedButton(
-                onPressed: () => Navigator.of(ctx).pop(true),
-                style: ElevatedButton.styleFrom(backgroundColor: const Color(0xFF0D9488)),
-                child: const Text('Bildirimleri Aç'),
-              ),
-            ],
-          ),
-        );
-        await prefs.setBool(key, true);
+      if (hasPermission) {
+        await notificationService.scheduleDailyReminders(context);
+        return;
+      }
 
-        if (shouldRequest == true) {
-          final granted = await notificationService.requestPermission();
-          if (granted) {
-            await notificationService.scheduleDailyReminders(context);
-            print('✅ Daily reminders scheduled');
-            if (mounted) {
-              ScaffoldMessenger.of(context).showSnackBar(
-                const SnackBar(
-                  content: Text('Bildirimler açıldı. Sabah ve akşam hatırlatma alacaksınız.'),
-                  backgroundColor: Colors.green,
-                  duration: Duration(seconds: 3),
-                ),
-              );
-            }
+      // İzin yok - ilk açılışta doğrudan sistem diyaloğunu göster
+      if (!hasAskedBefore && mounted) {
+        await prefs.setBool(key, true);
+        final granted = await notificationService.requestPermission();
+        if (granted) {
+          await notificationService.scheduleDailyReminders(context);
+          if (mounted) {
+            ScaffoldMessenger.of(context).showSnackBar(
+              const SnackBar(
+                content: Text('Bildirimler açıldı. Günlük hatırlatmalar planlandı.'),
+                backgroundColor: Colors.green,
+                duration: Duration(seconds: 2),
+              ),
+            );
           }
         }
       } else {
-        // Already asked or has permission - just schedule
         await notificationService.scheduleDailyReminders(context);
-        if (hasPermission) {
-          print('✅ Daily reminders scheduled');
-        }
       }
     } catch (e) {
-      print('❌ Error setting up notifications: $e');
+      // Notifications setup failed
     }
   }
   
@@ -348,7 +312,6 @@ class _HomeScreenState extends State<HomeScreen> {
         });
       }
     } catch (e) {
-      print('Error loading daily item: $e');
       // Log error to Crashlytics
       FirebaseService.logError(
         exception: e,
@@ -418,23 +381,13 @@ class _HomeScreenState extends State<HomeScreen> {
       _isLoading = true;
     });
 
-    // Sayacı artır
     _nextButtonClickCount++;
-    print('🔢 Sonraki butonu tıklama sayısı: $_nextButtonClickCount');
     
-    // Her 4 tıklamada bir interstitial reklam göster (Sonraki butonu reklamı)
     if (_nextButtonClickCount >= 4) {
-      print('🎯 4 tıklama tamamlandı, sonraki butonu reklamı gösteriliyor...');
-      
       try {
-        final adShown = await _adService.showNextButtonInterstitialAd();
-        if (adShown) {
-          print('✅ Sonraki butonu reklamı gösterildi ve kapatıldı');
-        } else {
-          print('⚠️ Sonraki butonu reklamı hazır değil');
-        }
+        await _adService.showNextButtonInterstitialAd();
       } catch (e) {
-        print('❌ Sonraki butonu reklamı gösterilirken hata: $e');
+        // Ad not shown
       }
       
       // Sayacı sıfırla
@@ -459,7 +412,6 @@ class _HomeScreenState extends State<HomeScreen> {
         );
       }
     } catch (e) {
-      print('Error loading random item: $e');
       FirebaseService.logError(
         exception: e,
         reason: 'Error loading random item',
@@ -471,6 +423,7 @@ class _HomeScreenState extends State<HomeScreen> {
   }
 
   /// Share current item as image card
+  /// Reklam ve görsel oluşturma paralel çalışır - reklam bittiğinde görsel hazır olur
   Future<void> _shareItem() async {
     if (_currentItem == null) return;
 
@@ -478,36 +431,18 @@ class _HomeScreenState extends State<HomeScreen> {
       _isSharing = true;
     });
 
-    // Show interstitial ad before sharing
-    // Note: showInterstitialAd() now waits for ad to be dismissed before returning
     try {
-      final adShown = await _adService.showInterstitialAd();
-      if (adShown) {
-        print('✅ Interstitial ad shown and dismissed, continuing with share');
-      } else {
-        print('⚠️ Interstitial ad not ready, proceeding with share');
-      }
-    } catch (e) {
-      print('❌ Error showing interstitial ad: $e');
-      // Continue with share even if ad fails
-    }
-
-    try {
-      // Yükleme göstergesi sadece Paylaş butonunda (Oluşturuluyor...) - SnackBar yok
-
-      // Show overlay with shareable card
       if (!mounted) return;
-      
       final overlay = Overlay.of(context);
       late OverlayEntry overlayEntry;
-      
       final controller = WidgetsToImageController();
-      
+      final item = _currentItem!;
+
       overlayEntry = OverlayEntry(
         builder: (context) => Stack(
           children: [
             Positioned(
-              left: -10000, // Off-screen
+              left: -10000,
               top: -10000,
               child: WidgetsToImage(
                 controller: controller,
@@ -515,7 +450,7 @@ class _HomeScreenState extends State<HomeScreen> {
                   child: Directionality(
                     textDirection: TextDirection.ltr,
                     child: ShareableCard(
-                      item: _currentItem!,
+                      item: item,
                       width: 1080,
                       height: 1080,
                     ),
@@ -526,17 +461,18 @@ class _HomeScreenState extends State<HomeScreen> {
           ],
         ),
       );
-      
       overlay.insert(overlayEntry);
-      
-      // Wait for widget to render
-      await Future.delayed(const Duration(milliseconds: 500));
-      
-      // Capture the image
-      final bytes = await controller.capture();
-      
-      // Remove overlay
-      overlayEntry.remove();
+
+      // Paralel: görsel oluşturma (reklam sırasında arka planda hazırlanır)
+      final imageFuture = Future.delayed(const Duration(milliseconds: 500))
+          .then((_) => controller.capture());
+
+      // Paralel: reklam göster (kullanıcı izler)
+      final adFuture = _adService.showInterstitialAd().catchError((e) => false);
+
+      await adFuture;
+      final bytes = await imageFuture;
+      if (mounted) overlayEntry.remove();
 
       if (bytes != null && bytes.isNotEmpty) {
         // Save image to temporary directory
@@ -548,16 +484,16 @@ class _HomeScreenState extends State<HomeScreen> {
         // Share the image
         await Share.shareXFiles(
           [XFile(imagePath)],
-          text: '${_currentItem!.getTitle()}\n\nGünlük Dua & Hadis Uygulamasından paylaşıldı',
-          subject: _currentItem!.getTitle(),
+          text: '${item.getTitle()}\n\nHer Gün İslam uygulamasından paylaşıldı',
+          subject: item.getTitle(),
         );
 
         // Log share event to Analytics
         FirebaseService.logEvent(
           name: AnalyticsEvents.dailyItemShared,
           parameters: {
-            AnalyticsParams.itemType: _currentItem!.type,
-            AnalyticsParams.itemSource: _currentItem!.source,
+            AnalyticsParams.itemType: item.type,
+            AnalyticsParams.itemSource: item.source,
           },
         );
 
@@ -583,12 +519,9 @@ class _HomeScreenState extends State<HomeScreen> {
           }
         });
       } else {
-        // Fallback to text sharing if image creation fails
-        print('⚠️ Image is null or empty, falling back to text sharing');
         _shareAsText();
       }
     } catch (e) {
-      print('❌ Error sharing image: $e');
       // Fallback to text sharing
       if (mounted) {
         ScaffoldMessenger.of(context).hideCurrentSnackBar();
@@ -619,7 +552,7 @@ ${_currentItem!.text}
 
 — ${_currentItem!.source}
 
-Günlük Dua & Hadis Uygulamasından paylaşıldı
+Her Gün İslam uygulamasından paylaşıldı
 ''';
 
     Share.share(shareText);
@@ -633,7 +566,7 @@ Günlük Dua & Hadis Uygulamasından paylaşıldı
         title: Column(
           children: [
             const Text(
-              'Günlük Dua & Hadis',
+              'Her Gün İslam',
               style: TextStyle(
                 fontWeight: FontWeight.bold,
                 fontSize: 22,

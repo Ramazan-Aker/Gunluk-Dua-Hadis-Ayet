@@ -29,8 +29,6 @@ class RamadanApiService {
         'q': apiQuery,
       });
 
-      print('🔍 Searching cities: $uri');
-      
       final response = await http.get(uri).timeout(timeoutDuration);
 
       if (response.statusCode == 200) {
@@ -38,15 +36,10 @@ class RamadanApiService {
         final cities = jsonList
             .map((json) => TurkishCity.fromJson(json))
             .toList();
-        
-        print('✅ Found ${cities.length} cities for query: $query');
         return cities;
-      } else {
-        print('❌ City search failed with status: ${response.statusCode}');
-        return [];
       }
+      return [];
     } catch (e) {
-      print('❌ Error searching cities: $e');
       return [];
     }
   }
@@ -61,10 +54,7 @@ class RamadanApiService {
   }) async {
     // locationId is ezanvakti state ID; resolve to district ID for vakit API
     final districtId = await _getDistrictIdForState(locationId);
-    if (districtId == null) {
-      print('❌ Could not resolve district ID for state: $locationId');
-      return [];
-    }
+    if (districtId == null) return [];
 
     // Check cache first (use districtId for cache key to match ezanvakti data)
     if (useCache) {
@@ -75,7 +65,6 @@ class RamadanApiService {
         final cachedStart = cachedData.map((p) => p.date).reduce((a, b) => a.isBefore(b) ? a : b);
         final cachedEnd = cachedData.map((p) => p.date).reduce((a, b) => a.isAfter(b) ? a : b);
         if (!startDate.isBefore(cachedStart) && !endDate.isAfter(cachedEnd)) {
-          print('✅ Loaded prayer times from cache');
           return filtered;
         }
       }
@@ -86,8 +75,6 @@ class RamadanApiService {
       final endStr = '${endDate.year}-${endDate.month.toString().padLeft(2, '0')}-${endDate.day.toString().padLeft(2, '0')}';
       final uri = Uri.parse('$_ezanvaktiBaseUrl/prayer-times/$districtId/range')
           .replace(queryParameters: {'startDate': startStr, 'endDate': endStr});
-
-      print('🕌 Fetching prayer times (ezanvakti): $uri');
 
       final response = await http.get(uri).timeout(timeoutDuration);
 
@@ -113,18 +100,12 @@ class RamadanApiService {
         if (prayerTimesList.isNotEmpty) {
           prayerTimesList.sort((a, b) => a.date.compareTo(b.date));
           await _cachePrayerTimes(districtId, prayerTimesList);
-          print('✅ Fetched ${prayerTimesList.length} prayer times (incl. past days)');
           return prayerTimesList;
-        } else {
-          print('⚠️ No prayer times found in response');
-          return [];
         }
-      } else {
-        print('❌ Prayer times fetch failed with status: ${response.statusCode}');
         return [];
       }
+      return [];
     } catch (e) {
-      print('❌ Error fetching prayer times: $e');
       return [];
     }
   }
@@ -168,7 +149,6 @@ class RamadanApiService {
       if (first != null) _districtIdCache[stateId] = first;
       return first;
     } catch (e) {
-      print('⚠️ Error resolving district for state $stateId: $e');
       return null;
     }
   }
@@ -278,9 +258,7 @@ class RamadanApiService {
       await prefs.setString(_keyCachedPrayerTimes, jsonString);
       await prefs.setString(_keyCacheDate, DateTime.now().toIso8601String());
       await prefs.setString(_keyCachedCityId, locationId);
-    } catch (e) {
-      print('⚠️ Error caching prayer times: $e');
-    }
+    } catch (e) {}
   }
 
   /// Load cached prayer times from SharedPreferences
@@ -308,9 +286,7 @@ class RamadanApiService {
           await clearCache();
         }
       }
-    } catch (e) {
-      print('⚠️ Error loading cached prayer times: $e');
-    }
+    } catch (e) {}
     return null;
   }
 
@@ -321,9 +297,7 @@ class RamadanApiService {
       await prefs.remove(_keyCachedPrayerTimes);
       await prefs.remove(_keyCacheDate);
       await prefs.remove(_keyCachedCityId);
-    } catch (e) {
-      print('⚠️ Error clearing cache: $e');
-    }
+    } catch (e) {}
   }
 
   /// Get popular Turkish cities (legacy - use getAllTurkishCities)

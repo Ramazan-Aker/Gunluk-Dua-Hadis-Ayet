@@ -28,14 +28,11 @@ class ApiService {
         final List<dynamic> jsonList = json.decode(response.body);
         final items = jsonList.map((json) => DailyItem.fromJson(json)).toList();
 
-        print('✅ Fetched ${items.length} items from API');
         return items;
       } else {
-        print('❌ API returned status code: ${response.statusCode}');
         return null;
       }
     } catch (e) {
-      print('❌ Error fetching from API: $e');
       return null;
     }
   }
@@ -53,11 +50,9 @@ class ApiService {
         final jsonData = json.decode(response.body);
         return DailyItem.fromJson(jsonData);
       } else {
-        print('❌ API returned status code: ${response.statusCode}');
         return null;
       }
     } catch (e) {
-      print('❌ Error fetching daily item from API: $e');
       return null;
     }
   }
@@ -73,11 +68,9 @@ class ApiService {
         final List<dynamic> jsonList = json.decode(response.body);
         return jsonList.map((json) => DailyItem.fromJson(json)).toList();
       } else {
-        print('❌ API returned status code: ${response.statusCode}');
         return null;
       }
     } catch (e) {
-      print('❌ Error fetching items by type from API: $e');
       return null;
     }
   }

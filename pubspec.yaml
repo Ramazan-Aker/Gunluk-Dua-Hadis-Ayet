@@ -1,7 +1,7 @@
 name: daily_dua_hadith
 description: A beautiful Flutter app to display daily Dua, Hadith, and Quran Ayah
 publish_to: 'none'
-version: 1.0.9+12
+version: 1.0.10+14
 
 environment:
   sdk: '>=3.0.0 <4.0.0'
@@ -46,6 +46,14 @@ dev_dependencies:
   flutter_test:
     sdk: flutter
   flutter_lints: ^3.0.0
+  flutter_launcher_icons: ^0.14.3
+
+flutter_launcher_icons:
+  android: true
+  ios: false
+  image_path: "assets/app_icon.png"
+  adaptive_icon_background: "#1a237e"
+  adaptive_icon_foreground: "assets/app_icon.png"
 
 flutter:
   uses-material-design: true

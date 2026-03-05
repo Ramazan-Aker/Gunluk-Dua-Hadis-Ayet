@@ -3,23 +3,34 @@ MAĞAZA GİRİŞİ BİLGİLERİ
 ===========================================
 
 UYGULAMA ADI:
-Günlük Dua & Hadis
+Her Gün İslam
 
 KISA AÇIKLAMA (80 karakter):
-Günlük dua, hadis ve ayet ile maneviyatınızı besleyin. 🕌✨
+Dua, hadis, ayet, imsakiye ve özel gün mesajları. Her gün İslam ile.
 
 TAM AÇIKLAMA (4000 karakter):
-🕌 Günlük Dua & Hadis - Maneviyat Rehberiniz
+🕌 Her Gün İslam – Maneviyat Rehberiniz
 
-Her gün yeni bir dua, hadis ve Kuran ayeti ile ruhunuzu besleyin! 
+Her gün yeni bir dua, hadis ve Kur'an ayeti ile ruhunuzu besleyin!
 
 ✨ ÖZELLİKLER
 
-📖 HER GÜN YENİ İÇERİK
+📖 GÜNLÜK İÇERİK
 • Günlük dua
 • Günlük hadis
-• Günlük Kuran ayeti
-• Anlam ve tercümeler
+• Günlük Kur'an ayeti (Arapça + Türkçe meal)
+• Okudum olarak işaretleme ve seri takibi
+
+🕌 RAMAZAN İMSAKİYESİ
+• Şehrinize göre namaz vakitleri
+• Oruç, imsak ve iftar saatleri
+• Ramazan boyunca tam imsakiye
+
+🕯️ ÖZEL GÜNLER
+• Cuma mesajları
+• Kandil mesajları (Mevlid, Regaib, Mirac, Berat, Kadir)
+• Bayram mesajları (Ramazan ve Kurban Bayramı)
+• Özel dualar ve kutlamalar
 
 🔔 HATIRLATMA BİLDİRİMLERİ
 • İstediğiniz saatte günlük hatırlatma
@@ -33,26 +44,29 @@ Her gün yeni bir dua, hadis ve Kuran ayeti ile ruhunuzu besleyin!
 
 🎨 MODERN TASARIM
 • Kullanıcı dostu arayüz
-• Güzel ve şık görünüm
+• Sade ve şık görünüm
 • Kolay navigasyon
 
 💚 NEDEN BU UYGULAMA?
 
-Günümüzün yoğun temposunda maneviyatımıza zaman ayırmak önemli. Bu uygulama ile her gün İslami bilgi ve dualarla ruhunuzu besleyebilirsiniz.
+Günümüzün yoğun temposunda maneviyatımıza zaman ayırmak önemli. Her Gün İslam ile günlük dua, hadis, ayet, Ramazan imsakiyesi ve özel gün mesajlarıyla ruhunuzu besleyebilirsiniz.
 
 📱 NASIL KULLANILIR?
 
 1. Uygulamayı açın
 2. Günün duası, hadisi ve ayeti karşınızda
-3. Okuyun, paylaşın, hatırlayın
-4. Her gün geri gelin, yeni içerikler sizi bekliyor!
+3. İmsakiye için şehrinizi seçin
+4. Okuyun, paylaşın, hatırlayın
+5. Her gün geri gelin, yeni içerikler sizi bekliyor!
 
 🎯 KİMLER İÇİN?
 
 • Maneviyatını güçlendirmek isteyenler
 • Dua öğrenmek isteyenler
 • Hadis okumayı sevenler
-• Kuran-ı Kerim'i anlamak isteyenler
+• Kur'an-ı Kerim'i anlamak isteyenler
+• Ramazan imsakiyesi takip edenler
+• Kandil ve bayram mesajları arayanlar
 • Her yaştan Müslümanlar
 
 🔒 GİZLİLİK
@@ -63,12 +77,12 @@ Günümüzün yoğun temposunda maneviyatımıza zaman ayırmak önemli. Bu uygu
 
 📧 DESTEK
 
-Sorularınız, önerileriniz için: tahram2351@gmail.com
+Sorularınız ve önerileriniz için: tahram2351@gmail.com
 Her türlü geri bildirime açığız!
 
 İndirin ve maneviyatınızı güçlendirin! 🌟
 
-#Dua #Hadis #Ayet #İslamiyet #Maneviyat #Müslüman
+#Dua #Hadis #Ayet #İslamiyet #Maneviyat #Müslüman #İmsakiye #Ramazan #Kandil #Bayram
 
 ===========================================
 GRAFİKLER:
@@ -112,4 +126,3 @@ GİZLİLİK POLİTİKASI URL:
 https://tahram2351-ctrl.github.io/gunluk-dua-hadis-privacy/
 
 ===========================================
-
