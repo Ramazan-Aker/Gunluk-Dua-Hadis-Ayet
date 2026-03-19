@@ -152,7 +152,6 @@ class QuranAudioService {
     // Check memory cache first
     final cacheKey = '${surahNumber}_$reciterId';
     if (_urlCache.containsKey(cacheKey)) {
-      print('✅ Audio URL from cache: $cacheKey');
       return _urlCache[cacheKey];
     }
 
@@ -178,13 +177,12 @@ class QuranAudioService {
           
           if (resultUrl != null) {
             _urlCache[cacheKey] = resultUrl; // Store in cache
-            print('✅ Audio URL fetched: $cacheKey');
             return resultUrl;
           }
         }
       }
     } catch (e) {
-      print('❌ Audio URL fetch error: $e');
+      // Silently fail, will try fallback
     }
     
     // Fallback: direct GitHub URL when API fails

@@ -42,7 +42,6 @@ class _QuranReaderScreenState extends State<QuranReaderScreen> {
 
   // Controllers
   final ScrollController _scrollController = ScrollController();
-  late final PageController _pageController;
   final List<GlobalKey> _verseKeys = [];
 
   // Data
@@ -56,11 +55,8 @@ class _QuranReaderScreenState extends State<QuranReaderScreen> {
   bool _isLoadingAudio = false;
   bool _isPlaying = false;
   int? _currentVerseIndex;
-  int? _currentWordIndex;
   String? _errorMessage;
   Duration? _audioDuration; // Track audio duration
-  double _downloadProgress = 0.0; // Track download progress
-  bool _isDownloading = false; // Track if currently downloading
 
   // Settings
   double _arabicFontSize = 26.0;
@@ -73,7 +69,6 @@ class _QuranReaderScreenState extends State<QuranReaderScreen> {
   void initState() {
     super.initState();
     _audioPlayer = AudioPlayer();
-    _pageController = PageController();
     _setupAudioPlayer();
     _loadContent();
 
@@ -93,7 +88,6 @@ class _QuranReaderScreenState extends State<QuranReaderScreen> {
   void dispose() {
     _audioPlayer.dispose();
     _scrollController.dispose();
-    _pageController.dispose();
     super.dispose();
   }
 
@@ -101,7 +95,7 @@ class _QuranReaderScreenState extends State<QuranReaderScreen> {
     // Set initial volume
     _audioPlayer.setVolume(_volume);
     
-    // Listen to audio position for word highlighting
+    // Listen to audio position for verse tracking
     _audioPlayer.onPositionChanged.listen((position) {
       if (!mounted) return;
       _updateHighlightFromPosition(position.inMilliseconds);
@@ -129,7 +123,6 @@ class _QuranReaderScreenState extends State<QuranReaderScreen> {
       setState(() {
         _isPlaying = false;
         _currentVerseIndex = null;
-        _currentWordIndex = null;
       });
 
       // Auto-play next surah if enabled
@@ -214,10 +207,10 @@ class _QuranReaderScreenState extends State<QuranReaderScreen> {
         _currentVerseIndex = widget.initialVerseIndex.clamp(0, verses.length - 1);
       });
 
-      // Jump to saved verse position
+      // Scroll to saved verse position
       WidgetsBinding.instance.addPostFrameCallback((_) {
-        if (_pageController.hasClients && widget.initialVerseIndex > 0) {
-          _pageController.jumpToPage(widget.initialVerseIndex.clamp(0, verses.length - 1));
+        if (widget.initialVerseIndex > 0 && widget.initialVerseIndex < verses.length) {
+          _scrollToVerse(widget.initialVerseIndex);
         }
       });
 
@@ -255,16 +248,8 @@ class _QuranReaderScreenState extends State<QuranReaderScreen> {
           _timings = timings;
           _isLoadingTimings = false;
         });
-        
-        // Debug: Show if timing loaded successfully
-        if (timings.isNotEmpty) {
-          print('✅ Timing loaded: ${timings.length} verses with word-level data');
-        } else {
-          print('⚠️ Timing data is empty');
-        }
       }
     } catch (e) {
-      print('❌ Timing error: $e');
       if (mounted) {
         setState(() => _isLoadingTimings = false);
       }
@@ -322,60 +307,18 @@ class _QuranReaderScreenState extends State<QuranReaderScreen> {
 
   Future<void> _downloadAndCacheAudio(String url) async {
     try {
-      setState(() {
-        _isDownloading = true;
-        _downloadProgress = 0.0;
-      });
-
-      final cachedPath = await _cacheService.downloadAndCache(
+      // Download and cache in background (no UI updates)
+      await _cacheService.downloadAndCache(
         url: url,
         surahNumber: widget.surahNumber,
         reciterId: widget.reciterId,
-        onProgress: (progress) {
-          if (mounted) {
-            setState(() => _downloadProgress = progress);
-          }
-        },
       );
-
-      if (cachedPath != null && mounted) {
-        setState(() {
-          _isDownloading = false;
-          _downloadProgress = 1.0;
-        });
-
-        // Show success message
-        if (mounted) {
-          ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(
-              content: Text('✓ Sure kaydedildi. Sonraki açılışta anında başlayacak!'),
-              duration: Duration(seconds: 2),
-              backgroundColor: Color(0xFF0D9488),
-            ),
-          );
-        }
-      }
     } catch (e) {
-      if (mounted) {
-        setState(() {
-          _isDownloading = false;
-          _downloadProgress = 0.0;
-        });
-      }
+      // Silently fail - caching is optional
     }
   }
 
   void _updateHighlightFromPosition(int currentMs) {
-    // Debug: Print current state every ~5 seconds
-    if (currentMs % 5000 < 100) {
-      print('🎵 Position: ${currentMs}ms, Verse: $_currentVerseIndex, Word: $_currentWordIndex');
-      print('   Timings loaded: ${_timings.length}, Verses loaded: ${_verses.length}');
-      print('   Audio duration: ${_audioDuration?.inSeconds}s');
-      if (_verses.isNotEmpty && _currentVerseIndex != null && _currentVerseIndex! < _verses.length) {
-        print('   Current verse words: ${_verses[_currentVerseIndex!].arabicWords.length}');
-      }
-    }
-
     // If we have timing data, use it for precise highlighting
     if (_timings.isNotEmpty) {
       _updateWithTimingData(currentMs);
@@ -395,35 +338,18 @@ class _QuranReaderScreenState extends State<QuranReaderScreen> {
     );
 
     if (verseIndex != -1) {
-      final verse = _timings[verseIndex];
-
-      // Find current word in the verse
-      int? wordIndex;
-      if (verse.segments.isNotEmpty) {
-        final segmentIndex = verse.segments.indexWhere((w) =>
-          currentMs >= w.startMs && currentMs <= w.endMs
-        );
-        
-        if (segmentIndex != -1) {
-          wordIndex = verse.segments[segmentIndex].wordIndex;
-          
-          // Debug: Print when word is highlighted
-          if (_currentWordIndex != wordIndex) {
-            print('✨ Highlighting word $wordIndex in verse $verseIndex');
-          }
-        }
-      }
-
-      // Update state if changed
-      if (_currentVerseIndex != verseIndex || _currentWordIndex != wordIndex) {
+      // Update state if verse changed
+      if (_currentVerseIndex != verseIndex) {
         setState(() {
           _currentVerseIndex = verseIndex;
-          _currentWordIndex = wordIndex;
         });
 
-        // Auto-scroll to current verse (page turn)
-        if (_autoPageTurn && _currentVerseIndex != null) {
-          _scrollToVerse(_currentVerseIndex!);
+        // Save verse position
+        _saveVersePosition(verseIndex);
+
+        // Auto-scroll to current verse
+        if (_autoPageTurn) {
+          _scrollToVerse(verseIndex);
         }
       }
     }
@@ -466,10 +392,12 @@ class _QuranReaderScreenState extends State<QuranReaderScreen> {
     if (_currentVerseIndex != clampedIndex) {
       setState(() {
         _currentVerseIndex = clampedIndex;
-        _currentWordIndex = null; // No word-level highlighting without timing
       });
 
-      // Auto-scroll to current verse (page turn)
+      // Save verse position when it changes
+      _saveVersePosition(clampedIndex);
+
+      // Auto-scroll to current verse
       if (_autoPageTurn) {
         _scrollToVerse(clampedIndex);
       }
@@ -478,13 +406,15 @@ class _QuranReaderScreenState extends State<QuranReaderScreen> {
 
   void _scrollToVerse(int index) {
     if (index < 0 || index >= _verses.length) return;
+    if (index >= _verseKeys.length) return;
 
-    // Auto-scroll to page
-    if (_pageController.hasClients) {
-      _pageController.animateToPage(
-        index,
+    final context = _verseKeys[index].currentContext;
+    if (context != null) {
+      Scrollable.ensureVisible(
+        context,
         duration: const Duration(milliseconds: 500),
         curve: Curves.easeInOut,
+        alignment: 0.2, // Position verse near top of screen
       );
     }
   }
@@ -546,7 +476,6 @@ class _QuranReaderScreenState extends State<QuranReaderScreen> {
     await _audioPlayer.stop();
     setState(() {
       _currentVerseIndex = null;
-      _currentWordIndex = null;
     });
   }
 
@@ -640,35 +569,24 @@ class _QuranReaderScreenState extends State<QuranReaderScreen> {
               painter: IslamicPatternPainter(),
             ),
           ),
-          // Content
-          PageView.builder(
-            controller: _pageController,
+          // Content - ListView to show multiple verses per screen
+          ListView.builder(
+            controller: _scrollController,
+            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 20),
             itemCount: _verses.length,
-            onPageChanged: (index) {
-              setState(() {
-                if (!_isPlaying) {
-                  _currentVerseIndex = index;
-                }
-              });
-              // Save verse position
-              _saveVersePosition(index);
-            },
             itemBuilder: (context, index) {
               final verse = _verses[index];
               final isCurrentVerse = _currentVerseIndex == index;
-              final highlightedWord = isCurrentVerse ? _currentWordIndex : null;
 
-              return Center(
-                child: SingleChildScrollView(
-                  padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 20),
-                  child: QuranVerseWidget(
-                    key: _verseKeys[index],
-                    verse: verse,
-                    isCurrentVerse: isCurrentVerse,
-                    highlightedWordIndex: highlightedWord,
-                    arabicFontSize: _arabicFontSize,
-                    turkishFontSize: _turkishFontSize,
-                  ),
+              return Padding(
+                padding: const EdgeInsets.only(bottom: 16),
+                child: QuranVerseWidget(
+                  key: _verseKeys[index],
+                  verse: verse,
+                  isCurrentVerse: isCurrentVerse,
+                  highlightedWordIndex: null, // No word highlighting
+                  arabicFontSize: _arabicFontSize,
+                  turkishFontSize: _turkishFontSize,
                 ),
               );
             },

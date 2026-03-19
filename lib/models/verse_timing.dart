@@ -82,7 +82,6 @@ class VerseTiming {
         }
       } catch (e) {
         // Skip invalid segments silently
-        print('⚠️ Skipping invalid segment: $e');
       }
     }
 

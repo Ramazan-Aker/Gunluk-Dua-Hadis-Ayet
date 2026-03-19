@@ -27,7 +27,6 @@ class QuranTimingService {
     if (useCache) {
       final cached = await _getCachedTimings(chapterNumber, effectiveReciterId);
       if (cached != null) {
-        print('✅ Timing from cache: Chapter $chapterNumber');
         return cached;
       }
     }
@@ -49,13 +48,11 @@ class QuranTimingService {
         // API response structure: {audio_file: {id, chapter_id, file_size, format, audio_url, timestamps: [...]}}
         final audioFile = jsonData['audio_file'] as Map<String, dynamic>?;
         if (audioFile == null) {
-          print('⚠️ No audio_file in response for Chapter $chapterNumber');
           return [];
         }
 
         final timestamps = audioFile['timestamps'] as List<dynamic>?;
         if (timestamps == null || timestamps.isEmpty) {
-          print('⚠️ No timestamps in response for Chapter $chapterNumber');
           return [];
         }
 
@@ -67,13 +64,10 @@ class QuranTimingService {
         // Cache the result
         await _cacheTimings(chapterNumber, effectiveReciterId, timings);
 
-        print('✅ Timing fetched from API: Chapter $chapterNumber (${timings.length} verses)');
         return timings;
-      } else {
-        print('❌ Timing API error: ${response.statusCode}');
       }
     } catch (e) {
-      print('❌ Timing fetch error: $e');
+      // Silently fail - timing is optional
     }
 
     return [];

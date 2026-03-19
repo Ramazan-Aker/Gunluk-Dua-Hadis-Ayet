@@ -140,11 +140,9 @@ class _QuranScreenState extends State<QuranScreen> {
       surahNumber: surahNumber,
       reciterId: reciterId,
     ).then((url) {
-      if (url != null) {
-        print('✅ Audio URL preloaded for sure $surahNumber');
-      }
+      // Silently preload in background
     }).catchError((e) {
-      print('❌ Preload failed: $e');
+      // Silently fail
     });
   }
 
