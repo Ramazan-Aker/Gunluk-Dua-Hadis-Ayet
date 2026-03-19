@@ -118,7 +118,8 @@ class AnalyticsEvents {
   static const String screenHome = 'screen_home';
   static const String screenSettings = 'screen_settings';
   static const String screenRamadan = 'screen_ramadan';
-  
+  static const String screenQuran = 'screen_quran';
+
   // User actions
   static const String dailyItemViewed = 'daily_item_viewed';
   static const String dailyItemRead = 'daily_item_read';
@@ -134,6 +135,10 @@ class AnalyticsEvents {
   static const String ramadanTimesLoaded = 'ramadan_times_loaded';
   static const String ramadanTimesRefreshed = 'ramadan_times_refreshed';
   static const String greetingShared = 'greeting_shared';
+
+  // Quran feature events
+  static const String quranScreenViewed = 'quran_screen_viewed';
+  static const String quranSurahPlayed = 'quran_surah_played';
 
   // Content types
   static const String itemTypeDua = 'dua';
@@ -151,5 +156,7 @@ class AnalyticsParams {
   static const String year = 'year';
   static const String category = 'category';
   static const String messageType = 'message_type';
+  static const String surahNumber = 'surah_number';
+  static const String reciterId = 'reciter_id';
 }
 

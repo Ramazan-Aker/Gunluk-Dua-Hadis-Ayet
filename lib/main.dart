@@ -8,6 +8,7 @@ import 'screens/home_screen.dart';
 import 'screens/ramadan_screen.dart';
 import 'screens/messages_screen.dart';
 import 'screens/religious_days_screen.dart';
+import 'screens/quran_screen.dart';
 
 /// Main entry point of the Daily Dua & Hadith app
 void main() async {
@@ -154,6 +155,7 @@ class _MainNavigationScreenState extends State<MainNavigationScreen> {
   final List<Widget> _screens = [
     const HomeScreen(),
     const RamadanScreen(),
+    const QuranScreen(),
     const MessagesScreen(),
     const ReligiousDaysScreen(),
   ];
@@ -186,6 +188,10 @@ class _MainNavigationScreenState extends State<MainNavigationScreen> {
           BottomNavigationBarItem(
             icon: Icon(Icons.mosque),
             label: 'İmsakiye',
+          ),
+          BottomNavigationBarItem(
+            icon: Icon(Icons.menu_book),
+            label: 'Kur\'an',
           ),
           BottomNavigationBarItem(
             icon: Icon(Icons.celebration),
