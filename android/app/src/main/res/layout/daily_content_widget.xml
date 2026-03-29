@@ -1,0 +1,103 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- İnce şerit: sol meal + referans, sağ Arapça; ‹ › tek satır (yükseklik düşük) -->
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:tools="http://schemas.android.com/tools"
+    android:id="@+id/widget_root"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    android:layout_margin="1dp"
+    android:background="@drawable/widget_frost_background"
+    android:baselineAligned="false"
+    android:gravity="center_vertical"
+    android:orientation="horizontal"
+    android:paddingStart="5dp"
+    android:paddingTop="2dp"
+    android:paddingEnd="3dp"
+    android:paddingBottom="2dp">
+
+    <LinearLayout
+        android:id="@+id/widget_left_column"
+        android:layout_width="0dp"
+        android:layout_height="wrap_content"
+        android:layout_weight="1"
+        android:orientation="vertical">
+
+        <TextView
+            android:id="@+id/widget_footer"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:ellipsize="end"
+            android:gravity="start"
+            android:includeFontPadding="false"
+            android:maxLines="1"
+            android:textColor="@color/widget_glass_muted"
+            android:textSize="8sp"
+            tools:text="BAKARA 255" />
+
+        <TextView
+            android:id="@+id/widget_turkish"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="1dp"
+            android:ellipsize="end"
+            android:gravity="start"
+            android:includeFontPadding="false"
+            android:maxLines="3"
+            android:lineSpacingExtra="0dp"
+            android:textColor="@color/widget_glass_text"
+            android:textSize="9sp"
+            tools:text="Meal metni" />
+    </LinearLayout>
+
+    <TextView
+        android:id="@+id/widget_arabic"
+        android:layout_width="0dp"
+        android:layout_height="wrap_content"
+        android:layout_marginStart="4dp"
+        android:layout_weight="1"
+        android:ellipsize="end"
+        android:gravity="end"
+        android:includeFontPadding="false"
+        android:maxLines="3"
+        android:lineSpacingExtra="0dp"
+        android:textColor="@color/widget_glass_text"
+        android:textSize="13sp"
+        tools:text="اللَّهُ لَا إِلَٰهَ إِلَّا هُوَ" />
+
+    <LinearLayout
+        android:id="@+id/widget_nav_row"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:layout_marginStart="2dp"
+        android:gravity="center_vertical"
+        android:orientation="horizontal">
+
+        <TextView
+            android:id="@+id/widget_prev"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:contentDescription="@string/widget_cd_prev"
+            android:includeFontPadding="false"
+            android:minWidth="26dp"
+            android:gravity="center"
+            android:paddingStart="1dp"
+            android:paddingEnd="1dp"
+            android:text="‹"
+            android:textColor="@color/widget_glass_muted"
+            android:textSize="16sp" />
+
+        <TextView
+            android:id="@+id/widget_next"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:contentDescription="@string/widget_cd_next"
+            android:includeFontPadding="false"
+            android:minWidth="26dp"
+            android:gravity="center"
+            android:paddingStart="1dp"
+            android:paddingEnd="1dp"
+            android:text="›"
+            android:textColor="@color/widget_glass_muted"
+            android:textSize="16sp" />
+    </LinearLayout>
+</LinearLayout>

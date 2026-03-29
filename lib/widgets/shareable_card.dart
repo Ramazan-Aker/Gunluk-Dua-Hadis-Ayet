@@ -9,11 +9,11 @@ class ShareableCard extends StatelessWidget {
   final double height;
 
   const ShareableCard({
-    Key? key,
+    super.key,
     required this.item,
     this.width = 1080,
     this.height = 1080,
-  }) : super(key: key);
+  });
 
   @override
   Widget build(BuildContext context) {

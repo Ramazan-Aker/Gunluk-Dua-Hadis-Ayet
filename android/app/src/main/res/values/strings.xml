@@ -1,0 +1,10 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="widget_name">Kur\'an hatmi</string>
+    <string name="widget_cd_prev">Önceki ayet</string>
+    <string name="widget_cd_next">Sonraki ayet</string>
+    <string name="widget_placeholder_arabic">بِسْمِ اللَّهِ الرَّحْمَٰنِ الرَّحِيمِ</string>
+    <string name="widget_placeholder_turkish">Uygulamayı bir kez açın; ayet ve meal burada görünür.</string>
+    <string name="widget_placeholder_footer">FÂTİHA SURESİ, 1. AYET</string>
+    <string name="widget_fallback_message">Widget yüklenemedi. Uygulamayı bir kez açıp tekrar deneyin.</string>
+</resources>

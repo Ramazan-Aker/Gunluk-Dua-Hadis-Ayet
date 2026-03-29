@@ -7,10 +7,9 @@ import '../services/ramadan_api_service.dart';
 import '../services/firebase_service.dart' show FirebaseService, AnalyticsEvents, AnalyticsParams;
 import '../services/ad_service.dart';
 
-/// Ramadan Prayer Times Screen
-/// Shows countdown to sahur, today's prayer times, and full month schedule
+/// Ramadan / İmsakiye ekranı — sonraki namaz vaktine geri sayım, günlük vakitler ve liste
 class RamadanScreen extends StatefulWidget {
-  const RamadanScreen({Key? key}) : super(key: key);
+  const RamadanScreen({super.key});
 
   @override
   State<RamadanScreen> createState() => _RamadanScreenState();
@@ -751,7 +750,7 @@ class _RamadanScreenState extends State<RamadanScreen> {
     final isToday = prayerTime.isToday;
     final isOddRow = index % 2 == 1;
     final ramadanDayNum = index + 1;
-    final dateColumnText = '${ramadanDayNum}. Gün\n${prayerTime.fullDateLabel}';
+    final dateColumnText = '$ramadanDayNum. Gün\n${prayerTime.fullDateLabel}';
 
     final isSmallScreen = MediaQuery.of(context).size.width < 360;
     return Container(
@@ -921,17 +920,16 @@ class _RamadanScreenState extends State<RamadanScreen> {
   }
 }
 
-/// Countdown kartı - kendi timer'ı ile sadece kendi içeriğini günceller.
-/// Ana ekran her saniye setState yapmadığı için imsakiye scroll kasması ortadan kalkar.
+/// Sonraki namaz vaktine geri sayım — yalnızca bu widget saniyede bir setState yapar.
 class ImsakiyeCountdownCard extends StatefulWidget {
   final PrayerTimes? todaysPrayerTimes;
   final List<PrayerTimes> prayerTimesList;
 
   const ImsakiyeCountdownCard({
-    Key? key,
+    super.key,
     required this.todaysPrayerTimes,
     required this.prayerTimesList,
-  }) : super(key: key);
+  });
 
   @override
   State<ImsakiyeCountdownCard> createState() => _ImsakiyeCountdownCardState();
@@ -939,80 +937,80 @@ class ImsakiyeCountdownCard extends StatefulWidget {
 
 class _ImsakiyeCountdownCardState extends State<ImsakiyeCountdownCard> {
   Timer? _timer;
-  String _mode = 'sahur';
-  Duration _timeUntilSahur = Duration.zero;
-  Duration _timeUntilIftar = Duration.zero;
+  String _nextPrayerName = '';
+  Duration _timeUntilNext = Duration.zero;
+  bool _hasCountdown = false;
+
+  static final List<(String label, String Function(PrayerTimes pt) timeOf)> _vakitSirasi = [
+    ('İmsak', (pt) => pt.imsak),
+    ('Güneş', (pt) => pt.gunes),
+    ('Öğle', (pt) => pt.ogle),
+    ('İkindi', (pt) => pt.ikindi),
+    ('Akşam', (pt) => pt.aksam),
+    ('Yatsı', (pt) => pt.yatsi),
+  ];
+
+  DateTime? _timeOnCalendarDay(String hhmm, DateTime day) {
+    final parts = hhmm.split(':');
+    if (parts.length != 2) return null;
+    final h = int.tryParse(parts[0].trim());
+    final m = int.tryParse(parts[1].trim());
+    if (h == null || m == null) return null;
+    return DateTime(day.year, day.month, day.day, h, m);
+  }
 
   void _updateCountdown() {
     if (!mounted) return;
 
     final now = DateTime.now();
-    DateTime? sahurTime;
-    DateTime? iftarTime;
+    var name = '';
+    var until = Duration.zero;
+    var has = false;
 
-    if (widget.todaysPrayerTimes != null) {
-      final imsakParts = widget.todaysPrayerTimes!.imsak.split(':');
-      final aksamParts = widget.todaysPrayerTimes!.aksam.split(':');
-      if (imsakParts.length == 2) {
-        sahurTime = DateTime(
-          now.year,
-          now.month,
-          now.day,
-          int.parse(imsakParts[0]),
-          int.parse(imsakParts[1]),
-        );
-      }
-      if (aksamParts.length == 2) {
-        iftarTime = DateTime(
-          now.year,
-          now.month,
-          now.day,
-          int.parse(aksamParts[0]),
-          int.parse(aksamParts[1]),
-        );
-      }
-    }
-
-    String mode = 'sahur';
-    Duration timeUntilSahur = Duration.zero;
-    Duration timeUntilIftar = Duration.zero;
-
-    if (sahurTime != null && iftarTime != null) {
-      if (now.isBefore(sahurTime)) {
-        mode = 'sahur';
-        timeUntilSahur = sahurTime.difference(now);
-      } else if (now.isBefore(iftarTime)) {
-        mode = 'iftar';
-        timeUntilIftar = iftarTime.difference(now);
-      } else {
-        mode = 'iftarVakti';
-        final tomorrow = now.add(const Duration(days: 1));
-        for (var pt in widget.prayerTimesList) {
-          if (pt.date.year == tomorrow.year &&
-              pt.date.month == tomorrow.month &&
-              pt.date.day == tomorrow.day) {
-            final imsakParts = pt.imsak.split(':');
-            if (imsakParts.length == 2) {
-              final nextSahur = DateTime(
-                tomorrow.year,
-                tomorrow.month,
-                tomorrow.day,
-                int.parse(imsakParts[0]),
-                int.parse(imsakParts[1]),
-              );
-              timeUntilSahur = nextSahur.difference(now);
-              mode = 'yarinSahur';
-            }
-            break;
-          }
+    final todayPt = widget.todaysPrayerTimes;
+    if (todayPt != null) {
+      final cal = DateTime(todayPt.date.year, todayPt.date.month, todayPt.date.day);
+      for (final entry in _vakitSirasi) {
+        final t = _timeOnCalendarDay(entry.$2(todayPt), cal);
+        if (t != null && now.isBefore(t)) {
+          name = entry.$1;
+          until = t.difference(now);
+          has = true;
+          break;
         }
       }
     }
 
+    final tomorrow = DateTime(now.year, now.month, now.day).add(const Duration(days: 1));
+
+    if (!has) {
+      for (final pt in widget.prayerTimesList) {
+        final d = DateTime(pt.date.year, pt.date.month, pt.date.day);
+        if (d.year == tomorrow.year && d.month == tomorrow.month && d.day == tomorrow.day) {
+          final t = _timeOnCalendarDay(pt.imsak, tomorrow);
+          if (t != null) {
+            name = 'İmsak';
+            until = t.difference(now);
+            has = true;
+          }
+          break;
+        }
+      }
+    }
+
+    if (!has && todayPt != null) {
+      final t = _timeOnCalendarDay(todayPt.imsak, tomorrow);
+      if (t != null && now.isBefore(t)) {
+        name = 'İmsak';
+        until = t.difference(now);
+        has = true;
+      }
+    }
+
     setState(() {
-      _mode = mode;
-      _timeUntilSahur = timeUntilSahur;
-      _timeUntilIftar = timeUntilIftar;
+      _nextPrayerName = name;
+      _timeUntilNext = until;
+      _hasCountdown = has;
     });
   }
 
@@ -1040,47 +1038,16 @@ class _ImsakiyeCountdownCardState extends State<ImsakiyeCountdownCard> {
 
   @override
   Widget build(BuildContext context) {
-    String title;
-    IconData icon;
-    String displayText;
+    final h = _timeUntilNext.inHours;
+    final m = _timeUntilNext.inMinutes.remainder(60);
+    final s = _timeUntilNext.inSeconds.remainder(60);
+    final displayText = _hasCountdown
+        ? '${h.toString().padLeft(2, '0')}:${m.toString().padLeft(2, '0')}:${s.toString().padLeft(2, '0')}'
+        : '--:--:--';
 
-    switch (_mode) {
-      case 'sahur':
-        title = 'Sahura Ne Kadar Kaldı?';
-        icon = Icons.nightlight_round;
-        final h = _timeUntilSahur.inHours;
-        final m = _timeUntilSahur.inMinutes.remainder(60);
-        final s = _timeUntilSahur.inSeconds.remainder(60);
-        displayText = '${h.toString().padLeft(2, '0')}:${m.toString().padLeft(2, '0')}:${s.toString().padLeft(2, '0')}';
-        break;
-      case 'iftar':
-        title = 'İftara Ne Kadar Kaldı?';
-        icon = Icons.restaurant;
-        final h = _timeUntilIftar.inHours;
-        final m = _timeUntilIftar.inMinutes.remainder(60);
-        final s = _timeUntilIftar.inSeconds.remainder(60);
-        displayText = '${h.toString().padLeft(2, '0')}:${m.toString().padLeft(2, '0')}:${s.toString().padLeft(2, '0')}';
-        break;
-      case 'iftarVakti':
-        title = 'İftar Vakti';
-        icon = Icons.restaurant;
-        displayText = 'İftar Vakti!';
-        break;
-      case 'yarinSahur':
-        title = 'Yarınki Sahura Kalan Süre';
-        icon = Icons.nightlight_round;
-        final h = _timeUntilSahur.inHours;
-        final m = _timeUntilSahur.inMinutes.remainder(60);
-        final s = _timeUntilSahur.inSeconds.remainder(60);
-        displayText = '${h.toString().padLeft(2, '0')}:${m.toString().padLeft(2, '0')}:${s.toString().padLeft(2, '0')}';
-        break;
-      default:
-        title = 'Sahura Ne Kadar Kaldı?';
-        icon = Icons.nightlight_round;
-        displayText = '--:--:--';
-    }
-
-    final isMessage = displayText == 'İftar Vakti!';
+    final subtitle = _hasCountdown && _nextPrayerName.isNotEmpty
+        ? '$_nextPrayerName vaktine kalan süre'
+        : 'Sonraki namaz vaktine kalan süre';
 
     return Container(
       margin: const EdgeInsets.all(16),
@@ -1102,13 +1069,13 @@ class _ImsakiyeCountdownCardState extends State<ImsakiyeCountdownCard> {
       ),
       child: Column(
         children: [
-          Icon(icon, color: Colors.white, size: 40),
+          const Icon(Icons.schedule_rounded, color: Colors.white, size: 40),
           const SizedBox(height: 12),
           Text(
-            title,
+            subtitle,
             style: const TextStyle(
               color: Colors.white,
-              fontSize: 18,
+              fontSize: 17,
               fontWeight: FontWeight.bold,
             ),
             textAlign: TextAlign.center,
@@ -1116,11 +1083,11 @@ class _ImsakiyeCountdownCardState extends State<ImsakiyeCountdownCard> {
           const SizedBox(height: 16),
           Text(
             displayText,
-            style: TextStyle(
+            style: const TextStyle(
               color: Colors.white,
-              fontSize: isMessage ? 32 : 48,
+              fontSize: 48,
               fontWeight: FontWeight.bold,
-              fontFamily: isMessage ? null : 'monospace',
+              fontFamily: 'monospace',
             ),
           ),
         ],

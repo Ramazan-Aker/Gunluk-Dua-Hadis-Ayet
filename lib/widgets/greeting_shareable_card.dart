@@ -14,14 +14,14 @@ class GreetingShareableCard extends StatelessWidget {
   final double height;
 
   const GreetingShareableCard({
-    Key? key,
+    super.key,
     required this.categoryId,
     required this.messageText,
     required this.messageTitle,
     this.imageUrl,
     this.width = 1080,
     this.height = 1080,
-  }) : super(key: key);
+  });
 
   GreetingCategory get _categoryType =>
       GreetingCategoryInfo.getCategoryType(categoryId);
@@ -125,12 +125,12 @@ class GreetingShareableCard extends StatelessWidget {
     return Container(
       width: _designSize,
       height: _designSize,
-      decoration: BoxDecoration(
+      decoration: const BoxDecoration(
         gradient: LinearGradient(
           colors: [
-            const Color(0xFFCCFBF1),
-            const Color(0xFFF0FDFA),
-            const Color(0xFF99F6E4),
+            Color(0xFFCCFBF1),
+            Color(0xFFF0FDFA),
+            Color(0xFF99F6E4),
           ],
           begin: Alignment.topCenter,
           end: Alignment.bottomCenter,
@@ -141,7 +141,7 @@ class GreetingShareableCard extends StatelessWidget {
           _buildImageBackground(),
           _buildImageOverlay(),
           // Mosque silhouette
-          Positioned(
+          const Positioned(
             bottom: 80,
             left: 0,
             right: 0,
@@ -150,7 +150,7 @@ class GreetingShareableCard extends StatelessWidget {
               child: Icon(
                 Icons.mosque,
                 size: 200,
-                color: const Color(0xFF0F766E),
+                color: Color(0xFF0F766E),
               ),
             ),
           ),
@@ -209,12 +209,12 @@ class GreetingShareableCard extends StatelessWidget {
     return Container(
       width: _designSize,
       height: _designSize,
-      decoration: BoxDecoration(
+      decoration: const BoxDecoration(
         gradient: LinearGradient(
           colors: [
-            const Color(0xFFF8F4E8),
-            const Color(0xFFFDF9ED),
-            const Color(0xFFF5EDE0),
+            Color(0xFFF8F4E8),
+            Color(0xFFFDF9ED),
+            Color(0xFFF5EDE0),
           ],
           begin: Alignment.topLeft,
           end: Alignment.bottomRight,

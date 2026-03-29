@@ -407,7 +407,7 @@ class AdService {
 class AdBannerWidget extends StatefulWidget {
   final bool useSecondAd;
   
-  const AdBannerWidget({Key? key, this.useSecondAd = false}) : super(key: key);
+  const AdBannerWidget({super.key, this.useSecondAd = false});
 
   @override
   State<AdBannerWidget> createState() => _AdBannerWidgetState();

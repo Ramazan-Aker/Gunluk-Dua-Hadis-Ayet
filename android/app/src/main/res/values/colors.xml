@@ -1,4 +1,21 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
     <color name="ic_launcher_background">#1a237e</color>
+    <color name="widget_teal">#0D9488</color>
+    <color name="widget_teal_muted">#B30D9488</color>
+    <color name="widget_text_primary">#1E293B</color>
+    <color name="widget_gold">#C9A227</color>
+    <color name="widget_gold_muted">#80C9A227</color>
+    <color name="widget_text_dark">#1A1A1A</color>
+    <!-- Saydam widget: nötr, renksiz metin (duvar kağıdına göre okunaklılık) -->
+    <color name="widget_neutral_primary">#D9000000</color>
+    <color name="widget_neutral_secondary">#B3000000</color>
+    <color name="widget_neutral_muted">#8A000000</color>
+    <!-- Gri panel üzerinde tam renksiz metin (siyah-gri) -->
+    <color name="widget_gray_text_strong">#DE212121</color>
+    <color name="widget_gray_text">#B3212121</color>
+    <color name="widget_gray_icon">#8A212121</color>
+    <!-- Koyu cam şerit üzeri metin -->
+    <color name="widget_glass_text">#F2F5F5F5</color>
+    <color name="widget_glass_muted">#C4E0E0E0</color>
 </resources>

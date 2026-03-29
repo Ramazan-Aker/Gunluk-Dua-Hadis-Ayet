@@ -1,0 +1,29 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Koyu saydam cam + dış açık çerçeve / iç ince hat (görseldeki şerit hissi). -->
+<layer-list xmlns:android="http://schemas.android.com/apk/res/android">
+    <!-- Dış parlak hat (cam kenarı) -->
+    <item>
+        <shape android:shape="rectangle">
+            <solid android:color="#55E8E8E8" />
+            <corners android:radius="11dp" />
+        </shape>
+    </item>
+    <!-- İç koyu yarı saydam panel -->
+    <item
+        android:bottom="1.5dp"
+        android:left="1.5dp"
+        android:right="1.5dp"
+        android:top="1.5dp">
+        <shape android:shape="rectangle">
+            <gradient
+                android:angle="90"
+                android:endColor="#990F0F0F"
+                android:startColor="#B01E1E1E"
+                android:type="linear" />
+            <stroke
+                android:width="1dp"
+                android:color="#88FFFFFF" />
+            <corners android:radius="9dp" />
+        </shape>
+    </item>
+</layer-list>

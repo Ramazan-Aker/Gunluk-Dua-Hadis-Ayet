@@ -4,10 +4,13 @@
          Must use Theme.AppCompat for google_mobile_ads and other plugins. -->
     <style name="LaunchTheme" parent="Theme.AppCompat.Light.NoActionBar">
         <item name="android:windowBackground">@drawable/launch_background</item>
+        <item name="android:forceDarkAllowed">false</item>
+        <item name="android:windowFullscreen">true</item>
+        <item name="android:windowDrawsSystemBarBackgrounds">true</item>
+        <item name="android:windowLayoutInDisplayCutoutMode">shortEdges</item>
     </style>
     <!-- Theme applied to the Activity after the splash screen is gone -->
     <style name="NormalTheme" parent="Theme.AppCompat.Light.NoActionBar">
         <item name="android:windowBackground">?android:colorBackground</item>
     </style>
 </resources>
-

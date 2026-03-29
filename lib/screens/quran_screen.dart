@@ -3,11 +3,14 @@ import 'package:shared_preferences/shared_preferences.dart';
 import '../services/quran_audio_service.dart';
 import '../services/ad_service.dart';
 import '../services/firebase_service.dart' show FirebaseService, AnalyticsEvents, AnalyticsParams;
-import 'quran_reader_screen.dart';
+import '../services/quran_offline_repository.dart';
+import '../widgets/widget_shortcut_helper.dart';
+import '../widget_verse_pending.dart';
+import 'surah_detail_screen.dart';
 
 /// Quran screen - Sesli Kur'an-ı Kerim okuma
 class QuranScreen extends StatefulWidget {
-  const QuranScreen({Key? key}) : super(key: key);
+  const QuranScreen({super.key});
 
   @override
   State<QuranScreen> createState() => _QuranScreenState();
@@ -20,11 +23,9 @@ class _QuranScreenState extends State<QuranScreen> {
 
   List<QuranSurahInfo> _surahs = [];
   List<QuranSurahInfo> _filteredSurahs = [];
-  int _selectedReciterId = 7; // Hani Ar Rifai (Quran Foundation API ID)
   int? _lastReadSurah;
   String _searchQuery = '';
 
-  static const String _keyReciter = 'quran_selected_reciter';
   static const String _keyLastRead = 'quran_last_read_surah';
   static const String _keyLastVerse = 'quran_last_verse_'; // Prefix for verse position per surah
 
@@ -33,31 +34,81 @@ class _QuranScreenState extends State<QuranScreen> {
     super.initState();
     _surahs = _audioService.getAllSurahs();
     _filteredSurahs = _surahs; // Initially show all surahs
+    pendingWidgetVerseListIndex.addListener(_onPendingWidgetVerseFromWidget);
     // Defer non-critical work to avoid blocking first frame
     WidgetsBinding.instance.addPostFrameCallback((_) {
       _loadSavedPreferences();
       FirebaseService.logScreenView(screenName: AnalyticsEvents.screenQuran);
       FirebaseService.logEvent(name: AnalyticsEvents.quranScreenViewed);
+      _scheduleOpenSurahFromWidgetTap();
     });
   }
 
   @override
   void dispose() {
+    pendingWidgetVerseListIndex.removeListener(_onPendingWidgetVerseFromWidget);
     _scrollController.dispose();
     _searchController.dispose();
     super.dispose();
   }
 
+  void _onPendingWidgetVerseFromWidget() {
+    _scheduleOpenSurahFromWidgetTap();
+  }
+
+  void _scheduleOpenSurahFromWidgetTap() {
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      WidgetsBinding.instance.addPostFrameCallback((_) => _tryOpenSurahFromWidgetListIndex());
+    });
+  }
+
+  Future<void> _tryOpenSurahFromWidgetListIndex() async {
+    final listIndex = pendingWidgetVerseListIndex.value;
+    if (listIndex == null || !mounted) return;
+
+    final verse = await QuranOfflineRepository.instance.verseAtListIndex(listIndex);
+    if (!mounted) return;
+    if (verse == null) {
+      pendingWidgetVerseListIndex.value = null;
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Ayet bilgisi yüklenemedi.')),
+      );
+      return;
+    }
+
+    pendingWidgetVerseListIndex.value = null;
+
+    final surahName =
+        QuranAudioService.turkishSurahNames[verse.surah] ?? 'Sure ${verse.surah}';
+    final initialIdx = verse.ayahInSurah > 0 ? verse.ayahInSurah - 1 : 0;
+
+    if (!mounted) return;
+    await Navigator.push<void>(
+      context,
+      MaterialPageRoute<void>(
+        builder: (context) => SurahDetailScreen(
+          surahNumber: verse.surah,
+          surahName: surahName,
+          initialVerseIndex: initialIdx,
+          autoPlayNextSurah: false,
+          autoAdvanceVerses: false,
+          autoStartPlayback: false,
+        ),
+      ),
+    );
+
+    FirebaseService.logEvent(
+      name: 'quran_opened_from_widget',
+      parameters: {
+        AnalyticsParams.surahNumber: verse.surah,
+      },
+    );
+  }
+
   Future<void> _loadSavedPreferences() async {
     try {
       final prefs = await SharedPreferences.getInstance();
-      final savedReciter = prefs.getInt(_keyReciter);
       final savedLastRead = prefs.getInt(_keyLastRead);
-      
-      if (savedReciter != null && savedReciter >= 1 && savedReciter <= 10) {
-        setState(() => _selectedReciterId = savedReciter);
-      }
-      
       if (savedLastRead != null) {
         setState(() => _lastReadSurah = savedLastRead);
       }
@@ -69,13 +120,6 @@ class _QuranScreenState extends State<QuranScreen> {
       final prefs = await SharedPreferences.getInstance();
       await prefs.setInt(_keyLastRead, surahNumber);
       setState(() => _lastReadSurah = surahNumber);
-    } catch (_) {}
-  }
-
-  Future<void> _saveReciter(int id) async {
-    try {
-      final prefs = await SharedPreferences.getInstance();
-      await prefs.setInt(_keyReciter, id);
     } catch (_) {}
   }
 
@@ -100,27 +144,22 @@ class _QuranScreenState extends State<QuranScreen> {
   }
 
   void _openSurahReader(int surahNumber, String surahName, {bool autoPlayNext = false}) async {
-    // Save as last read
     _saveLastReadSurah(surahNumber);
 
-    // Preload audio in background BEFORE navigation for faster playback
-    _preloadAudioForSurah(surahNumber, _selectedReciterId);
-
-    // Load last verse position for this surah
     final prefs = await SharedPreferences.getInstance();
     final lastVerse = prefs.getInt('$_keyLastVerse$surahNumber') ?? 0;
 
-    // Navigate to reader screen
     if (!mounted) return;
     Navigator.push(
       context,
       MaterialPageRoute(
-        builder: (context) => QuranReaderScreen(
+        builder: (context) => SurahDetailScreen(
           surahNumber: surahNumber,
           surahName: surahName,
-          reciterId: _selectedReciterId,
-          autoPlayNext: autoPlayNext,
-          initialVerseIndex: lastVerse, // Pass initial verse position
+          initialVerseIndex: lastVerse,
+          autoPlayNextSurah: autoPlayNext,
+          autoAdvanceVerses: true,
+          autoStartPlayback: autoPlayNext,
         ),
       ),
     );
@@ -131,19 +170,6 @@ class _QuranScreenState extends State<QuranScreen> {
         AnalyticsParams.surahNumber: surahNumber,
       },
     );
-  }
-
-  // Preload audio for faster playback
-  void _preloadAudioForSurah(int surahNumber, int reciterId) {
-    // Fire and forget - don't wait for it
-    _audioService.fetchSurahAudioUrl(
-      surahNumber: surahNumber,
-      reciterId: reciterId,
-    ).then((url) {
-      // Silently preload in background
-    }).catchError((e) {
-      // Silently fail
-    });
   }
 
   @override
@@ -168,6 +194,7 @@ class _QuranScreenState extends State<QuranScreen> {
             ),
           ),
         ),
+        actions: WidgetShortcutHelper.appBarActions(context),
       ),
       body: Container(
         decoration: const BoxDecoration(
@@ -182,7 +209,6 @@ class _QuranScreenState extends State<QuranScreen> {
             children: [
               const AdBannerWidget(useSecondAd: true),
               _buildSearchBar(),
-              _buildReciterSelector(),
               Expanded(
                 child: _buildSurahList(),
               ),
@@ -219,9 +245,9 @@ class _QuranScreenState extends State<QuranScreen> {
             fontSize: 14,
           ),
           border: InputBorder.none,
-          icon: Icon(
+          icon: const Icon(
             Icons.search,
-            color: const Color(0xFF0D9488),
+            color: Color(0xFF0D9488),
             size: 24,
           ),
           suffixIcon: _searchQuery.isNotEmpty
@@ -238,124 +264,6 @@ class _QuranScreenState extends State<QuranScreen> {
               : null,
         ),
         style: const TextStyle(fontSize: 14),
-      ),
-    );
-  }
-
-  Widget _buildReciterSelector() {
-    return Container(
-      margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
-      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
-      decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(16),
-        boxShadow: [
-          BoxShadow(
-            color: Colors.black.withValues(alpha: 0.08),
-            blurRadius: 12,
-            offset: const Offset(0, 4),
-          ),
-        ],
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Row(
-            mainAxisAlignment: MainAxisAlignment.spaceBetween,
-            children: [
-              const Text(
-                'Hafız Seçin',
-                style: TextStyle(
-                  fontSize: 14,
-                  fontWeight: FontWeight.w600,
-                  color: Color(0xFF0F766E),
-                ),
-              ),
-              Icon(
-                Icons.person,
-                color: const Color(0xFF0D9488),
-                size: 20,
-              ),
-            ],
-          ),
-          const SizedBox(height: 12),
-          DropdownButtonFormField<int>(
-            value: _selectedReciterId,
-            decoration: InputDecoration(
-              contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-              border: OutlineInputBorder(
-                borderRadius: BorderRadius.circular(12),
-                borderSide: BorderSide(color: Colors.grey.shade300),
-              ),
-              enabledBorder: OutlineInputBorder(
-                borderRadius: BorderRadius.circular(12),
-                borderSide: BorderSide(color: Colors.grey.shade300),
-              ),
-              focusedBorder: OutlineInputBorder(
-                borderRadius: BorderRadius.circular(12),
-                borderSide: const BorderSide(color: Color(0xFF0D9488), width: 2),
-              ),
-            ),
-            items: QuranAudioService.reciters.entries.map((entry) {
-              return DropdownMenuItem<int>(
-                value: entry.key,
-                child: Text(
-                  entry.value,
-                  style: const TextStyle(fontSize: 13),
-                  overflow: TextOverflow.ellipsis,
-                ),
-              );
-            }).toList(),
-            onChanged: (value) {
-              if (value != null) {
-                setState(() => _selectedReciterId = value);
-                _saveReciter(value);
-                
-                // Show snackbar
-                ScaffoldMessenger.of(context).showSnackBar(
-                  SnackBar(
-                    content: Text('Hafız değiştirildi: ${QuranAudioService.reciters[value]}'),
-                    duration: const Duration(seconds: 2),
-                    backgroundColor: const Color(0xFF0D9488),
-                  ),
-                );
-              }
-            },
-          ),
-          const SizedBox(height: 8),
-          Text(
-            'Yeni açtığınız surelerde seçili hafız ile dinleyebilirsiniz',
-            style: TextStyle(
-              fontSize: 11,
-              color: Colors.grey.shade600,
-              fontStyle: FontStyle.italic,
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-
-  Widget _buildErrorMessage() {
-    return Container(
-      margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-      padding: const EdgeInsets.all(12),
-      decoration: BoxDecoration(
-        color: Colors.red.shade50,
-        borderRadius: BorderRadius.circular(12),
-        border: Border.all(color: Colors.red.shade200),
-      ),
-      child: Row(
-        children: [
-          Icon(Icons.error_outline, color: Colors.red.shade700, size: 24),
-          const SizedBox(width: 12),
-          Expanded(
-            child: Text(
-              'Bir hata oluştu',
-              style: TextStyle(color: Colors.red.shade800, fontSize: 14),
-            ),
-          ),
-        ],
       ),
     );
   }

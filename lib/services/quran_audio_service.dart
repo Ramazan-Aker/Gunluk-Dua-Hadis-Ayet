@@ -10,7 +10,8 @@ class QuranAudioService {
   // Memory cache for audio URLs to avoid repeated API calls
   static final Map<String, String> _urlCache = {};
 
-  /// Reciter IDs: 1-5 for quranapi.pages.dev, 7 for Quran Foundation API (timing compatible)
+  /// Reciter IDs: 1-5 for quranapi.pages.dev, 7 for Quran Foundation API (timing compatible).
+  /// ID 7 is mapped to API key 5 (Hani Ar Rifai) in [audioApiReciterKey] — the JSON has no "7" entry.
   static const Map<int, String> reciters = {
     1: 'Mishary Rashid Al Afasy',
     2: 'Abu Bakr Al Shatri',
@@ -19,6 +20,14 @@ class QuranAudioService {
     5: 'Hani Ar Rifai',
     7: 'Hani Ar Rifai', // Timing compatible with Quran Foundation API
   };
+
+  /// Maps UI / timing reciter id to quranapi.pages.dev JSON keys (only "1".."5").
+  /// Default Hani (Quran Foundation id 7) → API bucket 5.
+  static int audioApiReciterKey(int reciterId) {
+    if (reciterId == 7) return 5;
+    if (reciterId >= 1 && reciterId <= 5) return reciterId;
+    return 5;
+  }
 
   /// Turkish surah names
   static const Map<int, String> turkishSurahNames = {
@@ -138,9 +147,24 @@ class QuranAudioService {
     114: 'Nas',
   };
 
-  /// Direct fallback URLs when API fails (GitHub raw - reciter 1 = Mishary Alafasy)
-  static String? _getFallbackUrl(int surahNumber, int reciterId) {
-    return 'https://github.com/The-Quran-Project/Quran-Audio-Chapters/raw/refs/heads/main/Data/$reciterId/$surahNumber.mp3';
+  /// mp3quran.net bases (same as quranapi JSON [originalUrl]) — works on old Android MediaPlayer; GitHub raw often does not.
+  static const Map<int, String> _mp3quranBaseByApiKey = {
+    1: 'https://server8.mp3quran.net/afs/',
+    2: 'https://server11.mp3quran.net/shatri/',
+    3: 'https://server6.mp3quran.net/qtm/',
+    4: 'https://server11.mp3quran.net/yasser/',
+    5: 'https://server8.mp3quran.net/hani/',
+  };
+
+  /// When the HTTP API fails: same CDN as [originalUrl] (3-digit surah names).
+  static String _getFallbackUrl(int surahNumber, int reciterId) {
+    final key = audioApiReciterKey(reciterId);
+    final padded = surahNumber.toString().padLeft(3, '0');
+    final base = _mp3quranBaseByApiKey[key];
+    if (base != null) {
+      return '$base$padded.mp3';
+    }
+    return 'https://server8.mp3quran.net/hani/$padded.mp3';
   }
 
   /// Fetch full chapter (surah) audio URL for a reciter
@@ -149,10 +173,16 @@ class QuranAudioService {
     required int surahNumber,
     required int reciterId,
   }) async {
-    // Check memory cache first
+    // Check memory cache first (drop stale GitHub URLs from older app versions)
     final cacheKey = '${surahNumber}_$reciterId';
     if (_urlCache.containsKey(cacheKey)) {
-      return _urlCache[cacheKey];
+      final cached = _urlCache[cacheKey]!;
+      if (cached.contains('githubusercontent.com') ||
+          cached.contains('github.com/The-Quran-Project')) {
+        _urlCache.remove(cacheKey);
+      } else {
+        return cached;
+      }
     }
 
     try {
@@ -168,15 +198,16 @@ class QuranAudioService {
 
       if (response.statusCode == 200) {
         final data = json.decode(response.body) as Map<String, dynamic>;
-        final reciterObj = data[reciterId.toString()] as Map<String, dynamic>?;
+        final apiKey = audioApiReciterKey(reciterId);
+        final reciterObj = data[apiKey.toString()] as Map<String, dynamic>?;
         if (reciterObj != null) {
-          // GitHub URL first - mp3quran.net may be blocked in some regions
-          final url = reciterObj['url'] as String?;
+          final ghUrl = reciterObj['url'] as String?;
           final originalUrl = reciterObj['originalUrl'] as String?;
-          final resultUrl = url ?? originalUrl;
-          
+          // Prefer mp3quran CDN — Android ExoPlayer/MediaPlayer streams reliably; GitHub HTML/redirect URLs often fail.
+          final resultUrl = originalUrl ?? ghUrl;
+
           if (resultUrl != null) {
-            _urlCache[cacheKey] = resultUrl; // Store in cache
+            _urlCache[cacheKey] = resultUrl;
             return resultUrl;
           }
         }
@@ -185,11 +216,8 @@ class QuranAudioService {
       // Silently fail, will try fallback
     }
     
-    // Fallback: direct GitHub URL when API fails
     final fallbackUrl = _getFallbackUrl(surahNumber, reciterId);
-    if (fallbackUrl != null) {
-      _urlCache[cacheKey] = fallbackUrl;
-    }
+    _urlCache[cacheKey] = fallbackUrl;
     return fallbackUrl;
   }
 

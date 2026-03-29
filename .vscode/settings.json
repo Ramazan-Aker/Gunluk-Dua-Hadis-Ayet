@@ -42,6 +42,18 @@
   "terminal.integrated.env.windows": {
     "ANDROID_HOME": "C:\\Users\\Ramazan\\AppData\\Local\\Android\\sdk",
     "JAVA_HOME": "C:\\Program Files\\Android\\Android Studio\\jbr"
-  }
+  },
+
+  // Java/Gradle dil sunucusu: JDK 21 + pub.dev alt projeleri "Unsupported class file major version 65",
+  // firebase_crashlytics settings.gradle vb. sağ alttaki hataları tetikliyor. Flutter derlemesi
+  // yine `flutter run` / Gradle wrapper ile yapılır; burada JBR 17 + pub cache hariç tutulur.
+  "java.jdt.ls.java.home": "C:\\Program Files\\Android\\Android Studio\\jbr",
+  "java.import.gradle.java.home": "C:\\Program Files\\Android\\Android Studio\\jbr",
+  "java.import.gradle.wrapper.enabled": true,
+  "java.import.exclusions": [
+    "**/hosted/pub.dev/**",
+    "**/Pub/Cache/**",
+    "**/pub.dev/**"
+  ]
 }
 

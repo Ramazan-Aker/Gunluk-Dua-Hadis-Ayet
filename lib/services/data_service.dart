@@ -19,7 +19,7 @@ class DataService {
   final Random _random = Random();
   
   // Flag to determine if we should use Quran API for ayahs
-  bool _useQuranApi = true;
+  final bool _useQuranApi = true;
 
   // SharedPreferences keys
   static const String _keyLastDate = 'last_date';

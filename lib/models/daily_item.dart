@@ -28,15 +28,15 @@ class DailyItem {
     };
   }
 
-  /// Get display title based on type
+  /// Tür adı; emoji için [getIcon] kullanın.
   String getTitle() {
     switch (type.toLowerCase()) {
       case 'dua':
-        return '🤲 Günün Duası';
+        return 'Günün Duası';
       case 'hadith':
-        return '📖 Hadis';
+        return 'Hadis';
       case 'ayah':
-        return '✨ Ayet';
+        return 'Ayet';
       default:
         return 'Günün Mesajı';
     }

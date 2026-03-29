@@ -6,7 +6,7 @@ import '../services/ad_service.dart';
 
 /// Dini günler ekranı - Tüm kandiller ve bayramlara kalan süre
 class ReligiousDaysScreen extends StatefulWidget {
-  const ReligiousDaysScreen({Key? key}) : super(key: key);
+  const ReligiousDaysScreen({super.key});
 
   @override
   State<ReligiousDaysScreen> createState() => _ReligiousDaysScreenState();

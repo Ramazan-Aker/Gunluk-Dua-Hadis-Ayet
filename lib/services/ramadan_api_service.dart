@@ -84,16 +84,18 @@ class RamadanApiService {
 
         if (jsonData is Map && jsonData['data'] is List) {
           for (var item in jsonData['data'] as List) {
-            if (item is Map<String, dynamic>) {
-              final dateStr = item['date'] as String?;
-              if (dateStr != null) {
-                final date = DateTime.parse(dateStr);
-                if (_isDateInRange(date, startDate, endDate)) {
-                  final times = item['times'] as Map<String, dynamic>? ?? item;
-                  prayerTimesList.add(PrayerTimes.fromJson(times, date));
-                }
-              }
-            }
+            if (item is! Map) continue;
+            final row = Map<String, dynamic>.from(item);
+            final dateStr = row['date'] as String?;
+            if (dateStr == null) continue;
+            final date = DateTime.parse(dateStr).toLocal();
+            final dayOnly = DateTime(date.year, date.month, date.day);
+            if (!_isDateInRange(dayOnly, startDate, endDate)) continue;
+            final rawTimes = row['times'];
+            final Map<String, dynamic> timesMap = rawTimes is Map
+                ? Map<String, dynamic>.from(rawTimes)
+                : row;
+            prayerTimesList.add(PrayerTimes.fromJson(timesMap, dayOnly));
           }
         }
 
@@ -361,42 +363,57 @@ class RamadanApiService {
     required DateTime endDate,
     bool useCache = true,
   }) async {
+    List<PrayerTimes> allTimes;
+
     if (startDate.month == endDate.month) {
-      return fetchPrayerTimes(
+      allTimes = await fetchPrayerTimes(
         locationId: locationId,
         startDate: startDate,
         endDate: endDate,
         useCache: useCache,
       );
-    }
+    } else {
+      allTimes = [];
+      DateTime current = DateTime(startDate.year, startDate.month, 1);
 
-    final List<PrayerTimes> allTimes = [];
-    DateTime current = DateTime(startDate.year, startDate.month, 1);
+      while (current.isBefore(endDate) ||
+          current.isAtSameMomentAs(DateTime(endDate.year, endDate.month, 1))) {
+        final monthEnd = DateTime(current.year, current.month + 1, 0);
+        final monthStart = current.isBefore(startDate) ? startDate : current;
+        final monthEndDate = monthEnd.isAfter(endDate) ? endDate : monthEnd;
 
-    while (current.isBefore(endDate) || current.isAtSameMomentAs(DateTime(endDate.year, endDate.month, 1))) {
-      final monthEnd = DateTime(current.year, current.month + 1, 0);
-      final monthStart = current.isBefore(startDate) ? startDate : current;
-      final monthEndDate = monthEnd.isAfter(endDate) ? endDate : monthEnd;
+        final times = await fetchPrayerTimes(
+          locationId: locationId,
+          startDate: monthStart,
+          endDate: monthEndDate,
+          useCache: false,
+        );
+        allTimes.addAll(times);
 
-      final times = await fetchPrayerTimes(
-        locationId: locationId,
-        startDate: monthStart,
-        endDate: monthEndDate,
-        useCache: false,
-      );
-      allTimes.addAll(times);
+        if (current.month == 12) {
+          current = DateTime(current.year + 1, 1, 1);
+        } else {
+          current = DateTime(current.year, current.month + 1, 1);
+        }
+      }
 
-      if (current.month == 12) {
-        current = DateTime(current.year + 1, 1, 1);
-      } else {
-        current = DateTime(current.year, current.month + 1, 1);
+      allTimes.sort((a, b) => a.date.compareTo(b.date));
+      if (allTimes.isNotEmpty) {
+        await _cachePrayerTimes(locationId, allTimes);
       }
     }
 
-    allTimes.sort((a, b) => a.date.compareTo(b.date));
-    if (allTimes.isNotEmpty) {
-      await _cachePrayerTimes(locationId, allTimes);
-    }
-    return allTimes;
+    if (allTimes.isNotEmpty) return allTimes;
+
+    // Gelecek Ramazan için API henüz veri dönmüyorsa (ör. 2027 aralığı boş) günlük vakitlere düş.
+    final now = DateTime.now();
+    final today = DateTime(now.year, now.month, now.day);
+    final fallbackEnd = today.add(const Duration(days: 30));
+    return fetchPrayerTimes(
+      locationId: locationId,
+      startDate: today,
+      endDate: fallbackEnd,
+      useCache: false,
+    );
   }
 }

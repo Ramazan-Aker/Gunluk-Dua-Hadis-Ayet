@@ -11,14 +11,14 @@ class ItemCard extends StatelessWidget {
   final bool isRead;
 
   const ItemCard({
-    Key? key,
+    super.key,
     required this.item,
     required this.onShare,
     required this.onNext,
     this.onMarkAsRead,
     this.isSharing = false,
     this.isRead = false,
-  }) : super(key: key);
+  });
 
   @override
   Widget build(BuildContext context) {
@@ -207,7 +207,7 @@ class ItemCard extends StatelessWidget {
 
 /// Loading widget
 class LoadingCard extends StatelessWidget {
-  const LoadingCard({Key? key}) : super(key: key);
+  const LoadingCard({super.key});
 
   @override
   Widget build(BuildContext context) {

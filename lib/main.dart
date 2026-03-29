@@ -1,5 +1,11 @@
+import 'dart:async';
+import 'dart:io';
+
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import 'package:flutter_native_splash/flutter_native_splash.dart';
+import 'services/home_screen_widget_service.dart';
 import 'services/ad_service.dart';
 import 'services/notification_service.dart';
 import 'services/daily_reminder_service.dart';
@@ -9,16 +15,19 @@ import 'screens/ramadan_screen.dart';
 import 'screens/messages_screen.dart';
 import 'screens/religious_days_screen.dart';
 import 'screens/quran_screen.dart';
+import 'services/widget_verse_android_bridge.dart';
+import 'widget_verse_launch_handler.dart';
+import 'widget_verse_pending.dart';
 
 /// Main entry point of the Daily Dua & Hadith app
 void main() async {
-  // Ensure Flutter bindings are initialized
-  WidgetsFlutterBinding.ensureInitialized();
-  
+  final widgetsBinding = WidgetsFlutterBinding.ensureInitialized();
+  FlutterNativeSplash.preserve(widgetsBinding: widgetsBinding);
+
   // Initialize Firebase (Analytics & Crashlytics)
   try {
     await FirebaseService.initialize();
-  } catch (e, stackTrace) {
+  } catch (e) {
     // Firebase init failed - app continues without it
   }
   
@@ -29,9 +38,8 @@ void main() async {
   final notificationService = NotificationService();
   await notificationService.initialize();
   
-  // Check if we need to reschedule notifications (after boot)
-  final shouldReschedule = await notificationService.shouldRescheduleNotifications();
-  
+  await notificationService.shouldRescheduleNotifications();
+
   // Initialize daily reminder notifications
   final reminderService = DailyReminderService();
   await reminderService.initializeDailyReminder();
@@ -49,18 +57,77 @@ void main() async {
       statusBarIconBrightness: Brightness.light,
     ),
   );
-  
+
   // Run the app
   runApp(const DailyDuaApp());
 }
 
 /// Root widget of the application
-class DailyDuaApp extends StatelessWidget {
-  const DailyDuaApp({Key? key}) : super(key: key);
+class DailyDuaApp extends StatefulWidget {
+  const DailyDuaApp({super.key});
+
+  @override
+  State<DailyDuaApp> createState() => _DailyDuaAppState();
+}
+
+class _DailyDuaAppState extends State<DailyDuaApp> with WidgetsBindingObserver {
+  final GlobalKey<NavigatorState> _navigatorKey = GlobalKey<NavigatorState>();
+  StreamSubscription<Uri?>? _widgetClickSub;
+
+  Future<void> _androidWidgetVersePipeline() async {
+    if (kIsWeb || !Platform.isAndroid) return;
+    await HomeScreenWidgetService.syncHatimVerseForWidget();
+    await WidgetVerseAndroidBridge.consumeAndDispatchToFlutter();
+    await WidgetVerseLaunchHandler.handleInitialLaunch();
+    await WidgetVerseAndroidBridge.consumeAndDispatchToFlutter();
+  }
+
+  void _scheduleAndroidWidgetVersePulls() {
+    if (kIsWeb || !Platform.isAndroid) return;
+    Future<void>(() async {
+      await WidgetVerseAndroidBridge.consumeAndDispatchToFlutter();
+    });
+    Future<void>.delayed(const Duration(milliseconds: 250), () async {
+      await WidgetVerseAndroidBridge.consumeAndDispatchToFlutter();
+    });
+    Future<void>.delayed(const Duration(milliseconds: 800), () async {
+      await WidgetVerseAndroidBridge.consumeAndDispatchToFlutter();
+    });
+  }
+
+  @override
+  void initState() {
+    super.initState();
+    WidgetsBinding.instance.addObserver(this);
+    _widgetClickSub = WidgetVerseLaunchHandler.subscribeWidgetClicks();
+    WidgetsBinding.instance.addPostFrameCallback((_) async {
+      FlutterNativeSplash.remove();
+      if (!kIsWeb && Platform.isAndroid) {
+        await _androidWidgetVersePipeline();
+        _scheduleAndroidWidgetVersePulls();
+      }
+    });
+  }
+
+  @override
+  void dispose() {
+    WidgetsBinding.instance.removeObserver(this);
+    _widgetClickSub?.cancel();
+    super.dispose();
+  }
+
+  @override
+  void didChangeAppLifecycleState(AppLifecycleState state) {
+    if (state == AppLifecycleState.resumed && !kIsWeb && Platform.isAndroid) {
+      WidgetVerseAndroidBridge.consumeAndDispatchToFlutter();
+      _scheduleAndroidWidgetVersePulls();
+    }
+  }
 
   @override
   Widget build(BuildContext context) {
     return MaterialApp(
+      navigatorKey: _navigatorKey,
       // App metadata
       title: 'Her Gün İslam',
       debugShowCheckedModeBanner: false,
@@ -140,22 +207,42 @@ class DailyDuaApp extends StatelessWidget {
   }
 }
 
+
 /// Main navigation screen with bottom navigation bar
 class MainNavigationScreen extends StatefulWidget {
-  const MainNavigationScreen({Key? key}) : super(key: key);
+  const MainNavigationScreen({super.key});
 
   @override
   State<MainNavigationScreen> createState() => _MainNavigationScreenState();
 }
 
 class _MainNavigationScreenState extends State<MainNavigationScreen> {
-  int _selectedIndex = 0;
+  /// Orta sekme: Ana Sayfa
+  int _selectedIndex = 2;
 
-  // Screens for navigation
+  @override
+  void initState() {
+    super.initState();
+    pendingWidgetVerseListIndex.addListener(_onPendingWidgetVerseForNav);
+  }
+
+  @override
+  void dispose() {
+    pendingWidgetVerseListIndex.removeListener(_onPendingWidgetVerseForNav);
+    super.dispose();
+  }
+
+  void _onPendingWidgetVerseForNav() {
+    if (pendingWidgetVerseListIndex.value != null) {
+      setState(() => _selectedIndex = 1);
+    }
+  }
+
+  // Sıra: İmsakiye, Kur'an, Ana Sayfa, Mesajlar, Dini Günler
   final List<Widget> _screens = [
-    const HomeScreen(),
     const RamadanScreen(),
     const QuranScreen(),
+    const HomeScreen(),
     const MessagesScreen(),
     const ReligiousDaysScreen(),
   ];
@@ -182,16 +269,16 @@ class _MainNavigationScreenState extends State<MainNavigationScreen> {
         elevation: 8,
         items: const [
           BottomNavigationBarItem(
-            icon: Icon(Icons.home),
-            label: 'Ana Sayfa',
-          ),
-          BottomNavigationBarItem(
             icon: Icon(Icons.mosque),
             label: 'İmsakiye',
           ),
           BottomNavigationBarItem(
             icon: Icon(Icons.menu_book),
             label: 'Kur\'an',
+          ),
+          BottomNavigationBarItem(
+            icon: Icon(Icons.home),
+            label: 'Ana Sayfa',
           ),
           BottomNavigationBarItem(
             icon: Icon(Icons.celebration),

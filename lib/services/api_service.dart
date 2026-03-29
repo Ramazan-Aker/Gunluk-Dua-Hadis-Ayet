@@ -79,7 +79,7 @@ class ApiService {
   Future<bool> checkApiAvailability() async {
     try {
       final uri = Uri.parse('$baseUrl/health');
-      final response = await http.get(uri).timeout(Duration(seconds: 5));
+      final response = await http.get(uri).timeout(const Duration(seconds: 5));
 
       return response.statusCode == 200;
     } catch (e) {

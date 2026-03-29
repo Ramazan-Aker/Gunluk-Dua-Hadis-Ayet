@@ -8,10 +8,11 @@ import '../services/greeting_service.dart';
 import '../services/ad_service.dart';
 import '../services/firebase_service.dart';
 import '../widgets/greeting_shareable_card.dart';
+import '../widgets/widget_shortcut_helper.dart';
 
 /// Screen for sharing Cuma, Kandil, and Bayram greeting messages
 class MessagesScreen extends StatefulWidget {
-  const MessagesScreen({Key? key}) : super(key: key);
+  const MessagesScreen({super.key});
 
   @override
   State<MessagesScreen> createState() => _MessagesScreenState();
@@ -31,7 +32,6 @@ class _MessagesScreenState extends State<MessagesScreen> {
   String _messageTitle = '';
   bool _isCustomMessage = false;
   String? _selectedMessageId;
-  String? _previewImageUrl;
   Future<String?>? _imageFuture;
 
   @override
@@ -281,6 +281,7 @@ class _MessagesScreenState extends State<MessagesScreen> {
                 onPressed: _onBackPressed,
               )
             : null,
+        actions: WidgetShortcutHelper.appBarActions(context),
       ),
       body: Container(
         decoration: const BoxDecoration(
@@ -459,14 +460,14 @@ class _MessagesScreenState extends State<MessagesScreen> {
                 child: InkWell(
                   onTap: () => _showCustomMessageDialog(),
                   borderRadius: BorderRadius.circular(16),
-                  child: Padding(
-                    padding: const EdgeInsets.all(20),
+                  child: const Padding(
+                    padding: EdgeInsets.all(20),
                     child: Row(
                       children: [
                         Icon(Icons.edit_note,
-                            color: const Color(0xFF0D9488), size: 28),
-                        const SizedBox(width: 16),
-                        const Expanded(
+                            color: Color(0xFF0D9488), size: 28),
+                        SizedBox(width: 16),
+                        Expanded(
                           child: Text(
                             'Özel mesaj yaz',
                             style: TextStyle(
@@ -476,7 +477,7 @@ class _MessagesScreenState extends State<MessagesScreen> {
                             ),
                           ),
                         ),
-                        const Icon(Icons.arrow_forward_ios, size: 16),
+                        Icon(Icons.arrow_forward_ios, size: 16),
                       ],
                     ),
                   ),

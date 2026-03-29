@@ -142,22 +142,28 @@ class ChapterTimingCache {
   final int reciterId;
   final List<VerseTiming> timings;
   final DateTime cachedAt;
+  /// Quran.com audio URL (same file as [timings]); optional for legacy cache entries.
+  final String? audioUrl;
 
   ChapterTimingCache({
     required this.chapterId,
     required this.reciterId,
     required this.timings,
     required this.cachedAt,
+    this.audioUrl,
   });
 
   /// Convert to JSON string for SharedPreferences
   String toJsonString() {
-    final map = {
+    final map = <String, dynamic>{
       'chapterId': chapterId,
       'reciterId': reciterId,
       'cachedAt': cachedAt.toIso8601String(),
       'timings': timings.map((t) => t.toJson()).toList(),
     };
+    if (audioUrl != null) {
+      map['audioUrl'] = audioUrl;
+    }
     return jsonEncode(map);
   }
 
@@ -174,6 +180,7 @@ class ChapterTimingCache {
       reciterId: map['reciterId'] as int,
       timings: timings,
       cachedAt: DateTime.parse(map['cachedAt'] as String),
+      audioUrl: map['audioUrl'] as String?,
     );
   }
 

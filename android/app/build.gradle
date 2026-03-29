@@ -10,9 +10,6 @@ def keystoreProperties = new Properties()
 def keystorePropertiesFile = rootProject.file('key.properties')
 if (keystorePropertiesFile.exists()) {
     keystoreProperties.load(new FileInputStream(keystorePropertiesFile))
-    println("✅ Keystore properties loaded from: ${keystorePropertiesFile}")
-} else {
-    println("❌ Keystore properties file not found: ${keystorePropertiesFile}")
 }
 
 android {
@@ -54,15 +51,9 @@ android {
                     def keystoreFile = rootProject.file("app/${storeFilePath}")
                     if (keystoreFile.exists()) {
                         storeFile keystoreFile
-                        println("✅ Using keystore: ${keystoreFile}")
-                    } else {
-                        println("❌ Keystore file not found: ${keystoreFile}")
                     }
                 }
                 storePassword keystoreProperties['storePassword']
-                println("✅ Release signing config configured")
-            } else {
-                println("❌ Keystore properties file not found, using debug signing")
             }
         }
     }
@@ -72,14 +63,8 @@ android {
             // Use release signing config if keystore exists, otherwise use debug
             if (keystorePropertiesFile.exists() && signingConfigs.release.storeFile != null) {
                 signingConfig signingConfigs.release
-                println("✅ Release build will use release signing config")
             } else {
                 signingConfig signingConfigs.debug
-                println("⚠️ WARNING: Release build will use DEBUG signing config!")
-                println("   Keystore properties exists: ${keystorePropertiesFile.exists()}")
-                if (keystorePropertiesFile.exists()) {
-                    println("   Store file: ${signingConfigs.release.storeFile}")
-                }
             }
             minifyEnabled false
             shrinkResources false

@@ -1,3 +1,4 @@
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:widgets_to_image/widgets_to_image.dart';
@@ -12,10 +13,11 @@ import '../services/notification_service.dart';
 import '../services/firebase_service.dart';
 import '../widgets/item_card.dart';
 import '../widgets/shareable_card.dart';
+import '../widgets/widget_shortcut_helper.dart';
 
 /// Main home screen displaying the daily item
 class HomeScreen extends StatefulWidget {
-  const HomeScreen({Key? key}) : super(key: key);
+  const HomeScreen({super.key});
 
   @override
   State<HomeScreen> createState() => _HomeScreenState();
@@ -27,7 +29,6 @@ class _HomeScreenState extends State<HomeScreen> {
   final AdService _adService = AdService();
   DailyItem? _currentItem;
   bool _isLoading = true;
-  bool _isRefreshing = false;
   bool _isSharing = false;
   bool _isRead = false;
   int _readingStreak = 0;
@@ -55,7 +56,7 @@ class _HomeScreenState extends State<HomeScreen> {
     // Log screen view to Analytics
     FirebaseService.logScreenView(screenName: AnalyticsEvents.screenHome);
   }
-  
+
   /// Setup notifications and request necessary permissions
   /// Doğrudan sistem izin diyaloğu gösterilir (ara ekran yok)
   Future<void> _setupNotificationsAndPermissions() async {
@@ -67,6 +68,7 @@ class _HomeScreenState extends State<HomeScreen> {
       final hasAskedBefore = prefs.getBool(key) ?? false;
       final hasPermission = await notificationService.areNotificationsEnabled();
 
+      if (!mounted) return;
       if (hasPermission) {
         await notificationService.scheduleDailyReminders(context);
         return;
@@ -76,6 +78,7 @@ class _HomeScreenState extends State<HomeScreen> {
       if (!hasAskedBefore && mounted) {
         await prefs.setBool(key, true);
         final granted = await notificationService.requestPermission();
+        if (!mounted) return;
         if (granted) {
           await notificationService.scheduleDailyReminders(context);
           if (mounted) {
@@ -89,6 +92,7 @@ class _HomeScreenState extends State<HomeScreen> {
           }
         }
       } else {
+        if (!mounted) return;
         await notificationService.scheduleDailyReminders(context);
       }
     } catch (e) {
@@ -193,7 +197,7 @@ class _HomeScreenState extends State<HomeScreen> {
                       const SizedBox(width: 8),
                       Expanded(
                         child: Text(
-                          '${_readingStreak} günlük okuma serisi! 🔥',
+                          '$_readingStreak günlük okuma serisi! 🔥',
                           style: const TextStyle(
                             fontSize: 14,
                             fontWeight: FontWeight.w600,
@@ -276,7 +280,6 @@ class _HomeScreenState extends State<HomeScreen> {
   Future<void> _loadDailyItem({bool forceRefresh = false}) async {
     setState(() {
       _isLoading = !forceRefresh;
-      _isRefreshing = forceRefresh;
       _errorMessage = null;
     });
 
@@ -286,9 +289,8 @@ class _HomeScreenState extends State<HomeScreen> {
       setState(() {
         _currentItem = item;
         _isLoading = false;
-        _isRefreshing = false;
       });
-      
+
       // Check reading status after loading item
       await _checkReadingStatus();
       
@@ -319,7 +321,6 @@ class _HomeScreenState extends State<HomeScreen> {
       );
       setState(() {
         _isLoading = false;
-        _isRefreshing = false;
         _errorMessage = 'İçerik yüklenirken bir hata oluştu: ${e.toString()}';
       });
       
@@ -343,7 +344,6 @@ class _HomeScreenState extends State<HomeScreen> {
   /// Refresh data from API
   Future<void> _refreshData() async {
     setState(() {
-      _isRefreshing = true;
       _errorMessage = null;
     });
 
@@ -367,10 +367,6 @@ class _HomeScreenState extends State<HomeScreen> {
     } catch (e) {
       setState(() {
         _errorMessage = 'Yenileme sırasında hata oluştu: ${e.toString()}';
-      });
-    } finally {
-      setState(() {
-        _isRefreshing = false;
       });
     }
   }
@@ -400,7 +396,7 @@ class _HomeScreenState extends State<HomeScreen> {
         _currentItem = item;
         _isLoading = false;
       });
-      
+
       // Log random item viewed to Analytics
       if (item != null) {
         FirebaseService.logEvent(
@@ -484,8 +480,8 @@ class _HomeScreenState extends State<HomeScreen> {
         // Share the image
         await Share.shareXFiles(
           [XFile(imagePath)],
-          text: '${item.getTitle()}\n\nHer Gün İslam uygulamasından paylaşıldı',
-          subject: item.getTitle(),
+          text: '${item.getIcon()} ${item.getTitle()}\n\nHer Gün İslam uygulamasından paylaşıldı',
+          subject: '${item.getIcon()} ${item.getTitle()}',
         );
 
         // Log share event to Analytics
@@ -546,7 +542,7 @@ class _HomeScreenState extends State<HomeScreen> {
     if (_currentItem == null) return;
 
     final String shareText = '''
-${_currentItem!.getTitle()}
+${_currentItem!.getIcon()} ${_currentItem!.getTitle()}
 
 ${_currentItem!.text}
 
@@ -600,6 +596,7 @@ Her Gün İslam uygulamasından paylaşıldı
             ),
           ),
         ),
+        actions: WidgetShortcutHelper.appBarActions(context),
       ),
       
       // Body with gradient background
@@ -624,13 +621,20 @@ Her Gün İslam uygulamasından paylaşıldı
                     child: _isLoading
                         ? const LoadingCard()
                         : _currentItem != null
-                            ? ItemCard(
-                                item: _currentItem!,
-                                onShare: _shareItem,
-                                onNext: _loadRandomItem,
-                                onMarkAsRead: _markAsRead,
-                                isSharing: _isSharing,
-                                isRead: _isRead,
+                            ? Column(
+                                mainAxisSize: MainAxisSize.min,
+                                children: [
+                                  ItemCard(
+                                    item: _currentItem!,
+                                    onShare: _shareItem,
+                                    onNext: _loadRandomItem,
+                                    onMarkAsRead: _markAsRead,
+                                    isSharing: _isSharing,
+                                    isRead: _isRead,
+                                  ),
+                                  if (!kIsWeb && Platform.isAndroid)
+                                    _buildWidgetPromoCard(),
+                                ],
                               )
                             : _buildErrorWidget(),
                   ),
@@ -641,6 +645,72 @@ Her Gün İslam uygulamasından paylaşıldı
               const AdBannerWidget(),
             ],
           ),
+        ),
+      ),
+    );
+  }
+
+  Widget _buildWidgetPromoCard() {
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(16, 12, 16, 24),
+      child: Material(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(16),
+        elevation: 2,
+        shadowColor: Colors.black26,
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            InkWell(
+              borderRadius: const BorderRadius.vertical(top: Radius.circular(16)),
+              onTap: () => WidgetShortcutHelper.offerPinWidget(context),
+              child: Padding(
+                padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+                child: Row(
+                  children: [
+                    const Icon(Icons.widgets_outlined, color: Color(0xFF0D9488), size: 28),
+                    const SizedBox(width: 14),
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          const Text(
+                            'Kur\'an hatmi widget\'ı',
+                            style: TextStyle(fontWeight: FontWeight.w700, fontSize: 16),
+                          ),
+                          const SizedBox(height: 4),
+                          Text(
+                            'Fâtiha\'dan başlayıp sırayla ayet; yalnızca widget’taki ‹ › ile değişir — çevrimdışı',
+                            style: TextStyle(fontSize: 13, color: Colors.grey[700]),
+                          ),
+                        ],
+                      ),
+                    ),
+                    Icon(Icons.chevron_right, color: Colors.grey[600]),
+                  ],
+                ),
+              ),
+            ),
+            Divider(height: 1, thickness: 1, color: Colors.grey[200]),
+            Padding(
+              padding: const EdgeInsets.fromLTRB(14, 10, 14, 12),
+              child: Row(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Icon(Icons.touch_app_outlined, size: 22, color: Colors.teal.shade700),
+                  const SizedBox(width: 10),
+                  Expanded(
+                    child: Text(
+                      'Uzun ayet veya meal widget’ta tam görünmüyorsa Arapça veya meal üzerine dokunun; '
+                      'Kur’an sekmesinde ilgili sure açılır ve ayete konumlanırsınız.',
+                      style: TextStyle(fontSize: 12, color: Colors.grey[800], height: 1.35),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ],
         ),
       ),
     );

@@ -12,25 +12,25 @@ class QuranVerseWidget extends StatelessWidget {
   final VoidCallback? onTap;
 
   const QuranVerseWidget({
-    Key? key,
+    super.key,
     required this.verse,
     this.isCurrentVerse = false,
     this.highlightedWordIndex,
     this.arabicFontSize = 26.0,
     this.turkishFontSize = 16.0,
     this.onTap,
-  }) : super(key: key);
+  });
 
   @override
   Widget build(BuildContext context) {
     return Container(
       decoration: BoxDecoration(
-        gradient: LinearGradient(
+        gradient: const LinearGradient(
           begin: Alignment.topLeft,
           end: Alignment.bottomRight,
           colors: [
             Colors.white,
-            const Color(0xFFF0FDFA),
+            Color(0xFFF0FDFA),
             Colors.white,
           ],
         ),
@@ -126,9 +126,9 @@ class QuranVerseWidget extends StatelessWidget {
               color: const Color(0xFF0D9488),
               borderRadius: BorderRadius.circular(16),
             ),
-            child: Row(
+            child: const Row(
               mainAxisSize: MainAxisSize.min,
-              children: const [
+              children: [
                 Icon(Icons.volume_up, color: Colors.white, size: 14),
                 SizedBox(width: 4),
                 Text(
@@ -204,7 +204,7 @@ class QuranVerseWidget extends StatelessWidget {
 
 /// Skeleton loading widget for verses (while data is loading)
 class QuranVerseSkeletonWidget extends StatelessWidget {
-  const QuranVerseSkeletonWidget({Key? key}) : super(key: key);
+  const QuranVerseSkeletonWidget({super.key});
 
   @override
   Widget build(BuildContext context) {

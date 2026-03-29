@@ -36,6 +36,41 @@ class AudioCacheService {
     }
   }
 
+  static bool _bytesLookLikeMp3(List<int> bytes) {
+    if (bytes.length < 3) return false;
+    if (bytes[0] == 0x49 && bytes[1] == 0x44 && bytes[2] == 0x33) return true;
+    if (bytes[0] == 0xFF && (bytes[1] & 0xE0) == 0xE0) return true;
+    return false;
+  }
+
+  Future<bool> _fileLooksLikeMp3(File file) async {
+    try {
+      if (await file.length() < 512) return false;
+      final raf = await file.open();
+      try {
+        final b = await raf.read(4);
+        if (b.length < 3) return false;
+        return _bytesLookLikeMp3(b);
+      } finally {
+        await raf.close();
+      }
+    } catch (_) {
+      return false;
+    }
+  }
+
+  /// Remove a bad or partial download so the reader can stream from network again.
+  Future<void> invalidateSurahCache(int surahNumber, int reciterId) async {
+    try {
+      final cacheDir = await _getCacheDir();
+      final file = File('${cacheDir.path}/${_getCacheFileName(surahNumber, reciterId)}');
+      if (await file.exists()) {
+        await file.delete();
+      }
+      await _markAsNotCached(surahNumber, reciterId);
+    } catch (_) {}
+  }
+
   /// Get cached audio file path
   Future<String?> getCachedAudioPath(int surahNumber, int reciterId) async {
     try {
@@ -48,9 +83,13 @@ class AudioCacheService {
       final file = File('${cacheDir.path}/$fileName');
 
       if (await file.exists()) {
+        if (!await _fileLooksLikeMp3(file)) {
+          await file.delete();
+          await _markAsNotCached(surahNumber, reciterId);
+          return null;
+        }
         return file.path;
       } else {
-        // File was deleted, update cache status
         await _markAsNotCached(surahNumber, reciterId);
         return null;
       }
@@ -79,26 +118,35 @@ class AudioCacheService {
         await _clearOldCache();
       }
 
-      // Download file with progress
-      final request = await http.Client().send(http.Request('GET', Uri.parse(url)));
-      final contentLength = request.contentLength ?? 0;
-      var downloadedBytes = 0;
+      final req = http.Request('GET', Uri.parse(url));
+      req.headers['User-Agent'] = 'HerGunIslam/1.0 (Android)';
+      req.headers['Accept'] = '*/*';
 
+      final client = http.Client();
       final bytes = <int>[];
-      await for (final chunk in request.stream) {
-        bytes.addAll(chunk);
-        downloadedBytes += chunk.length;
-        
-        if (contentLength > 0 && onProgress != null) {
-          final progress = downloadedBytes / contentLength;
-          onProgress(progress);
+      try {
+        final streamed = await client.send(req);
+        final contentLength = streamed.contentLength ?? 0;
+        var downloadedBytes = 0;
+
+        await for (final chunk in streamed.stream) {
+          bytes.addAll(chunk);
+          downloadedBytes += chunk.length;
+
+          if (contentLength > 0 && onProgress != null) {
+            onProgress(downloadedBytes / contentLength);
+          }
         }
+      } finally {
+        client.close();
       }
 
-      // Write to file
+      if (bytes.length < 512 || !_bytesLookLikeMp3(bytes)) {
+        return null;
+      }
+
       await file.writeAsBytes(bytes);
 
-      // Mark as cached
       await _markAsCached(surahNumber, reciterId);
 
       return filePath;

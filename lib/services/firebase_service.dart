@@ -26,14 +26,25 @@ class FirebaseService {
       }
       
       FlutterError.onError = (errorDetails) {
+        final s = errorDetails.exceptionAsString();
+        if (s.contains('AudioPlayerException') ||
+            s.contains('setState() called after dispose')) {
+          return;
+        }
         _crashlytics?.recordFlutterFatalError(errorDetails);
       };
-      
+
       PlatformDispatcher.instance.onError = (error, stack) {
+        final s = error.toString();
+        if (s.contains('AudioPlayerException') ||
+            s.contains('AndroidAudioError') ||
+            s.contains('setState() called after dispose')) {
+          return true;
+        }
         _crashlytics?.recordError(error, stack, fatal: true);
         return true;
       };
-    } catch (e, stackTrace) {
+    } catch (e) {
       // App continues without Firebase
     }
   }

@@ -84,6 +84,6 @@ class PrayerTimes {
 
   @override
   String toString() {
-    return 'PrayerTimes(${dateLabel}: İmsak $imsak, Akşam $aksam)';
+    return 'PrayerTimes($dateLabel: İmsak $imsak, Akşam $aksam)';
   }
 }
