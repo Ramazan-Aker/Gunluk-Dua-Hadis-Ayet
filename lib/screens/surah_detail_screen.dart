@@ -332,7 +332,7 @@ class _SurahDetailScreenState extends State<SurahDetailScreen> {
             content: Text(
               'Bu sure için ses veya zaman damgası yüklenemedi.',
             ),
-            backgroundColor: Color(0xFF0F766E),
+            backgroundColor: Color(0xFF1E3A8A),
           ),
         );
       }
@@ -378,7 +378,7 @@ class _SurahDetailScreenState extends State<SurahDetailScreen> {
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(
             content: Text('Bu ayet için zaman damgası yok veya ses hazır değil.'),
-            backgroundColor: Color(0xFF0F766E),
+            backgroundColor: Color(0xFF1E3A8A),
           ),
         );
       }
@@ -421,7 +421,7 @@ class _SurahDetailScreenState extends State<SurahDetailScreen> {
       const SnackBar(
         content: Text('Metin panoya kopyalandı.'),
         duration: Duration(seconds: 2),
-        backgroundColor: Color(0xFF0D9488),
+        backgroundColor: Color(0xFF1E40AF),
       ),
     );
   }
@@ -470,7 +470,7 @@ class _SurahDetailScreenState extends State<SurahDetailScreen> {
               );
             },
             style: ElevatedButton.styleFrom(
-              backgroundColor: const Color(0xFF0D9488),
+              backgroundColor: const Color(0xFF1E40AF),
             ),
             child: const Text('Devam et'),
           ),
@@ -516,7 +516,7 @@ class _SurahDetailScreenState extends State<SurahDetailScreen> {
         flexibleSpace: Container(
           decoration: const BoxDecoration(
             gradient: LinearGradient(
-              colors: [Color(0xFF0D9488), Color(0xFF14B8A6)],
+              colors: [Color(0xFF1E40AF), Color(0xFF3B82F6)],
               begin: Alignment.topLeft,
               end: Alignment.bottomRight,
             ),
@@ -526,7 +526,7 @@ class _SurahDetailScreenState extends State<SurahDetailScreen> {
       body: Container(
         decoration: const BoxDecoration(
           gradient: LinearGradient(
-            colors: [Color(0xFFF0FDFA), Color(0xFFCCFBF1)],
+            colors: [Color(0xFFEFF6FF), Color(0xFFDBEAFE)],
             begin: Alignment.topCenter,
             end: Alignment.bottomCenter,
           ),
@@ -568,7 +568,7 @@ class _SurahDetailScreenState extends State<SurahDetailScreen> {
               icon: const Icon(Icons.refresh_rounded),
               label: const Text('Tekrar dene'),
               style: ElevatedButton.styleFrom(
-                backgroundColor: const Color(0xFF0D9488),
+                backgroundColor: const Color(0xFF1E40AF),
                 padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 14),
               ),
             ),

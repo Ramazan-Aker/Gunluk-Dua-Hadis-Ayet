@@ -32,9 +32,9 @@ class SurahAyahCard extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     const baseBg = Colors.white;
-    const activeBg = Color(0xFFE6F7F5);
+    const activeBg = Color(0xFFDBEAFE);
     final borderColor = highlightActive
-        ? const Color(0xFF0D9488).withValues(alpha: 0.35)
+        ? const Color(0xFF1E40AF).withValues(alpha: 0.35)
         : Colors.grey.shade200;
 
     return Padding(
@@ -68,7 +68,7 @@ class SurahAyahCard extends StatelessWidget {
                         vertical: 4,
                       ),
                       decoration: BoxDecoration(
-                        color: const Color(0xFF0D9488).withValues(alpha: 0.12),
+                        color: const Color(0xFF1E40AF).withValues(alpha: 0.12),
                         borderRadius: BorderRadius.circular(8),
                       ),
                       child: Text(
@@ -76,7 +76,7 @@ class SurahAyahCard extends StatelessWidget {
                         style: const TextStyle(
                           fontSize: 12,
                           fontWeight: FontWeight.w700,
-                          color: Color(0xFF0F766E),
+                          color: Color(0xFF1E3A8A),
                         ),
                       ),
                     ),
@@ -172,7 +172,7 @@ class _ActionIcon extends StatelessWidget {
   Widget build(BuildContext context) {
     final color = onPressed == null
         ? Colors.grey.shade400
-        : (active ? const Color(0xFF0D9488) : const Color(0xFF0F766E));
+        : (active ? const Color(0xFF1E40AF) : const Color(0xFF1E3A8A));
 
     return Tooltip(
       message: tooltip,

@@ -58,6 +58,12 @@ class GreetingCategoryInfo {
     'kurban_bayrami',
   ];
   static const List<String> apiCategoryIds = ['günlük_dua'];
+  static const List<String> specialOccasionIds = [
+    'tebrikler',
+    'teselli',
+    'hayirli_olsun',
+    'dua_isteme',
+  ];
 
   static GreetingCategory getCategoryType(String categoryId) {
     if (cumaIds.contains(categoryId)) return GreetingCategory.cuma;
@@ -87,6 +93,14 @@ class GreetingCategoryInfo {
         return 'Kurban Bayramı';
       case 'günlük_dua':
         return 'Günlük Dua & Zikir';
+      case 'tebrikler':
+        return 'Tebrikler';
+      case 'teselli':
+        return 'Teselli & Başsağlığı';
+      case 'hayirli_olsun':
+        return 'Hayırlı Olsun';
+      case 'dua_isteme':
+        return 'Dua İsteme';
       default:
         return categoryId;
     }

@@ -3,11 +3,13 @@ class DailyItem {
   final String type; // "dua", "hadith", or "ayah"
   final String text;
   final String source;
+  final String? id;
 
   DailyItem({
     required this.type,
     required this.text,
     required this.source,
+    this.id,
   });
 
   /// Factory constructor to create DailyItem from JSON
@@ -16,6 +18,7 @@ class DailyItem {
       type: json['type'] as String,
       text: json['text'] as String,
       source: json['source'] as String,
+      id: json['id'] as String?,
     );
   }
 
@@ -25,6 +28,7 @@ class DailyItem {
       'type': type,
       'text': text,
       'source': source,
+      if (id != null) 'id': id,
     };
   }
 

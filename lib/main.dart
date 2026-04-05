@@ -134,14 +134,14 @@ class _DailyDuaAppState extends State<DailyDuaApp> with WidgetsBindingObserver {
       
       // Theme configuration
       theme: ThemeData(
-        // Primary color scheme (teal theme)
-        primarySwatch: Colors.teal,
-        primaryColor: const Color(0xFF0D9488),
-        scaffoldBackgroundColor: const Color(0xFFF0FDFA),
+        // Primary color scheme (blue + gold theme)
+        primarySwatch: Colors.blue,
+        primaryColor: const Color(0xFF1E40AF),
+        scaffoldBackgroundColor: const Color(0xFFEFF6FF),
         
         // AppBar theme
         appBarTheme: const AppBarTheme(
-          backgroundColor: Color(0xFF0D9488),
+          backgroundColor: Color(0xFF1E40AF),
           foregroundColor: Colors.white,
           elevation: 0,
           centerTitle: true,
@@ -152,12 +152,12 @@ class _DailyDuaAppState extends State<DailyDuaApp> with WidgetsBindingObserver {
           displayLarge: TextStyle(
             fontSize: 32,
             fontWeight: FontWeight.bold,
-            color: Color(0xFF0F766E),
+            color: Color(0xFF1E3A8A),
           ),
           displayMedium: TextStyle(
             fontSize: 24,
             fontWeight: FontWeight.bold,
-            color: Color(0xFF0F766E),
+            color: Color(0xFF1E3A8A),
           ),
           bodyLarge: TextStyle(
             fontSize: 18,
@@ -173,7 +173,7 @@ class _DailyDuaAppState extends State<DailyDuaApp> with WidgetsBindingObserver {
         // Button theme
         elevatedButtonTheme: ElevatedButtonThemeData(
           style: ElevatedButton.styleFrom(
-            backgroundColor: const Color(0xFF0D9488),
+            backgroundColor: const Color(0xFF1E40AF),
             foregroundColor: Colors.white,
             padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 12),
             shape: RoundedRectangleBorder(
@@ -194,10 +194,10 @@ class _DailyDuaAppState extends State<DailyDuaApp> with WidgetsBindingObserver {
         
         // Color scheme
         colorScheme: ColorScheme.fromSeed(
-          seedColor: const Color(0xFF0D9488),
-          primary: const Color(0xFF0D9488),
-          secondary: const Color(0xFF14B8A6),
-          surface: const Color(0xFFF0FDFA),
+          seedColor: const Color(0xFF1E40AF),
+          primary: const Color(0xFF1E40AF),
+          secondary: const Color(0xFFF59E0B),
+          surface: const Color(0xFFF8FAFC),
         ),
       ),
       
@@ -261,8 +261,8 @@ class _MainNavigationScreenState extends State<MainNavigationScreen> {
         currentIndex: _selectedIndex,
         onTap: _onItemTapped,
         type: BottomNavigationBarType.fixed,
-        backgroundColor: const Color(0xFF0D9488),
-        selectedItemColor: Colors.white,
+        backgroundColor: const Color(0xFF1E40AF),
+        selectedItemColor: const Color(0xFFF59E0B),
         unselectedItemColor: Colors.white70,
         selectedFontSize: 14,
         unselectedFontSize: 12,

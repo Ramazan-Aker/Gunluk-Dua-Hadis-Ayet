@@ -188,7 +188,7 @@ class _QuranScreenState extends State<QuranScreen> {
         flexibleSpace: Container(
           decoration: const BoxDecoration(
             gradient: LinearGradient(
-              colors: [Color(0xFF0D9488), Color(0xFF14B8A6)],
+              colors: [Color(0xFF1E40AF), Color(0xFF3B82F6)],
               begin: Alignment.topLeft,
               end: Alignment.bottomRight,
             ),
@@ -199,7 +199,7 @@ class _QuranScreenState extends State<QuranScreen> {
       body: Container(
         decoration: const BoxDecoration(
           gradient: LinearGradient(
-            colors: [Color(0xFFF0FDFA), Color(0xFFCCFBF1)],
+            colors: [Color(0xFFEFF6FF), Color(0xFFDBEAFE)],
             begin: Alignment.topCenter,
             end: Alignment.bottomCenter,
           ),
@@ -247,7 +247,7 @@ class _QuranScreenState extends State<QuranScreen> {
           border: InputBorder.none,
           icon: const Icon(
             Icons.search,
-            color: Color(0xFF0D9488),
+            color: Color(0xFF1E40AF),
             size: 24,
           ),
           suffixIcon: _searchQuery.isNotEmpty
@@ -367,15 +367,15 @@ class _QuranScreenState extends State<QuranScreen> {
           begin: Alignment.topLeft,
           end: Alignment.bottomRight,
           colors: [
-            Color(0xFF0F766E),
-            Color(0xFF0D9488),
-            Color(0xFF14B8A6),
+            Color(0xFF1E3A8A),
+            Color(0xFF1E40AF),
+            Color(0xFF3B82F6),
           ],
         ),
         borderRadius: BorderRadius.circular(20),
         boxShadow: [
           BoxShadow(
-            color: const Color(0xFF0D9488).withOpacity(0.4),
+            color: const Color(0xFF1E40AF).withOpacity(0.4),
             blurRadius: 16,
             offset: const Offset(0, 8),
           ),
@@ -462,7 +462,7 @@ class _QuranScreenState extends State<QuranScreen> {
               _openSurahReader(1, 'Fatiha', autoPlayNext: true); // Start from Fatiha with auto-play
             },
             style: ElevatedButton.styleFrom(
-              backgroundColor: const Color(0xFF0D9488),
+              backgroundColor: const Color(0xFF1E40AF),
             ),
             child: const Text('Başlat'),
           ),
@@ -495,14 +495,14 @@ class _SurahGridTile extends StatelessWidget {
             begin: Alignment.topLeft,
             end: Alignment.bottomRight,
             colors: [
-              const Color(0xFF0D9488),
-              const Color(0xFF14B8A6).withOpacity(0.8),
+              const Color(0xFF1E40AF),
+              const Color(0xFF3B82F6).withOpacity(0.8),
             ],
           ),
           borderRadius: BorderRadius.circular(16),
           boxShadow: [
             BoxShadow(
-              color: const Color(0xFF0D9488).withOpacity(0.3),
+              color: const Color(0xFF1E40AF).withOpacity(0.3),
               blurRadius: 8,
               offset: const Offset(0, 4),
             ),

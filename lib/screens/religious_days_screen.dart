@@ -62,7 +62,7 @@ class _ReligiousDaysScreenState extends State<ReligiousDaysScreen> {
         flexibleSpace: Container(
           decoration: const BoxDecoration(
             gradient: LinearGradient(
-              colors: [Color(0xFF0D9488), Color(0xFF14B8A6)],
+              colors: [Color(0xFF1E40AF), Color(0xFF3B82F6)],
               begin: Alignment.topLeft,
               end: Alignment.bottomRight,
             ),
@@ -83,7 +83,7 @@ class _ReligiousDaysScreenState extends State<ReligiousDaysScreen> {
       body: Container(
         decoration: const BoxDecoration(
           gradient: LinearGradient(
-            colors: [Color(0xFFF0FDFA), Color(0xFFCCFBF1)],
+            colors: [Color(0xFFEFF6FF), Color(0xFFDBEAFE)],
             begin: Alignment.topCenter,
             end: Alignment.bottomCenter,
           ),
@@ -101,7 +101,7 @@ class _ReligiousDaysScreenState extends State<ReligiousDaysScreen> {
                               : 'Dini gün verisi yüklenemedi',
                           style: const TextStyle(
                             fontSize: 16,
-                            color: Color(0xFF0F766E),
+                            color: Color(0xFF1E3A8A),
                           ),
                           textAlign: TextAlign.center,
                         ),
@@ -143,17 +143,17 @@ class _ReligiousDaysScreenState extends State<ReligiousDaysScreen> {
                                 height: 48,
                                 decoration: BoxDecoration(
                                   color: isToday
-                                      ? const Color(0xFF0D9488)
+                                      ? const Color(0xFF1E40AF)
                                       : isPassed
                                           ? Colors.grey.shade300
-                                          : const Color(0xFF0D9488).withValues(alpha: 0.15),
+                                          : const Color(0xFF1E40AF).withValues(alpha: 0.15),
                                   borderRadius: BorderRadius.circular(12),
                                 ),
                                 child: Icon(
                                   _getIcon(day.iconType),
                                   color: isToday || isPassed
                                       ? (isToday ? Colors.white : Colors.grey.shade600)
-                                      : const Color(0xFF0D9488),
+                                      : const Color(0xFF1E40AF),
                                   size: 26,
                                 ),
                               ),
@@ -169,7 +169,7 @@ class _ReligiousDaysScreenState extends State<ReligiousDaysScreen> {
                                         fontWeight: FontWeight.w600,
                                         color: isPassed
                                             ? Colors.grey.shade600
-                                            : const Color(0xFF0F766E),
+                                            : const Color(0xFF1E3A8A),
                                       ),
                                     ),
                                     const SizedBox(height: 4),
@@ -190,7 +190,7 @@ class _ReligiousDaysScreenState extends State<ReligiousDaysScreen> {
                                 ),
                                 decoration: BoxDecoration(
                                   color: isToday
-                                      ? const Color(0xFF0D9488)
+                                      ? const Color(0xFF1E40AF)
                                       : isPassed
                                           ? Colors.grey.shade200
                                           : const Color(0xFFF59E0B).withValues(alpha: 0.2),

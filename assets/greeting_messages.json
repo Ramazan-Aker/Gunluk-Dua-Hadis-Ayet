@@ -106,5 +106,57 @@
     {"id":"gd8","title":"Bereket Duası","text":"Allahümme barik lena fima razegtena ve kina azabennar. Anlamı: Allah'ım! Bize verdiğin rızıkta bereket eyle, bizi cehennem azabından koru."},
     {"id":"gd9","title":"Hastalık ve Sıkıntı Duası","text":"La ilahe illa ente sübhaneke inni küntü minez zalimin. Anlamı: Senden başka ilah yoktur, Sen münezzehsin. Ben zulmedenlerden oldum."},
     {"id":"gd10","title":"Rabbenâ Duası","text":"Rabbena atina fiddünya haseneten ve fil ahireti haseneten ve kina azabennar. Anlamı: Rabbimiz! Bize dünyada da iyilik ver, ahirette de iyilik ver. Bizi cehennem azabından koru."}
+  ],
+  "tebrikler": [
+    {"id":"t1","title":"Doğum Günü","text":"Doğum gününüz kutlu olsun. Allah sağlık, huzur ve bereket dolu nice yıllar nasip etsin."},
+    {"id":"t2","title":"Doğum Günü","text":"Doğum gününüzü kutlar, hayırlı ve bereketli bir yaş dilerim. Rabbim ömrünüzü hayırlarla doldursun."},
+    {"id":"t3","title":"Yeni İş","text":"Yeni işiniz hayırlı olsun. Allah kazancınızı helal, işinizi bereketli eylesin."},
+    {"id":"t4","title":"Yeni İş","text":"Yeni işinizi tebrik ederiz. Rabbim başarılar, kazançlar ve bereket nasip etsin."},
+    {"id":"t5","title":"Evlilik","text":"Nikahınız mübarek olsun. Allah bir ömür boyu mutluluk, huzur ve bereket nasip etsin."},
+    {"id":"t6","title":"Evlilik","text":"Düğününüzü kutlar, evliliğinizin hayırlara vesile olmasını dilerim. Rabbim yuvanızı mamur eylesin."},
+    {"id":"t7","title":"Bebek Müjdesi","text":"Yeni dünyaya gelen bebeğiniz mübarek olsun. Allah analık-babalık görevini kolaylaştırsın."},
+    {"id":"t8","title":"Bebek Müjdesi","text":"Bebeğinizin dünyaya gelişini kutlar, sağlıklı ve hayırlı evlat olmasını dilerim."},
+    {"id":"t9","title":"Başarı","text":"Başarınızı kutlar, nice başarılara imza atmanızı dilerim. Allah yolunuzu açık eylesin."},
+    {"id":"t10","title":"Başarı","text":"Tebrikler! Emeğinizin karşılığını aldınız. Rabbim başarılarınızı daim eylesin."},
+    {"id":"t11","title":"Sınav Başarısı","text":"Sınavınızı başarıyla tamamlamanızı kutlarım. Allah ilminizi artırsın, yolunuzu aydınlatsın."},
+    {"id":"t12","title":"Mezuniyet","text":"Mezuniyetinizi kutlar, hayırlı işlerde çalışmanızı dilerim. Rabbim ilminizi bereketli eylesin."}
+  ],
+  "teselli": [
+    {"id":"ts1","title":"Başsağlığı","text":"Başınız sağ olsun. Allah rahmet eylesin, mekanı cennet olsun. Sabırlar diliyorum."},
+    {"id":"ts2","title":"Başsağlığı","text":"Başınız sağ olsun. Allah gani gani rahmet eylesin. Sizlere sabır ve metanet diliyorum."},
+    {"id":"ts3","title":"Başsağlığı","text":"Baş sağlığı diliyorum. Merhuma Allah'tan rahmet, ailesi ve yakınlarına sabır diliyorum."},
+    {"id":"ts4","title":"Başsağlığı","text":"Başınız sağ olsun. Allah rahmet eylesin, mekanı cennet, makamı ali olsun."},
+    {"id":"ts5","title":"Teselli","text":"Allah sabır versin. Bu zor günlerde yanınızdayız. Rabbim acınızı dindirsin."},
+    {"id":"ts6","title":"Teselli","text":"Geçmiş olsun. Allah kolaylık versin, sabır ve metanet nasip etsin."},
+    {"id":"ts7","title":"Sabır Dileme","text":"Allah sabır versin. Her zorluğun ardından bir kolaylık vardır. Rabbim yardımcınız olsun."},
+    {"id":"ts8","title":"Sabır Dileme","text":"Sabırlar diliyorum. Allah bu sıkıntıyı hayra çevirsin, kolaylık nasip etsin."},
+    {"id":"ts9","title":"Geçmiş Olsun","text":"Geçmiş olsun. Allah şifa versin, acil şifalar diliyorum."},
+    {"id":"ts10","title":"Geçmiş Olsun","text":"Geçmiş olsun. Rabbim şifa versin, sağlığınıza kavuşmanızı diliyorum."}
+  ],
+  "hayirli_olsun": [
+    {"id":"h1","title":"Yeni Ev","text":"Yeni eviniz hayırlı olsun. Allah yuvanızı mamur, evinizi huzur dolu eylesin."},
+    {"id":"h2","title":"Yeni Ev","text":"Hayırlı olsun. Yeni evinizde huzur, bereket ve mutluluk dolu günler geçirmeniz dileğiyle."},
+    {"id":"h3","title":"Yeni Araba","text":"Yeni aracınız hayırlı olsun. Allah kazasız belasız kullanmanızı nasip etsin."},
+    {"id":"h4","title":"Yeni Araba","text":"Hayırlı olsun. Rabbim yolunuzu açık, yolculuklarınızı güvenli eylesin."},
+    {"id":"h5","title":"Yeni İş","text":"Hayırlı olsun. Yeni işinizde başarılar, kazançlar ve bereket dolu günler dilerim."},
+    {"id":"h6","title":"Yeni İş","text":"Yeni işiniz hayırlı uğurlu olsun. Allah kazancınızı helal ve bereketli eylesin."},
+    {"id":"h7","title":"Genel Hayırlı Olsun","text":"Hayırlı olsun. Allah mübarek eylesin, bereketini artırsın."},
+    {"id":"h8","title":"Genel Hayırlı Olsun","text":"Hayırlı olsun. Rabbim hayırlara vesile eylesin, bereketini eksik etmesin."},
+    {"id":"h9","title":"Yeni Başlangıç","text":"Hayırlı olsun. Bu yeni başlangıç hayırlara vesile olsun. Allah yolunuzu açık eylesin."},
+    {"id":"h10","title":"Yeni Başlangıç","text":"Hayırlı olsun. Rabbim bu yeni yolculukta başarılar, mutluluklar nasip etsin."},
+    {"id":"h11","title":"Alışveriş","text":"Hayırlı olsun. Allah mübarek eylesin, kullanımında bereket nasip etsin."},
+    {"id":"h12","title":"Alışveriş","text":"Hayırlı uğurlu olsun. Rabbim bereketini artırsın, kullanımında kolaylık versin."}
+  ],
+  "dua_isteme": [
+    {"id":"d1","title":"Dua İsteme","text":"Dualarınızı bekliyorum. Allah kabul etsin, hayırlısıyla sonuçlansın."},
+    {"id":"d2","title":"Dua İsteme","text":"Dualarınıza ihtiyacım var. Rabbim sizin dualarınızı kabul, benim işlerimi rast getirsin."},
+    {"id":"d3","title":"Dua İsteme","text":"Dua eder misiniz? Allah hayırlısını versin, dualarınız kabul olsun."},
+    {"id":"d4","title":"Dua İsteme","text":"Dualarınızı eksik etmeyin. Rabbim sizin dualarınızı kabul, benim sıkıntılarımı gidersin."},
+    {"id":"d5","title":"Dua İsteme","text":"Dua bekliyorum. Allah kabul etsin, hayırlı sonuçlar nasip etsin."},
+    {"id":"d6","title":"Dua İsteme","text":"Dualarınızı rica ediyorum. Rabbim dualarınızı kabul, işlerimi hayırla sonuçlandırsın."},
+    {"id":"d7","title":"Dua İsteme","text":"Dua ederseniz sevinirim. Allah hayırlısını versin, dualarınız makbul olsun."},
+    {"id":"d8","title":"Dua İsteme","text":"Dualarınıza muhtacım. Rabbim sizin dualarınızı kabul, benim işlerimi kolaylaştırsın."},
+    {"id":"d9","title":"Dua İsteme","text":"Dua bekliyorum. Allah kabul etsin, hayırlı neticeler versin."},
+    {"id":"d10","title":"Dua İsteme","text":"Dualarınızı eksik etmeyin lütfen. Rabbim dualarınızı kabul, benim sıkıntılarımı gidersin."}
   ]
 }

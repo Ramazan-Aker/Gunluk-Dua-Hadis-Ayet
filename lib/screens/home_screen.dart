@@ -162,7 +162,7 @@ class _HomeScreenState extends State<HomeScreen> {
                   style: TextStyle(
                     fontSize: 20,
                     fontWeight: FontWeight.bold,
-                    color: Color(0xFF0F766E),
+                    color: Color(0xFF1E3A8A),
                   ),
                 ),
               ),
@@ -184,7 +184,7 @@ class _HomeScreenState extends State<HomeScreen> {
                 Container(
                   padding: const EdgeInsets.all(12),
                   decoration: BoxDecoration(
-                    color: const Color(0xFFCCFBF1),
+                    color: const Color(0xFFDBEAFE),
                     borderRadius: BorderRadius.circular(12),
                   ),
                   child: Row(
@@ -201,7 +201,7 @@ class _HomeScreenState extends State<HomeScreen> {
                           style: const TextStyle(
                             fontSize: 14,
                             fontWeight: FontWeight.w600,
-                            color: Color(0xFF0F766E),
+                            color: Color(0xFF1E3A8A),
                           ),
                         ),
                       ),
@@ -217,7 +217,7 @@ class _HomeScreenState extends State<HomeScreen> {
               },
               child: const Text(
                 'Daha Sonra',
-                style: TextStyle(color: Color(0xFF0D9488)),
+                style: TextStyle(color: Color(0xFF1E40AF)),
               ),
             ),
             ElevatedButton(
@@ -226,7 +226,7 @@ class _HomeScreenState extends State<HomeScreen> {
                 _markAsRead();
               },
               style: ElevatedButton.styleFrom(
-                backgroundColor: const Color(0xFF0D9488),
+                backgroundColor: const Color(0xFF1E40AF),
                 foregroundColor: Colors.white,
               ),
               child: const Text('Okudum'),
@@ -269,7 +269,7 @@ class _HomeScreenState extends State<HomeScreen> {
               ),
             ],
           ),
-          backgroundColor: const Color(0xFF14B8A6),
+          backgroundColor: const Color(0xFFF59E0B),
           duration: const Duration(seconds: 3),
         ),
       );
@@ -590,7 +590,7 @@ Her Gün İslam uygulamasından paylaşıldı
         flexibleSpace: Container(
           decoration: const BoxDecoration(
             gradient: LinearGradient(
-              colors: [Color(0xFF0D9488), Color(0xFF14B8A6)],
+              colors: [Color(0xFF1E40AF), Color(0xFF3B82F6)],
               begin: Alignment.topLeft,
               end: Alignment.bottomRight,
             ),
@@ -603,7 +603,7 @@ Her Gün İslam uygulamasından paylaşıldı
       body: Container(
         decoration: const BoxDecoration(
           gradient: LinearGradient(
-            colors: [Color(0xFFF0FDFA), Color(0xFFCCFBF1)],
+            colors: [Color(0xFFEFF6FF), Color(0xFFDBEAFE)],
             begin: Alignment.topCenter,
             end: Alignment.bottomCenter,
           ),
@@ -669,7 +669,7 @@ Her Gün İslam uygulamasından paylaşıldı
                 padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
                 child: Row(
                   children: [
-                    const Icon(Icons.widgets_outlined, color: Color(0xFF0D9488), size: 28),
+                    const Icon(Icons.widgets_outlined, color: Color(0xFF1E40AF), size: 28),
                     const SizedBox(width: 14),
                     Expanded(
                       child: Column(
@@ -762,7 +762,7 @@ Her Gün İslam uygulamasından paylaşıldı
               ElevatedButton(
                 onPressed: () => _loadDailyItem(),
                 style: ElevatedButton.styleFrom(
-                  backgroundColor: const Color(0xFF0D9488),
+                  backgroundColor: const Color(0xFF1E40AF),
                   foregroundColor: Colors.white,
                 ),
                 child: const Text('Tekrar Dene'),

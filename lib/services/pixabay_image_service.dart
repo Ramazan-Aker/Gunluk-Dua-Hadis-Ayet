@@ -28,6 +28,10 @@ class PixabayImageService {
     'ramazan_bayrami': ['عيد', 'eid', 'مسجد', 'ramadan', 'عید فطر'],
     'kurban_bayrami': ['عيد', 'كعبة', 'kaaba', 'مسجد', 'عید اضحی'],
     'günlük_dua': ['قرآن', 'quran', 'مسجد', 'prayer rug', 'سجادة'],
+    'tebrikler': ['celebration', 'flowers', 'gift', 'هدية', 'احتفال'],
+    'teselli': ['comfort', 'peace', 'nature', 'سلام', 'طبيعة'],
+    'hayirli_olsun': ['blessing', 'home', 'new beginning', 'بركة'],
+    'dua_isteme': ['prayer', 'hands praying', 'دعاء', 'صلاة'],
   };
 
   /// İslami görsel URL'si getir - her mesaj için farklı görsel

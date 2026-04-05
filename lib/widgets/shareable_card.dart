@@ -22,7 +22,7 @@ class ShareableCard extends StatelessWidget {
       height: height,
       decoration: const BoxDecoration(
         gradient: LinearGradient(
-          colors: [Color(0xFFF0FDFA), Color(0xFFCCFBF1)],
+          colors: [Color(0xFFEFF6FF), Color(0xFFDBEAFE)],
           begin: Alignment.topCenter,
           end: Alignment.bottomCenter,
         ),
@@ -61,7 +61,7 @@ class ShareableCard extends StatelessWidget {
                       style: const TextStyle(
                         fontSize: 36,
                         fontWeight: FontWeight.bold,
-                        color: Color(0xFF0F766E),
+                        color: Color(0xFF1E3A8A),
                       ),
                       textAlign: TextAlign.center,
                     ),
@@ -77,9 +77,9 @@ class ShareableCard extends StatelessWidget {
                   decoration: BoxDecoration(
                     gradient: LinearGradient(
                       colors: [
-                        const Color(0xFF0D9488).withValues(alpha: 0.3),
-                        const Color(0xFF0D9488),
-                        const Color(0xFF0D9488).withValues(alpha: 0.3),
+                        const Color(0xFF1E40AF).withValues(alpha: 0.3),
+                        const Color(0xFF1E40AF),
+                        const Color(0xFF1E40AF).withValues(alpha: 0.3),
                       ],
                     ),
                     borderRadius: BorderRadius.circular(2),
@@ -107,7 +107,7 @@ class ShareableCard extends StatelessWidget {
               Container(
                 padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 14),
                 decoration: BoxDecoration(
-                  color: const Color(0xFFF0FDFA).withValues(alpha: 0.5),
+                  color: const Color(0xFFEFF6FF).withValues(alpha: 0.5),
                   borderRadius: BorderRadius.circular(12),
                 ),
                 child: Text(
@@ -116,7 +116,7 @@ class ShareableCard extends StatelessWidget {
                   style: const TextStyle(
                     fontSize: 24,
                     fontStyle: FontStyle.italic,
-                    color: Color(0xFF0D9488),
+                    color: Color(0xFF1E40AF),
                     fontWeight: FontWeight.w500,
                   ),
                 ),

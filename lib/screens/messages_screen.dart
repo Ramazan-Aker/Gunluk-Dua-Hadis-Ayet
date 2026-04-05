@@ -269,7 +269,7 @@ class _MessagesScreenState extends State<MessagesScreen> {
         flexibleSpace: Container(
           decoration: const BoxDecoration(
             gradient: LinearGradient(
-              colors: [Color(0xFF0D9488), Color(0xFF14B8A6)],
+              colors: [Color(0xFF1E40AF), Color(0xFF3B82F6)],
               begin: Alignment.topLeft,
               end: Alignment.bottomRight,
             ),
@@ -286,7 +286,7 @@ class _MessagesScreenState extends State<MessagesScreen> {
       body: Container(
         decoration: const BoxDecoration(
           gradient: LinearGradient(
-            colors: [Color(0xFFF0FDFA), Color(0xFFCCFBF1)],
+            colors: [Color(0xFFEFF6FF), Color(0xFFDBEAFE)],
             begin: Alignment.topCenter,
             end: Alignment.bottomCenter,
           ),
@@ -306,13 +306,13 @@ class _MessagesScreenState extends State<MessagesScreen> {
   }
 
   Widget _buildContent() {
-    // Step 1: Main group selection (Cuma, Kandiller, Bayramlar)
+    // Step 1: Main group selection (Cuma, Kandiller, Bayramlar, Özel Günler)
     if (_mainGroup == null) {
       return _buildMainGroupSelection();
     }
 
-    // Step 2: Sub-category for Kandiller or Bayramlar
-    if ((_mainGroup == 'kandil' || _mainGroup == 'bayram') &&
+    // Step 2: Sub-category for Kandiller, Bayramlar, or Özel Günler
+    if ((_mainGroup == 'kandil' || _mainGroup == 'bayram' || _mainGroup == 'özel_günler') &&
         _selectedCategoryId == null) {
       return _buildSubCategorySelection();
     }
@@ -338,7 +338,7 @@ class _MessagesScreenState extends State<MessagesScreen> {
             style: TextStyle(
               fontSize: 18,
               fontWeight: FontWeight.bold,
-              color: Color(0xFF0F766E),
+              color: Color(0xFF1E3A8A),
             ),
           ),
           const SizedBox(height: 20),
@@ -365,6 +365,12 @@ class _MessagesScreenState extends State<MessagesScreen> {
             Icons.menu_book,
             onTap: () => _selectMainGroup('günlük_dua'),
           ),
+          const SizedBox(height: 12),
+          _categoryChip(
+            'Özel Günler',
+            Icons.card_giftcard,
+            onTap: () => _selectMainGroup('özel_günler'),
+          ),
         ],
       ),
     );
@@ -382,18 +388,18 @@ class _MessagesScreenState extends State<MessagesScreen> {
           padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 16),
           child: Row(
             children: [
-              Icon(icon, color: const Color(0xFF0D9488), size: 28),
+              Icon(icon, color: const Color(0xFF1E40AF), size: 28),
               const SizedBox(width: 16),
               Text(
                 label,
                 style: const TextStyle(
                   fontSize: 18,
                   fontWeight: FontWeight.w600,
-                  color: Color(0xFF0F766E),
+                  color: Color(0xFF1E3A8A),
                 ),
               ),
               const Spacer(),
-              const Icon(Icons.arrow_forward_ios, size: 16, color: Color(0xFF0D9488)),
+              const Icon(Icons.arrow_forward_ios, size: 16, color: Color(0xFF1E40AF)),
             ],
           ),
         ),
@@ -402,9 +408,22 @@ class _MessagesScreenState extends State<MessagesScreen> {
   }
 
   Widget _buildSubCategorySelection() {
-    final ids = _mainGroup == 'kandil'
-        ? _greetingService.getKandilIds()
-        : _greetingService.getBayramIds();
+    final List<String> ids;
+    final IconData icon;
+    
+    if (_mainGroup == 'kandil') {
+      ids = _greetingService.getKandilIds();
+      icon = Icons.nightlight_round;
+    } else if (_mainGroup == 'bayram') {
+      ids = _greetingService.getBayramIds();
+      icon = Icons.celebration;
+    } else if (_mainGroup == 'özel_günler') {
+      ids = GreetingCategoryInfo.specialOccasionIds;
+      icon = Icons.card_giftcard;
+    } else {
+      ids = [];
+      icon = Icons.category;
+    }
 
     return ListView(
       padding: const EdgeInsets.all(20),
@@ -414,7 +433,7 @@ class _MessagesScreenState extends State<MessagesScreen> {
           style: TextStyle(
             fontSize: 18,
             fontWeight: FontWeight.bold,
-            color: Color(0xFF0F766E),
+            color: Color(0xFF1E3A8A),
           ),
         ),
         const SizedBox(height: 16),
@@ -422,7 +441,7 @@ class _MessagesScreenState extends State<MessagesScreen> {
               padding: const EdgeInsets.only(bottom: 12),
               child: _categoryChip(
                 GreetingCategoryInfo.getDisplayName(id),
-                _mainGroup == 'kandil' ? Icons.nightlight_round : Icons.celebration,
+                icon,
                 onTap: () => _selectCategory(id),
               ),
             )),
@@ -445,44 +464,60 @@ class _MessagesScreenState extends State<MessagesScreen> {
                 style: TextStyle(
                   fontSize: 18,
                   fontWeight: FontWeight.bold,
-                  color: Color(0xFF0F766E),
+                  color: Color(0xFF1E3A8A),
                 ),
               ),
               const SizedBox(height: 16),
-              ...messages.map((msg) => Padding(
-                    padding: const EdgeInsets.only(bottom: 12),
-                    child: _messageCard(msg),
-                  )),
-              const SizedBox(height: 12),
+              
+              // ÖNEMLİ: Özel mesaj butonu EN ÜSTTE (vurgulu tasarım)
               Material(
-                color: const Color(0xFF0D9488).withValues(alpha: 0.15),
+                color: const Color(0xFFF59E0B).withValues(alpha: 0.15),
                 borderRadius: BorderRadius.circular(16),
                 child: InkWell(
                   onTap: () => _showCustomMessageDialog(),
                   borderRadius: BorderRadius.circular(16),
-                  child: const Padding(
-                    padding: EdgeInsets.all(20),
+                  child: Padding(
+                    padding: const EdgeInsets.all(20),
                     child: Row(
                       children: [
-                        Icon(Icons.edit_note,
-                            color: Color(0xFF0D9488), size: 28),
-                        SizedBox(width: 16),
+                        const Icon(Icons.edit_note, color: Color(0xFFF59E0B), size: 32),
+                        const SizedBox(width: 16),
                         Expanded(
-                          child: Text(
-                            'Özel mesaj yaz',
-                            style: TextStyle(
-                              fontSize: 16,
-                              fontWeight: FontWeight.w600,
-                              color: Color(0xFF0F766E),
-                            ),
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              const Text(
+                                'Özel mesaj yaz',
+                                style: TextStyle(
+                                  fontSize: 18,
+                                  fontWeight: FontWeight.bold,
+                                  color: Color(0xFF1E3A8A),
+                                ),
+                              ),
+                              const SizedBox(height: 4),
+                              Text(
+                                'Kendi mesajınızı oluşturun',
+                                style: TextStyle(fontSize: 13, color: Colors.grey[600]),
+                              ),
+                            ],
                           ),
                         ),
-                        Icon(Icons.arrow_forward_ios, size: 16),
+                        const Icon(Icons.arrow_forward_ios, size: 18, color: Color(0xFFF59E0B)),
                       ],
                     ),
                   ),
                 ),
               ),
+              
+              const SizedBox(height: 20),
+              const Divider(),
+              const SizedBox(height: 12),
+              
+              // Hazır mesajlar listesi
+              ...messages.map((msg) => Padding(
+                    padding: const EdgeInsets.only(bottom: 12),
+                    child: _messageCard(msg),
+                  )),
             ],
           ),
         ),
@@ -543,7 +578,7 @@ class _MessagesScreenState extends State<MessagesScreen> {
                 Navigator.pop(ctx);
               }
             },
-            style: ElevatedButton.styleFrom(backgroundColor: const Color(0xFF0D9488)),
+            style: ElevatedButton.styleFrom(backgroundColor: const Color(0xFF1E40AF)),
             child: const Text('Kullan'),
           ),
         ],
@@ -626,7 +661,7 @@ class _MessagesScreenState extends State<MessagesScreen> {
                   ),
                 ),
                 style: ElevatedButton.styleFrom(
-                  backgroundColor: const Color(0xFF0D9488),
+                  backgroundColor: const Color(0xFF1E40AF),
                   foregroundColor: Colors.white,
                   padding: const EdgeInsets.symmetric(vertical: 18),
                   elevation: 2,

@@ -30,7 +30,7 @@ class QuranVerseWidget extends StatelessWidget {
           end: Alignment.bottomRight,
           colors: [
             Colors.white,
-            Color(0xFFF0FDFA),
+            Color(0xFFEFF6FF),
             Colors.white,
           ],
         ),
@@ -38,7 +38,7 @@ class QuranVerseWidget extends StatelessWidget {
         boxShadow: [
           BoxShadow(
             color: isCurrentVerse 
-              ? const Color(0xFF0D9488).withOpacity(0.15)
+              ? const Color(0xFF1E40AF).withOpacity(0.15)
               : Colors.grey.withOpacity(0.08),
             blurRadius: isCurrentVerse ? 12 : 6,
             offset: const Offset(0, 2),
@@ -52,7 +52,7 @@ class QuranVerseWidget extends StatelessWidget {
         shape: RoundedRectangleBorder(
           borderRadius: BorderRadius.circular(16),
           side: BorderSide(
-            color: isCurrentVerse ? const Color(0xFF0D9488) : Colors.grey.shade200,
+            color: isCurrentVerse ? const Color(0xFF1E40AF) : Colors.grey.shade200,
             width: isCurrentVerse ? 2.5 : 1,
           ),
         ),
@@ -81,7 +81,7 @@ class QuranVerseWidget extends StatelessWidget {
                     gradient: LinearGradient(
                       colors: [
                         Colors.grey.shade200,
-                        const Color(0xFF0D9488).withOpacity(0.3),
+                        const Color(0xFF1E40AF).withOpacity(0.3),
                         Colors.grey.shade200,
                       ],
                     ),
@@ -107,7 +107,7 @@ class QuranVerseWidget extends StatelessWidget {
         Container(
           padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
           decoration: BoxDecoration(
-            color: const Color(0xFF0D9488).withOpacity(0.1),
+            color: const Color(0xFF1E40AF).withOpacity(0.1),
             borderRadius: BorderRadius.circular(16),
           ),
           child: Text(
@@ -115,7 +115,7 @@ class QuranVerseWidget extends StatelessWidget {
             style: const TextStyle(
               fontSize: 12,
               fontWeight: FontWeight.bold,
-              color: Color(0xFF0D9488),
+              color: Color(0xFF1E40AF),
             ),
           ),
         ),
@@ -123,7 +123,7 @@ class QuranVerseWidget extends StatelessWidget {
           Container(
             padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
             decoration: BoxDecoration(
-              color: const Color(0xFF0D9488),
+              color: const Color(0xFF1E40AF),
               borderRadius: BorderRadius.circular(16),
             ),
             child: const Row(
