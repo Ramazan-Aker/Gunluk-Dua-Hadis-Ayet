@@ -52,7 +52,7 @@ workflows:
           keychain add-certificates --certificate /tmp/certificate.p12 --certificate-password ${CM_CERTIFICATE_PASSWORD}
 
       - name: Set up code signing settings on Xcode project
-        script: xcode-project use-profiles
+        script: xcode-project use-profiles --project ios/Runner.xcodeproj
 
       - name: Set build number
         script: |
@@ -61,7 +61,9 @@ workflows:
           agvtool new-version -all "$BUILD_NUMBER"
 
       - name: iOS yapılandırma dosyaları oluştur
-        script: flutter build ios --config-only --no-codesign
+        script: |
+          flutter build ios --config-only --no-codesign
+          xcode-project use-profiles --project ios/Runner.xcodeproj
 
       - name: Build iOS IPA
         script: |
@@ -95,11 +97,7 @@ workflows:
             -configuration Release \
             -sdk iphoneos \
             archive \
-            -archivePath /tmp/Runner.xcarchive \
-            CODE_SIGN_STYLE=Manual \
-            DEVELOPMENT_TEAM=F7TL9YHWSA \
-            CODE_SIGN_IDENTITY="Apple Distribution" \
-            PROVISIONING_PROFILE_SPECIFIER="HerGunIslam_AppStore"
+            -archivePath /tmp/Runner.xcarchive
 
           # IPA export
           mkdir -p build/ios/ipa
