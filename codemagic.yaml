@@ -60,6 +60,9 @@ workflows:
           cd ios
           agvtool new-version -all "$BUILD_NUMBER"
 
+      - name: iOS yapılandırma dosyaları oluştur
+        script: flutter build ios --config-only --no-codesign
+
       - name: Build iOS IPA
         script: |
           set -eo pipefail
