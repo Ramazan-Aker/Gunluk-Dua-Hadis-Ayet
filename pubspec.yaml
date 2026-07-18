@@ -30,7 +30,7 @@ dependencies:
   widgets_to_image: ^2.0.1
   
   # Ads
-  google_mobile_ads: ^4.0.0
+  google_mobile_ads: ^7.0.0
   
   # Utilities
   intl: ^0.18.1
