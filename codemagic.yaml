@@ -61,7 +61,10 @@ workflows:
           agvtool new-version -all "$BUILD_NUMBER"
 
       - name: Build iOS IPA
-        script: flutter build ipa --release --no-pub
+        script: |
+          xcode-project build-ipa \
+            --workspace "ios/Runner.xcworkspace" \
+            --scheme "Runner"
 
     artifacts:
       - build/ios/ipa/*.ipa
