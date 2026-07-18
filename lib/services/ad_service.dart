@@ -9,8 +9,8 @@ class AdService {
   factory AdService() => _instance;
   AdService._internal();
 
-  /// Ekran görüntüsü için geçici olarak false - sonra true yapın
-  static const bool _adsEnabled = false;
+  /// Reklamlar aktif
+  static const bool _adsEnabled = true;
 
   BannerAd? _bannerAd;
   bool _isBannerAdReady = false;
