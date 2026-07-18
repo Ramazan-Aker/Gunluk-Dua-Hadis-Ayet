@@ -12,6 +12,7 @@ workflows:
         - ios_signing
       flutter: stable
       xcode: latest
+      ruby: 3.3.8
       cocoapods: default
       vars:
         BUNDLE_ID: "com.tahram.gunlukduahadis"
@@ -33,7 +34,8 @@ workflows:
       - name: Pod install
         script: |
           cd ios
-          pod install
+          gem install cocoapods --no-document
+          pod install --repo-update
           cd ..
 
       - name: Set up keychain
@@ -59,7 +61,7 @@ workflows:
           agvtool new-version -all "$BUILD_NUMBER"
 
       - name: Build iOS IPA
-        script: flutter build ipa --release
+        script: flutter build ipa --release --no-pub
 
     artifacts:
       - build/ios/ipa/*.ipa
