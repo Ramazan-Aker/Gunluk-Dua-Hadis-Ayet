@@ -3,20 +3,19 @@ workflows:
     name: iOS App Store Release
     max_build_duration: 120
     instance_type: mac_mini_m2
-    
+
     integrations:
-      app_store_connect: Apple Developer  # Codemagic panelinde tanımlayacaksın
+      app_store_connect: Apple Developer
 
     environment:
-      ios_signing:
-        distribution_type: app_store
-        bundle_identifier: com.tahram.gunlukduahadis
+      groups:
+        - ios_signing
       flutter: stable
       xcode: latest
       cocoapods: default
       vars:
         BUNDLE_ID: "com.tahram.gunlukduahadis"
-        APP_STORE_APPLE_ID: "6792362734"  # App Store Connect'ten alınan App ID
+        APP_STORE_APPLE_ID: "6792362734"
 
     scripts:
       - name: Flutter pub get
@@ -34,19 +33,30 @@ workflows:
           pod install
           cd ..
 
+      - name: Set up keychain
+        script: keychain initialize
+
+      - name: Fetch iOS signing files
+        script: |
+          PROFILES_HOME="$HOME/Library/MobileDevice/Provisioning Profiles"
+          mkdir -p "$PROFILES_HOME"
+          PROFILE_PATH="$(mktemp "$PROFILES_HOME"/$(uuidgen).mobileprovision)"
+          echo ${CM_PROVISIONING_PROFILE} | base64 --decode > "$PROFILE_PATH"
+          echo "Saved provisioning profile $PROFILE_PATH"
+          echo ${CM_CERTIFICATE} | base64 --decode > /tmp/certificate.p12
+          keychain add-certificates --certificate /tmp/certificate.p12 --certificate-password ${CM_CERTIFICATE_PASSWORD}
+
+      - name: Set up code signing settings on Xcode project
+        script: xcode-project use-profiles
+
       - name: Set build number
         script: |
           BUILD_NUMBER=$(($(app-store-connect get-latest-testflight-build-number "$APP_STORE_APPLE_ID") + 1))
           cd ios
           agvtool new-version -all "$BUILD_NUMBER"
 
-      - name: Set up code signing settings on Xcode project
-        script: xcode-project use-profiles
-
       - name: Build iOS IPA
-        script: |
-          flutter build ipa --release \
-            --export-options-plist=/Users/builder/export_options.plist
+        script: flutter build ipa --release
 
     artifacts:
       - build/ios/ipa/*.ipa
