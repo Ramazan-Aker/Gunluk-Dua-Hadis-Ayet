@@ -27,6 +27,9 @@ workflows:
       - name: Flutter Native Splash
         script: flutter pub run flutter_native_splash:create
 
+      - name: Disable Swift Package Manager (CocoaPods uyumu)
+        script: flutter config --no-enable-swift-package-manager
+
       - name: Pod install
         script: |
           cd ios
