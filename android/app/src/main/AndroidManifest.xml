@@ -78,11 +78,6 @@
             </intent-filter>
         </receiver>
 
-        <!-- Widget Önceki/Sonraki (launcher PendingIntent uyumluluğu için exported) -->
-        <receiver
-            android:name=".WidgetHatimNavReceiver"
-            android:exported="true" />
-        
         <!-- Don't delete the meta-data below.
              This is used by the Flutter tool to generate GeneratedPluginRegistrant.java -->
         <meta-data

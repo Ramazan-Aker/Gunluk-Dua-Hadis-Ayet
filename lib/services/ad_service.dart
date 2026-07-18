@@ -10,7 +10,7 @@ class AdService {
   AdService._internal();
 
   /// Ekran görüntüsü için geçici olarak false - sonra true yapın
-  static const bool _adsEnabled = true;
+  static const bool _adsEnabled = false;
 
   BannerAd? _bannerAd;
   bool _isBannerAdReady = false;
@@ -39,11 +39,11 @@ class AdService {
   /// Banner Ad Unit ID - Ana Sayfa Alt Banner
   String get bannerAdUnitId {
     if (Platform.isAndroid) {
-      // Banner Ad Unit ID for Android
+      // Banner Ad Unit ID for Android (Alt Banner)
       return 'ca-app-pub-9132542494292379/9084351705';
     } else if (Platform.isIOS) {
-      // iOS Ad Unit ID
-      return 'ca-app-pub-9132542494292379/9084351705';
+      // iOS Alt Banner Ad Unit ID
+      return 'ca-app-pub-9132542494292379/8967728449';
     } else {
       throw UnsupportedError('Unsupported platform');
     }
@@ -52,11 +52,11 @@ class AdService {
   /// Get Interstitial Ad Unit ID - Paylaşım Öncesi
   String get interstitialAdUnitId {
     if (Platform.isAndroid) {
-      // Interstitial Ad Unit ID for Android
+      // Interstitial Ad Unit ID for Android (Paylaşım Öncesi)
       return 'ca-app-pub-9132542494292379/8757048647';
     } else if (Platform.isIOS) {
-      // iOS Ad Unit ID
-      return 'ca-app-pub-9132542494292379/8757048647';
+      // iOS Paylaş Interstitial Ad Unit ID
+      return 'ca-app-pub-9132542494292379/2577079916';
     } else {
       throw UnsupportedError('Unsupported platform');
     }
@@ -65,11 +65,11 @@ class AdService {
   /// Get Next Button Interstitial Ad Unit ID - Sonraki Butonu (4 tıklama sonrası)
   String get nextButtonInterstitialAdUnitId {
     if (Platform.isAndroid) {
-      // Next Button Interstitial Ad Unit ID for Android
+      // Next Button Interstitial Ad Unit ID for Android (Sonraki Geçiş)
       return 'ca-app-pub-9132542494292379/7443966973';
     } else if (Platform.isIOS) {
-      // iOS Ad Unit ID
-      return 'ca-app-pub-9132542494292379/7443966973';
+      // iOS Sonraki Geçiş Interstitial Ad Unit ID
+      return 'ca-app-pub-9132542494292379/2677152264';
     } else {
       throw UnsupportedError('Unsupported platform');
     }
@@ -78,11 +78,11 @@ class AdService {
   /// Get Second Banner Ad Unit ID - Üst Banner
   String get bannerAd2UnitId {
     if (Platform.isAndroid) {
-      // Second Banner Ad Unit ID for Android
+      // Second Banner Ad Unit ID for Android (Üst Banner)
       return 'ca-app-pub-9132542494292379/5145106696';
     } else if (Platform.isIOS) {
-      // iOS Ad Unit ID
-      return 'ca-app-pub-9132542494292379/5145106696';
+      // iOS Üst Banner Ad Unit ID
+      return 'ca-app-pub-9132542494292379/9398353140';
     } else {
       throw UnsupportedError('Unsupported platform');
     }

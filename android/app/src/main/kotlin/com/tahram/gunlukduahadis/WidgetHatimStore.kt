@@ -6,12 +6,13 @@ import android.content.Context
 import android.content.Intent
 import android.util.Log
 import es.antonborri.home_widget.HomeWidgetPlugin
+import kotlin.random.Random
 import org.json.JSONArray
 import org.json.JSONObject
 
 /**
- * Widget hatim verisi: HomeWidgetPreferences + quran_offline.json.
- * Önceki/sonraki geçiş burada (Flutter arka plan eklentisi olmadan).
+ * Widget ayet verisi: HomeWidget prefs + assets/quran_offline.json.
+ * Rastgele ayet; süre dolunca (launcher periyodik güncellemesi vb.) yenilenir.
  */
 object WidgetHatimStore {
 
@@ -23,37 +24,45 @@ object WidgetHatimStore {
     private const val KEY_AYAH_NUM = "ayah_number"
     private const val KEY_FOOTER = "ayah_footer"
 
-    private const val MAX_ARABIC_CP = 600
+    /** Flutter [HomeScreenWidgetService] ile aynı (ms). */
+    private const val ROTATE_MS = 6L * 60L * 60L * 1000L
+
     private const val MAX_TURKISH_CP = 1100
 
     private var cachedRows: JSONArray? = null
 
-    /** Önceki (-1) / sonraki (+1) — doğrudan BroadcastReceiver’dan. */
-    fun navigateRelative(context: Context, delta: Int) {
-        if (delta == 0) return
+    /**
+     * Süre dolduysa veya metin boşsa rastgele yeni ayet yazar.
+     * [DailyContentWidgetProvider.onUpdate] başında çağrılır; uygulama kapalıyken de sistem güncellemesiyle döner.
+     */
+    fun maybeRollRandomVerseIfExpired(context: Context) {
         try {
             val prefs = HomeWidgetPlugin.getData(context)
             val rows = loadVerseRows(context) ?: return
             val total = rows.length()
             if (total <= 0) return
 
-            var idx = prefs.getInt(KEY_INDEX, 0)
-            var newIdx = idx + delta
-            if (newIdx < 0) newIdx = 0
-            if (newIdx >= total) newIdx = total - 1
+            val expireStr = prefs.getString(KEY_EXPIRE_AT, "0") ?: "0"
+            val expireAt = expireStr.toLongOrNull() ?: 0L
+            val now = System.currentTimeMillis()
+            val turkish = prefs.getString(KEY_TURKISH, null)
 
-            val row = rows.getJSONArray(newIdx)
+            if (now < expireAt && expireAt > 0 && !turkish.isNullOrBlank()) {
+                return
+            }
+
+            val idx = Random.nextInt(total)
+            val row = rows.getJSONArray(idx)
             val ed = prefs.edit()
-            ed.putInt(KEY_INDEX, newIdx)
-            ed.putString(KEY_ARABIC, clipText(row.getString(3), MAX_ARABIC_CP))
+            ed.putInt(KEY_INDEX, idx)
+            ed.putString(KEY_ARABIC, "")
             ed.putString(KEY_TURKISH, clipText(row.getString(4), MAX_TURKISH_CP))
             ed.putString(KEY_AYAH_NUM, row.getInt(1).toString())
             ed.putString(KEY_FOOTER, row.getString(5))
-            ed.putString(KEY_EXPIRE_AT, "0")
+            ed.putString(KEY_EXPIRE_AT, (now + ROTATE_MS).toString())
             ed.commit()
-            requestWidgetRedraw(context)
         } catch (e: Exception) {
-            Log.e(TAG, "navigateRelative başarısız", e)
+            Log.e(TAG, "maybeRollRandomVerseIfExpired başarısız", e)
         }
     }
 

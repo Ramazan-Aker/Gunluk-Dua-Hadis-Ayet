@@ -676,12 +676,12 @@ Her Gün İslam uygulamasından paylaşıldı
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
                           const Text(
-                            'Kur\'an hatmi widget\'ı',
+                            'Günlük ayet widget\'ı',
                             style: TextStyle(fontWeight: FontWeight.w700, fontSize: 16),
                           ),
                           const SizedBox(height: 4),
                           Text(
-                            'Fâtiha\'dan başlayıp sırayla ayet; yalnızca widget’taki ‹ › ile değişir — çevrimdışı',
+                            'Türkçe meal rastgele ayet; birkaç saatte bir kendiliğinden yenilenir — tamamen çevrimdışı',
                             style: TextStyle(fontSize: 13, color: Colors.grey[700]),
                           ),
                         ],
@@ -702,7 +702,7 @@ Her Gün İslam uygulamasından paylaşıldı
                   const SizedBox(width: 10),
                   Expanded(
                     child: Text(
-                      'Uzun ayet veya meal widget’ta tam görünmüyorsa Arapça veya meal üzerine dokunun; '
+                      'Meal tam görünmüyorsa widget’a dokunun; '
                       'Kur’an sekmesinde ilgili sure açılır ve ayete konumlanırsınız.',
                       style: TextStyle(fontSize: 12, color: Colors.grey[800], height: 1.35),
                     ),

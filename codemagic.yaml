@@ -1,0 +1,58 @@
+workflows:
+  ios-release:
+    name: iOS App Store Release
+    max_build_duration: 120
+    instance_type: mac_mini_m2
+    
+    integrations:
+      app_store_connect: Apple Developer  # Codemagic panelinde tanımlayacaksın
+
+    environment:
+      ios_signing:
+        distribution_type: app_store
+        bundle_identifier: com.tahram.gunlukduahadis
+      flutter: stable
+      xcode: latest
+      cocoapods: default
+      vars:
+        BUNDLE_ID: "com.tahram.gunlukduahadis"
+        APP_STORE_APPLE_ID: "6792362734"  # App Store Connect'ten alınan App ID
+
+    scripts:
+      - name: Flutter pub get
+        script: flutter pub get
+
+      - name: Flutter Launcher Icons (iOS)
+        script: flutter pub run flutter_launcher_icons
+
+      - name: Flutter Native Splash
+        script: flutter pub run flutter_native_splash:create
+
+      - name: Pod install
+        script: |
+          cd ios
+          pod install
+          cd ..
+
+      - name: Set build number
+        script: |
+          BUILD_NUMBER=$(($(app-store-connect get-latest-testflight-build-number "$APP_STORE_APPLE_ID") + 1))
+          cd ios
+          agvtool new-version -all "$BUILD_NUMBER"
+
+      - name: Build iOS IPA
+        script: |
+          flutter build ipa --release \
+            --export-options-plist=/Users/builder/export_options.plist
+
+    artifacts:
+      - build/ios/ipa/*.ipa
+      - /tmp/xcodebuild_logs/*.log
+      - flutter_drive.log
+
+    publishing:
+      app_store_connect:
+        auth: integration
+        submit_to_testflight: true
+        submit_to_app_store: false  # Önce TestFlight'a gönder, hazır olunca true yap
+        release_type: AFTER_APPROVAL

@@ -50,8 +50,8 @@
 		<!-- Get your App ID from https://admob.google.com -->
 		<!-- iOS için AdMob'da ayrı bir uygulama oluşturup iOS App ID'sini buraya ekleyin -->
 		<key>GADApplicationIdentifier</key>
-		<string>ca-app-pub-3940256099942544~1458002511</string>
-		<!-- ⚠️ IMPORTANT: Replace the above test ID with your actual iOS AdMob App ID -->
+		<string>ca-app-pub-9132542494292379~7929478946</string>
+		<!-- ✅ Gerçek iOS AdMob App ID -->
 		<!-- Allow HTTP requests (if needed for API) -->
 		<key>NSAppTransportSecurity</key>
 		<dict>

@@ -76,7 +76,7 @@ class _DailyDuaAppState extends State<DailyDuaApp> with WidgetsBindingObserver {
 
   Future<void> _androidWidgetVersePipeline() async {
     if (kIsWeb || !Platform.isAndroid) return;
-    await HomeScreenWidgetService.syncHatimVerseForWidget();
+    await HomeScreenWidgetService.syncRandomVerseForWidget();
     await WidgetVerseAndroidBridge.consumeAndDispatchToFlutter();
     await WidgetVerseLaunchHandler.handleInitialLaunch();
     await WidgetVerseAndroidBridge.consumeAndDispatchToFlutter();
@@ -119,6 +119,7 @@ class _DailyDuaAppState extends State<DailyDuaApp> with WidgetsBindingObserver {
   @override
   void didChangeAppLifecycleState(AppLifecycleState state) {
     if (state == AppLifecycleState.resumed && !kIsWeb && Platform.isAndroid) {
+      unawaited(HomeScreenWidgetService.syncRandomVerseForWidget());
       WidgetVerseAndroidBridge.consumeAndDispatchToFlutter();
       _scheduleAndroidWidgetVersePulls();
     }

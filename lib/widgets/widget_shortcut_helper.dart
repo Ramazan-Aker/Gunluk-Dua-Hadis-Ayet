@@ -17,7 +17,7 @@ class WidgetShortcutHelper {
       await HomeScreenWidgetService.requestPinWidgetFromApp();
       return;
     }
-    await HomeScreenWidgetService.syncHatimVerseForWidget();
+    await HomeScreenWidgetService.syncRandomVerseForWidget();
     if (!context.mounted) return;
     await showDialog<void>(
       context: context,
@@ -25,7 +25,8 @@ class WidgetShortcutHelper {
         title: const Text('Ana ekrana widget ekleyin'),
         content: const Text(
           'Ana ekranda boş bir yere basılı tutun → "Widget\'lar" → '
-          '"Her Gün İslam" uygulamasından "Kur\'an hatmi" widget\'ını sürükleyip bırakın.',
+          '"Her Gün İslam" uygulamasından günlük ayet widget\'ını sürükleyip bırakın. '
+          'Ayetler Türkçe meal olarak rastgele seçilir ve birkaç saatte bir yenilenir.',
         ),
         actions: [
           TextButton(
