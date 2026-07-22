@@ -1,4 +1,5 @@
 import 'package:google_mobile_ads/google_mobile_ads.dart';
+import 'package:app_tracking_transparency/app_tracking_transparency.dart';
 import 'package:flutter/material.dart';
 import 'dart:io';
 import 'dart:async';
@@ -28,6 +29,75 @@ class AdService {
   bool _isNextButtonInterstitialAdReady = false;
   int _numNextButtonInterstitialLoadAttempts = 0;
   Completer<void>? _nextButtonAdDismissedCompleter;
+
+  static bool _consentChecked = false;
+  static Completer<void>? _consentCompleter;
+
+  /// Request iOS Tracking (ATT) & Google UMP Consent
+  static Future<void> requestConsentAndPermissions() async {
+    if (!_adsEnabled) return;
+    if (_consentChecked) {
+      if (_consentCompleter != null) {
+        return _consentCompleter!.future;
+      }
+      return;
+    }
+    _consentChecked = true;
+    _consentCompleter = Completer<void>();
+
+    // 1. iOS için App Tracking Transparency (ATT) İzni
+    if (Platform.isIOS) {
+      try {
+        final status = await AppTrackingTransparency.trackingAuthorizationStatus;
+        if (status == TrackingStatus.notDetermined) {
+          // Açılış ekranı/ilk render'ın tam oturması için kısa bir bekleme
+          await Future.delayed(const Duration(milliseconds: 600));
+          await AppTrackingTransparency.requestTrackingAuthorization();
+        }
+      } catch (e) {
+        // İzin isteme hatası yoksayılır
+      }
+    }
+
+    // 2. Google UMP (User Messaging Platform) GDPR & Rıza Formu Kontrolü
+    try {
+      final params = ConsentRequestParameters();
+      ConsentInformation.instance.requestConsentInfoUpdate(
+        params,
+        () async {
+          if (await ConsentInformation.instance.isConsentFormAvailable()) {
+            await _loadAndShowConsentFormIfRequired();
+          }
+          if (_consentCompleter != null && !_consentCompleter!.isCompleted) {
+            _consentCompleter!.complete();
+          }
+        },
+        (FormError error) {
+          if (_consentCompleter != null && !_consentCompleter!.isCompleted) {
+            _consentCompleter!.complete();
+          }
+        },
+      );
+    } catch (e) {
+      if (_consentCompleter != null && !_consentCompleter!.isCompleted) {
+        _consentCompleter!.complete();
+      }
+    }
+
+    if (_consentCompleter != null) {
+      return _consentCompleter!.future;
+    }
+  }
+
+  static Future<void> _loadAndShowConsentFormIfRequired() async {
+    final completer = Completer<void>();
+    ConsentForm.loadAndShowConsentFormIfRequired(
+      (FormError? error) {
+        completer.complete();
+      },
+    );
+    await completer.future;
+  }
 
   /// Initialize AdMob
   static Future<void> initialize() async {
@@ -423,8 +493,15 @@ class _AdBannerWidgetState extends State<AdBannerWidget> {
     _loadAd();
   }
 
-  void _loadAd() {
+  void _loadAd() async {
     if (!AdService._adsEnabled) return;
+    
+    // Rıza ve takip izninin tamamlanmasını bekle (eğer kontrol edilmediyse başlat)
+    if (!AdService._consentChecked || (AdService._consentCompleter != null && !AdService._consentCompleter!.isCompleted)) {
+      await AdService.requestConsentAndPermissions();
+    }
+    if (!mounted) return;
+
     // Load appropriate banner ad
     if (widget.useSecondAd) {
       _adService.loadBannerAd2();

@@ -43,15 +43,13 @@ class _HomeScreenState extends State<HomeScreen> {
     _showReminderIfNeeded();
     
     // Schedule notifications and request battery optimization exemption
-    WidgetsBinding.instance.addPostFrameCallback((_) {
-      _setupNotificationsAndPermissions();
+    WidgetsBinding.instance.addPostFrameCallback((_) async {
+      await _setupNotificationsAndPermissions();
+      // Bildirim izni sorulduktan sonra Reklam/Takip iznini (ATT + UMP) başlat ve ardından reklamları yükle
+      await AdService.requestConsentAndPermissions();
+      _adService.loadInterstitialAd();
+      _adService.loadNextButtonInterstitialAd();
     });
-    
-    // Load interstitial ad for share feature
-    _adService.loadInterstitialAd();
-    
-    // Load interstitial ad for next button (shown after 4 clicks)
-    _adService.loadNextButtonInterstitialAd();
     
     // Log screen view to Analytics
     FirebaseService.logScreenView(screenName: AnalyticsEvents.screenHome);
