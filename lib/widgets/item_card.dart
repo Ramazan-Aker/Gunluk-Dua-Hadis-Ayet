@@ -11,6 +11,8 @@ class ItemCard extends StatefulWidget {
   final VoidCallback? onMarkAsRead;
   final bool isSharing;
   final bool isRead;
+  /// iOS share sheet konumu için paylaş butonuna atanan key
+  final GlobalKey? shareButtonKey;
 
   const ItemCard({
     super.key,
@@ -20,6 +22,7 @@ class ItemCard extends StatefulWidget {
     this.onMarkAsRead,
     this.isSharing = false,
     this.isRead = false,
+    this.shareButtonKey,
   });
 
   @override
@@ -213,6 +216,7 @@ class _ItemCardState extends State<ItemCard> {
                       // Share button
                       Expanded(
                         child: ElevatedButton.icon(
+                          key: widget.shareButtonKey,
                           onPressed: widget.isSharing ? null : widget.onShare,
                           icon: widget.isSharing
                               ? const SizedBox(

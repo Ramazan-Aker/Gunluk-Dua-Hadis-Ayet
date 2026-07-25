@@ -27,6 +27,8 @@ class _HomeScreenState extends State<HomeScreen> {
   final DataService _dataService = DataService();
   final DailyReminderService _reminderService = DailyReminderService();
   final AdService _adService = AdService();
+  // iOS share sheet için paylaş butonunun konumunu takip eden key
+  final GlobalKey _shareButtonKey = GlobalKey();
   DailyItem? _currentItem;
   bool _isLoading = true;
   bool _isSharing = false;
@@ -45,8 +47,9 @@ class _HomeScreenState extends State<HomeScreen> {
     // Schedule notifications and request battery optimization exemption
     WidgetsBinding.instance.addPostFrameCallback((_) async {
       await _setupNotificationsAndPermissions();
-      // Bildirim izni sorulduktan sonra Reklam/Takip iznini (ATT + UMP) başlat ve ardından reklamları yükle
+      // Önce rıza/takip izni al (ATT + UMP) — tamamlanana kadar bekle
       await AdService.requestConsentAndPermissions();
+      // Consent tamamlandıktan sonra interstitial reklamları yükle
       _adService.loadInterstitialAd();
       _adService.loadNextButtonInterstitialAd();
     });
@@ -476,10 +479,21 @@ class _HomeScreenState extends State<HomeScreen> {
         await imageFile.writeAsBytes(bytes);
 
         // Share the image
+        // iOS'ta share sheet'in konumunu belirtmek zorunlu (iPad + iPhone uyumu)
+        final box = _shareButtonKey.currentContext?.findRenderObject() as RenderBox?;
+        final origin = box != null
+            ? box.localToGlobal(Offset.zero) & box.size
+            : Rect.fromCenter(
+                center: MediaQuery.of(context).size.center(Offset.zero),
+                width: 1,
+                height: 1,
+              );
+
         await Share.shareXFiles(
           [XFile(imagePath)],
           text: '${item.getIcon()} ${item.getTitle()}\n\nHer Gün İslam uygulamasından paylaşıldı',
           subject: '${item.getIcon()} ${item.getTitle()}',
+          sharePositionOrigin: origin,
         );
 
         // Log share event to Analytics
@@ -549,7 +563,17 @@ ${_currentItem!.text}
 Her Gün İslam uygulamasından paylaşıldı
 ''';
 
-    Share.share(shareText);
+    // iOS'ta share sheet konumu zorunlu
+    final box = _shareButtonKey.currentContext?.findRenderObject() as RenderBox?;
+    final origin = box != null
+        ? box.localToGlobal(Offset.zero) & box.size
+        : Rect.fromCenter(
+            center: MediaQuery.of(context).size.center(Offset.zero),
+            width: 1,
+            height: 1,
+          );
+
+    Share.share(shareText, sharePositionOrigin: origin);
   }
 
   @override
@@ -629,6 +653,7 @@ Her Gün İslam uygulamasından paylaşıldı
                                     onMarkAsRead: _markAsRead,
                                     isSharing: _isSharing,
                                     isRead: _isRead,
+                                    shareButtonKey: _shareButtonKey,
                                   ),
                                   if (!kIsWeb && Platform.isAndroid)
                                     _buildWidgetPromoCard(),

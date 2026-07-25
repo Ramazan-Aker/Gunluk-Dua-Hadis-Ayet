@@ -428,7 +428,23 @@ class _SurahDetailScreenState extends State<SurahDetailScreen> {
 
   Future<void> _shareAyah(SurahAyahDetail a) async {
     final header = '${widget.surahName} Suresi, ${a.numberInSurah}. Ayet';
-    await Share.share('${a.shareSnippet}\n\n— $header');
+    // iOS'ta share sheet konumu zorunlu
+    final box = context.findRenderObject() as RenderBox?;
+    final origin = box != null
+        ? Rect.fromCenter(
+            center: box.localToGlobal(box.size.center(Offset.zero)),
+            width: 1,
+            height: 1,
+          )
+        : Rect.fromCenter(
+            center: MediaQuery.of(context).size.center(Offset.zero),
+            width: 1,
+            height: 1,
+          );
+    await Share.share(
+      '${a.shareSnippet}\n\n— $header',
+      sharePositionOrigin: origin,
+    );
   }
 
   void _showNextSurahDialog() {

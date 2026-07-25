@@ -21,6 +21,8 @@ class MessagesScreen extends StatefulWidget {
 class _MessagesScreenState extends State<MessagesScreen> {
   final GreetingService _greetingService = GreetingService();
   final AdService _adService = AdService();
+  // iOS share sheet konumu için paylaş butonuna atanan key
+  final GlobalKey _shareButtonKey = GlobalKey();
 
   bool _isLoading = true;
   bool _isSharing = false;
@@ -199,9 +201,20 @@ class _MessagesScreenState extends State<MessagesScreen> {
         final imageFile = File(imagePath);
         await imageFile.writeAsBytes(bytes);
 
+        // iOS'ta share sheet konumu zorunlu
+        final box = _shareButtonKey.currentContext?.findRenderObject() as RenderBox?;
+        final origin = box != null
+            ? box.localToGlobal(Offset.zero) & box.size
+            : Rect.fromCenter(
+                center: MediaQuery.of(context).size.center(Offset.zero),
+                width: 1,
+                height: 1,
+              );
+
         await Share.shareXFiles(
           [XFile(imagePath)],
           text: 'Her Gün İslam uygulamasından paylaşıldı',
+          sharePositionOrigin: origin,
         );
 
         FirebaseService.logEvent(
@@ -249,8 +262,18 @@ class _MessagesScreenState extends State<MessagesScreen> {
 
   void _shareAsText() {
     if (_messageText.isEmpty) return;
+    // iOS'ta share sheet konumu zorunlu
+    final box = _shareButtonKey.currentContext?.findRenderObject() as RenderBox?;
+    final origin = box != null
+        ? box.localToGlobal(Offset.zero) & box.size
+        : Rect.fromCenter(
+            center: MediaQuery.of(context).size.center(Offset.zero),
+            width: 1,
+            height: 1,
+          );
     Share.share(
       '$_messageTitle\n\n$_messageText\n\nHer Gün İslam uygulamasından paylaşıldı',
+      sharePositionOrigin: origin,
     );
   }
 
@@ -642,6 +665,7 @@ class _MessagesScreenState extends State<MessagesScreen> {
             crossAxisAlignment: CrossAxisAlignment.stretch,
             children: [
               ElevatedButton.icon(
+                key: _shareButtonKey,
                 onPressed: _isSharing ? null : _shareGreeting,
                 icon: _isSharing
                     ? const SizedBox(
