@@ -15,9 +15,20 @@ class AdService {
 
   BannerAd? _bannerAd;
   bool _isBannerAdReady = false;
+  int _bannerFailedAttempts = 0;
 
   BannerAd? _bannerAd2;
   bool _isBannerAd2Ready = false;
+  int _banner2FailedAttempts = 0;
+
+  /// Banner reklam basarisiz oldugunda kullanilan artan bekleme suresi.
+  /// AdMob, ard arda hizli tekrar denemeleri "invalid traffic" olarak
+  /// isaretleyip reklam birimini daha da az doldurabilir; bu yuzden
+  /// sabit 3sn yerine ustel geri cekilme (exponential backoff) kullaniyoruz.
+  static Duration _bannerRetryDelay(int attempt) {
+    final seconds = 5 * (1 << attempt.clamp(0, 5)); // 5, 10, 20, 40, 80, 160...
+    return Duration(seconds: seconds.clamp(5, 120));
+  }
 
   InterstitialAd? _interstitialAd;
   bool _isInterstitialAdReady = false;
@@ -202,6 +213,7 @@ class AdService {
         onAdLoaded: (ad) {
           debugPrint('BannerAd 1 loaded.');
           _isBannerAdReady = true;
+          _bannerFailedAttempts = 0;
           onLoaded?.call();
         },
         onAdFailedToLoad: (ad, error) {
@@ -209,8 +221,10 @@ class AdService {
           _isBannerAdReady = false;
           ad.dispose();
           _bannerAd = null;
-          // 3 saniye sonra tekrar dene
-          Future.delayed(const Duration(seconds: 3), () {
+          // Ustel geri cekilme ile tekrar dene (invalid traffic riskini onlemek icin)
+          final delay = _bannerRetryDelay(_bannerFailedAttempts);
+          _bannerFailedAttempts++;
+          Future.delayed(delay, () {
             loadBannerAd(onLoaded: onLoaded);
           });
         },
@@ -249,6 +263,7 @@ class AdService {
         onAdLoaded: (ad) {
           debugPrint('BannerAd 2 loaded.');
           _isBannerAd2Ready = true;
+          _banner2FailedAttempts = 0;
           onLoaded?.call();
         },
         onAdFailedToLoad: (ad, error) {
@@ -256,8 +271,10 @@ class AdService {
           _isBannerAd2Ready = false;
           ad.dispose();
           _bannerAd2 = null;
-          // 3 saniye sonra tekrar dene
-          Future.delayed(const Duration(seconds: 3), () {
+          // Ustel geri cekilme ile tekrar dene (invalid traffic riskini onlemek icin)
+          final delay = _bannerRetryDelay(_banner2FailedAttempts);
+          _banner2FailedAttempts++;
+          Future.delayed(delay, () {
             loadBannerAd2(onLoaded: onLoaded);
           });
         },
