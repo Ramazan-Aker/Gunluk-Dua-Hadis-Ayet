@@ -22,37 +22,6 @@ class AdService {
   static const String _iosTestInterstitialAdUnitId =
       'ca-app-pub-3940256099942544/4411468910';
 
-  BannerAd? _bannerAd;
-  bool _isBannerAdReady = false;
-  int _bannerFailedAttempts = 0;
-  Timer? _bannerRetryTimer;
-  DateTime? _lastBannerRequestAt;
-
-  BannerAd? _bannerAd2;
-  bool _isBannerAd2Ready = false;
-  int _banner2FailedAttempts = 0;
-  Timer? _banner2RetryTimer;
-  DateTime? _lastBanner2RequestAt;
-
-  /// Banner reklam basarisiz oldugunda kullanilan artan bekleme suresi.
-  /// AdMob, ard arda hizli tekrar denemeleri "invalid traffic" olarak
-  /// isaretleyip reklam birimini daha da az doldurabilir; bu yuzden
-  /// sabit 3sn yerine ustel geri cekilme (exponential backoff) kullaniyoruz.
-  static const int maxBannerFailedLoadAttempts = 3;
-  static const Duration _minimumBannerRequestInterval = Duration(seconds: 60);
-
-  static Duration _bannerRetryDelay(int attempt) {
-    final seconds = 60 * (1 << attempt.clamp(0, 2)); // 60, 120, 240
-    return Duration(seconds: seconds);
-  }
-
-  static Duration _remainingBannerCooldown(DateTime? lastRequestAt) {
-    if (lastRequestAt == null) return Duration.zero;
-    final elapsed = DateTime.now().difference(lastRequestAt);
-    if (elapsed >= _minimumBannerRequestInterval) return Duration.zero;
-    return _minimumBannerRequestInterval - elapsed;
-  }
-
   InterstitialAd? _interstitialAd;
   bool _isInterstitialAdReady = false;
   bool _isInterstitialAdLoading = false;
@@ -269,151 +238,6 @@ class AdService {
     } else {
       throw UnsupportedError('Unsupported platform');
     }
-  }
-
-  // ─── Banner Ad 1 ───────────────────────────────────────────────────────────
-
-  /// Load banner ad — consent tamamlandıktan sonra çağrılmalı
-  void loadBannerAd({
-    AdSize size = AdSize.banner,
-    VoidCallback? onLoaded,
-  }) {
-    if (!canRequestAds) return;
-    if (_bannerAd != null) {
-      // Zaten yüklü ya da yükleniyor
-      if (_isBannerAdReady) onLoaded?.call();
-      return;
-    }
-
-    if (_bannerRetryTimer?.isActive ?? false) return;
-    final cooldown = _remainingBannerCooldown(_lastBannerRequestAt);
-    if (cooldown > Duration.zero) {
-      _bannerRetryTimer = Timer(
-        cooldown,
-        () {
-          _bannerRetryTimer = null;
-          loadBannerAd(size: size, onLoaded: onLoaded);
-        },
-      );
-      return;
-    }
-
-    _lastBannerRequestAt = DateTime.now();
-    _bannerAd = BannerAd(
-      adUnitId: bannerAdUnitId,
-      size: size,
-      request: const AdRequest(),
-      listener: BannerAdListener(
-        onAdLoaded: (ad) {
-          debugPrint('BannerAd 1 loaded.');
-          _isBannerAdReady = true;
-          _bannerFailedAttempts = 0;
-          onLoaded?.call();
-        },
-        onAdFailedToLoad: (ad, error) {
-          debugPrint('BannerAd 1 failed to load: $error');
-          _isBannerAdReady = false;
-          ad.dispose();
-          _bannerAd = null;
-          _bannerFailedAttempts++;
-          if (_bannerFailedAttempts <= maxBannerFailedLoadAttempts) {
-            final delay = _bannerRetryDelay(_bannerFailedAttempts - 1);
-            _bannerRetryTimer = Timer(delay, () {
-              _bannerRetryTimer = null;
-              loadBannerAd(size: size, onLoaded: onLoaded);
-            });
-          }
-        },
-        onAdOpened: (ad) {},
-        onAdClosed: (ad) {},
-      ),
-    );
-
-    _bannerAd?.load();
-  }
-
-  BannerAd? get bannerAd => _bannerAd;
-  bool get isBannerAdReady => _adsEnabled && _isBannerAdReady;
-
-  void disposeBannerAd() {
-    _bannerRetryTimer?.cancel();
-    _bannerRetryTimer = null;
-    _bannerAd?.dispose();
-    _bannerAd = null;
-    _isBannerAdReady = false;
-    _bannerFailedAttempts = 0;
-  }
-
-  // ─── Banner Ad 2 ───────────────────────────────────────────────────────────
-
-  /// Load second banner ad — consent tamamlandıktan sonra çağrılmalı
-  void loadBannerAd2({
-    AdSize size = AdSize.banner,
-    VoidCallback? onLoaded,
-  }) {
-    if (!canRequestAds) return;
-    if (_bannerAd2 != null) {
-      if (_isBannerAd2Ready) onLoaded?.call();
-      return;
-    }
-
-    if (_banner2RetryTimer?.isActive ?? false) return;
-    final cooldown = _remainingBannerCooldown(_lastBanner2RequestAt);
-    if (cooldown > Duration.zero) {
-      _banner2RetryTimer = Timer(
-        cooldown,
-        () {
-          _banner2RetryTimer = null;
-          loadBannerAd2(size: size, onLoaded: onLoaded);
-        },
-      );
-      return;
-    }
-
-    _lastBanner2RequestAt = DateTime.now();
-    _bannerAd2 = BannerAd(
-      adUnitId: bannerAd2UnitId,
-      size: size,
-      request: const AdRequest(),
-      listener: BannerAdListener(
-        onAdLoaded: (ad) {
-          debugPrint('BannerAd 2 loaded.');
-          _isBannerAd2Ready = true;
-          _banner2FailedAttempts = 0;
-          onLoaded?.call();
-        },
-        onAdFailedToLoad: (ad, error) {
-          debugPrint('BannerAd 2 failed to load: $error');
-          _isBannerAd2Ready = false;
-          ad.dispose();
-          _bannerAd2 = null;
-          _banner2FailedAttempts++;
-          if (_banner2FailedAttempts <= maxBannerFailedLoadAttempts) {
-            final delay = _bannerRetryDelay(_banner2FailedAttempts - 1);
-            _banner2RetryTimer = Timer(delay, () {
-              _banner2RetryTimer = null;
-              loadBannerAd2(size: size, onLoaded: onLoaded);
-            });
-          }
-        },
-        onAdOpened: (ad) {},
-        onAdClosed: (ad) {},
-      ),
-    );
-
-    _bannerAd2?.load();
-  }
-
-  BannerAd? get bannerAd2 => _bannerAd2;
-  bool get isBannerAd2Ready => _adsEnabled && _isBannerAd2Ready;
-
-  void disposeBannerAd2() {
-    _banner2RetryTimer?.cancel();
-    _banner2RetryTimer = null;
-    _bannerAd2?.dispose();
-    _bannerAd2 = null;
-    _isBannerAd2Ready = false;
-    _banner2FailedAttempts = 0;
   }
 
   // ─── Interstitial Ad (Paylaşım) ────────────────────────────────────────────
@@ -656,8 +480,6 @@ class AdService {
   // ─── Dispose All ───────────────────────────────────────────────────────────
 
   void dispose() {
-    disposeBannerAd();
-    disposeBannerAd2();
     disposeInterstitialAd();
     disposeNextButtonInterstitialAd();
   }
@@ -676,21 +498,32 @@ class AdBannerWidget extends StatefulWidget {
   State<AdBannerWidget> createState() => _AdBannerWidgetState();
 }
 
-class _AdBannerWidgetState extends State<AdBannerWidget> {
+class _AdBannerWidgetState extends State<AdBannerWidget>
+    with WidgetsBindingObserver {
   final AdService _adService = AdService();
+  BannerAd? _bannerAd;
   bool _isAdLoaded = false;
   bool _isLoading = false;
-  AdSize _adSize = AdSize.banner;
+  int _failedAttempts = 0;
+  Timer? _retryTimer;
+
+  static const List<Duration> _retryDelays = [
+    Duration(seconds: 5),
+    Duration(seconds: 15),
+    Duration(seconds: 30),
+    Duration(seconds: 60),
+  ];
 
   @override
   void initState() {
     super.initState();
+    WidgetsBinding.instance.addObserver(this);
     _initAd();
   }
 
   Future<void> _initAd() async {
     if (!AdService._adsEnabled) return;
-    if (_isLoading) return;
+    if (_isLoading || _bannerAd != null) return;
     _isLoading = true;
 
     // Consent ve ATT izninin tamamlanmasını bekle
@@ -701,65 +534,111 @@ class _AdBannerWidgetState extends State<AdBannerWidget> {
       return;
     }
 
-    final availableWidth = MediaQuery.sizeOf(context).width.truncate();
-    _adSize =
-        await AdSize.getLargeAnchoredAdaptiveBannerAdSize(availableWidth) ??
-            AdSize.banner;
+    final size = await _bannerSizeForPlatform();
+    if (!mounted) {
+      _isLoading = false;
+      return;
+    }
 
-    if (!mounted) return;
+    late final BannerAd bannerAd;
+    bannerAd = BannerAd(
+      adUnitId: widget.useSecondAd
+          ? _adService.bannerAd2UnitId
+          : _adService.bannerAdUnitId,
+      size: size,
+      request: const AdRequest(),
+      listener: BannerAdListener(
+        onAdLoaded: (ad) {
+          if (!mounted) {
+            ad.dispose();
+            return;
+          }
+          _retryTimer?.cancel();
+          _retryTimer = null;
+          setState(() {
+            _bannerAd = ad as BannerAd;
+            _isAdLoaded = true;
+            _isLoading = false;
+            _failedAttempts = 0;
+          });
+          debugPrint(
+            'Banner loaded (${Platform.isIOS ? 'iOS' : 'Android'}, '
+            '${widget.useSecondAd ? 'top' : 'bottom'}): ${ad.responseInfo}',
+          );
+        },
+        onAdFailedToLoad: (ad, error) {
+          debugPrint(
+            'Banner failed (${Platform.isIOS ? 'iOS' : 'Android'}, '
+            '${widget.useSecondAd ? 'top' : 'bottom'}): $error',
+          );
+          ad.dispose();
+          if (!mounted) return;
+          setState(() {
+            _bannerAd = null;
+            _isAdLoaded = false;
+            _isLoading = false;
+          });
+          _scheduleRetry();
+        },
+      ),
+    );
 
-    // Reklam yükleme isteği — callback ile setState çağrılır
-    _loadBanner();
+    _bannerAd = bannerAd;
+    try {
+      await bannerAd.load();
+    } catch (error) {
+      debugPrint('Banner load exception: $error');
+      bannerAd.dispose();
+      if (!mounted) return;
+      setState(() {
+        _bannerAd = null;
+        _isAdLoaded = false;
+        _isLoading = false;
+      });
+      _scheduleRetry();
+    }
   }
 
-  void _loadBanner() {
-    if (!mounted) return;
+  Future<AdSize> _bannerSizeForPlatform() async {
+    if (!Platform.isIOS) return AdSize.banner;
 
-    if (widget.useSecondAd) {
-      _adService.loadBannerAd2(
-          size: _adSize,
-          onLoaded: () {
-            if (mounted) {
-              setState(() {
-                _isAdLoaded = true;
-                _isLoading = false;
-              });
-            }
-          });
-      // Zaten hazırsa hemen göster
-      if (_adService.isBannerAd2Ready && mounted) {
-        setState(() {
-          _isAdLoaded = true;
-          _isLoading = false;
-        });
-      }
-    } else {
-      _adService.loadBannerAd(
-          size: _adSize,
-          onLoaded: () {
-            if (mounted) {
-              setState(() {
-                _isAdLoaded = true;
-                _isLoading = false;
-              });
-            }
-          });
-      if (_adService.isBannerAdReady && mounted) {
-        setState(() {
-          _isAdLoaded = true;
-          _isLoading = false;
-        });
-      }
+    final width = MediaQuery.sizeOf(context).width.truncate();
+    return await AdSize.getLargeAnchoredAdaptiveBannerAdSize(width) ??
+        AdSize.banner;
+  }
+
+  void _scheduleRetry() {
+    if (!mounted || _retryTimer?.isActive == true) return;
+    if (_failedAttempts >= _retryDelays.length) return;
+
+    final delay = _retryDelays[_failedAttempts];
+    _failedAttempts++;
+    _retryTimer = Timer(delay, () {
+      _retryTimer = null;
+      _initAd();
+    });
+  }
+
+  @override
+  void didChangeAppLifecycleState(AppLifecycleState state) {
+    if (state == AppLifecycleState.resumed &&
+        !_isAdLoaded &&
+        !_isLoading &&
+        _bannerAd == null) {
+      _retryTimer?.cancel();
+      _retryTimer = null;
+      _failedAttempts = 0;
+      _initAd();
     }
   }
 
   @override
   void dispose() {
-    if (widget.useSecondAd) {
-      _adService.disposeBannerAd2();
-    } else {
-      _adService.disposeBannerAd();
-    }
+    WidgetsBinding.instance.removeObserver(this);
+    _retryTimer?.cancel();
+    _retryTimer = null;
+    _bannerAd?.dispose();
+    _bannerAd = null;
     super.dispose();
   }
 
@@ -767,36 +646,18 @@ class _AdBannerWidgetState extends State<AdBannerWidget> {
   Widget build(BuildContext context) {
     if (!AdService._adsEnabled) return const SizedBox.shrink();
 
-    final BannerAd? ad =
-        widget.useSecondAd ? _adService.bannerAd2 : _adService.bannerAd;
-    if (AdService.canRequestAds && !_isLoading && ad == null) {
-      WidgetsBinding.instance.addPostFrameCallback((_) {
-        if (!mounted) return;
-        _isAdLoaded = false;
-        _initAd();
-      });
-    }
-
+    final ad = _bannerAd;
     if (_isAdLoaded && ad != null) {
       return Container(
-        width: double.infinity,
         alignment: Alignment.center,
-        padding: const EdgeInsets.symmetric(vertical: 8),
-        decoration: const BoxDecoration(
-          color: Color(0xFFF8FAFC),
-          border: Border.symmetric(
-            horizontal: BorderSide(color: Color(0xFFE2E8F0)),
-          ),
-        ),
-        child: SizedBox(
-          width: ad.size.width.toDouble(),
-          height: ad.size.height.toDouble(),
-          child: AdWidget(ad: ad),
-        ),
+        width: ad.size.width.toDouble(),
+        height: ad.size.height.toDouble(),
+        margin: const EdgeInsets.symmetric(vertical: 4),
+        child: AdWidget(ad: ad),
       );
     }
 
-    // Reklam yüklenene kadar yer tutucu gösterme (boş alan)
-    return SizedBox(height: _adSize.height.toDouble() + 16);
+    // Reklam hazır değilken içerikten boş alan çalma.
+    return const SizedBox.shrink();
   }
 }
