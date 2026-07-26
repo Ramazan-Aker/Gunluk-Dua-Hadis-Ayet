@@ -1,5 +1,6 @@
 import 'package:google_mobile_ads/google_mobile_ads.dart';
 import 'package:app_tracking_transparency/app_tracking_transparency.dart';
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'dart:io';
 import 'dart:async';
@@ -12,38 +13,65 @@ class AdService {
 
   /// Reklamlar aktif
   static const bool _adsEnabled = true;
+  static const String _androidTestBannerAdUnitId =
+      'ca-app-pub-3940256099942544/9214589741';
+  static const String _iosTestBannerAdUnitId =
+      'ca-app-pub-3940256099942544/2435281174';
+  static const String _androidTestInterstitialAdUnitId =
+      'ca-app-pub-3940256099942544/1033173712';
+  static const String _iosTestInterstitialAdUnitId =
+      'ca-app-pub-3940256099942544/4411468910';
 
   BannerAd? _bannerAd;
   bool _isBannerAdReady = false;
   int _bannerFailedAttempts = 0;
+  Timer? _bannerRetryTimer;
+  DateTime? _lastBannerRequestAt;
 
   BannerAd? _bannerAd2;
   bool _isBannerAd2Ready = false;
   int _banner2FailedAttempts = 0;
+  Timer? _banner2RetryTimer;
+  DateTime? _lastBanner2RequestAt;
 
   /// Banner reklam basarisiz oldugunda kullanilan artan bekleme suresi.
   /// AdMob, ard arda hizli tekrar denemeleri "invalid traffic" olarak
   /// isaretleyip reklam birimini daha da az doldurabilir; bu yuzden
   /// sabit 3sn yerine ustel geri cekilme (exponential backoff) kullaniyoruz.
+  static const int maxBannerFailedLoadAttempts = 3;
+  static const Duration _minimumBannerRequestInterval = Duration(seconds: 60);
+
   static Duration _bannerRetryDelay(int attempt) {
-    final seconds = 5 * (1 << attempt.clamp(0, 5)); // 5, 10, 20, 40, 80, 160...
-    return Duration(seconds: seconds.clamp(5, 120));
+    final seconds = 60 * (1 << attempt.clamp(0, 2)); // 60, 120, 240
+    return Duration(seconds: seconds);
+  }
+
+  static Duration _remainingBannerCooldown(DateTime? lastRequestAt) {
+    if (lastRequestAt == null) return Duration.zero;
+    final elapsed = DateTime.now().difference(lastRequestAt);
+    if (elapsed >= _minimumBannerRequestInterval) return Duration.zero;
+    return _minimumBannerRequestInterval - elapsed;
   }
 
   InterstitialAd? _interstitialAd;
   bool _isInterstitialAdReady = false;
+  bool _isInterstitialAdLoading = false;
+  Timer? _interstitialRetryTimer;
   int _numInterstitialLoadAttempts = 0;
   static const int maxFailedLoadAttempts = 3;
   Completer<void>? _adDismissedCompleter;
 
   InterstitialAd? _nextButtonInterstitialAd;
   bool _isNextButtonInterstitialAdReady = false;
+  bool _isNextButtonInterstitialAdLoading = false;
+  Timer? _nextButtonInterstitialRetryTimer;
   int _numNextButtonInterstitialLoadAttempts = 0;
   Completer<void>? _nextButtonAdDismissedCompleter;
 
   // Consent durumu
   static bool _consentChecked = false;
   static bool _consentCompleted = false;
+  static bool _canRequestAds = false;
   static final List<Completer<void>> _consentWaiters = [];
 
   /// Request iOS Tracking (ATT) & Google UMP Consent
@@ -84,6 +112,12 @@ class AdService {
     } catch (e) {
       debugPrint('Consent error: $e');
     } finally {
+      try {
+        _canRequestAds = await ConsentInformation.instance.canRequestAds();
+      } catch (e) {
+        _canRequestAds = false;
+        debugPrint('canRequestAds error: $e');
+      }
       _consentCompleted = true;
       // Bekleyen tüm completer'ları tamamla
       for (final c in _consentWaiters) {
@@ -121,11 +155,7 @@ class AdService {
       if (!completer.isCompleted) completer.complete();
     }
 
-    // Maksimum 5 saniye bekle
-    await Future.any([
-      completer.future,
-      Future.delayed(const Duration(seconds: 5)),
-    ]);
+    await completer.future;
   }
 
   static Future<void> _loadAndShowConsentFormIfRequired() async {
@@ -138,11 +168,38 @@ class AdService {
         if (!completer.isCompleted) completer.complete();
       },
     );
-    // Maksimum 10 saniye bekle
-    await Future.any([
-      completer.future,
-      Future.delayed(const Duration(seconds: 10)),
-    ]);
+    await completer.future;
+  }
+
+  static bool get canRequestAds => _adsEnabled && _canRequestAds;
+
+  static Future<bool> isPrivacyOptionsRequired() async {
+    try {
+      return await ConsentInformation.instance
+              .getPrivacyOptionsRequirementStatus() ==
+          PrivacyOptionsRequirementStatus.required;
+    } catch (e) {
+      debugPrint('Privacy options status error: $e');
+      return false;
+    }
+  }
+
+  static Future<FormError?> showPrivacyOptionsForm() async {
+    final completer = Completer<FormError?>();
+    ConsentForm.showPrivacyOptionsForm((error) {
+      if (!completer.isCompleted) completer.complete(error);
+    });
+    final error = await completer.future;
+    try {
+      _canRequestAds = await ConsentInformation.instance.canRequestAds();
+    } catch (e) {
+      _canRequestAds = false;
+      debugPrint('canRequestAds after privacy options error: $e');
+    }
+    if (!_canRequestAds) {
+      AdService().dispose();
+    }
+    return error;
   }
 
   /// Initialize AdMob
@@ -152,10 +209,15 @@ class AdService {
 
   /// Banner Ad Unit ID - Ana Sayfa Alt Banner
   String get bannerAdUnitId {
+    if (!kReleaseMode) {
+      return Platform.isAndroid
+          ? _androidTestBannerAdUnitId
+          : _iosTestBannerAdUnitId;
+    }
     if (Platform.isAndroid) {
       return 'ca-app-pub-9132542494292379/9084351705';
     } else if (Platform.isIOS) {
-      return 'ca-app-pub-9132542494292379/8967728449';
+      return 'ca-app-pub-9132542494292379/8967228449';
     } else {
       throw UnsupportedError('Unsupported platform');
     }
@@ -163,6 +225,11 @@ class AdService {
 
   /// Interstitial Ad Unit ID - Paylaşım Öncesi
   String get interstitialAdUnitId {
+    if (!kReleaseMode) {
+      return Platform.isAndroid
+          ? _androidTestInterstitialAdUnitId
+          : _iosTestInterstitialAdUnitId;
+    }
     if (Platform.isAndroid) {
       return 'ca-app-pub-9132542494292379/8757048647';
     } else if (Platform.isIOS) {
@@ -174,6 +241,11 @@ class AdService {
 
   /// Next Button Interstitial Ad Unit ID - Sonraki Butonu
   String get nextButtonInterstitialAdUnitId {
+    if (!kReleaseMode) {
+      return Platform.isAndroid
+          ? _androidTestInterstitialAdUnitId
+          : _iosTestInterstitialAdUnitId;
+    }
     if (Platform.isAndroid) {
       return 'ca-app-pub-9132542494292379/7443966973';
     } else if (Platform.isIOS) {
@@ -185,6 +257,11 @@ class AdService {
 
   /// Second Banner Ad Unit ID - Üst Banner
   String get bannerAd2UnitId {
+    if (!kReleaseMode) {
+      return Platform.isAndroid
+          ? _androidTestBannerAdUnitId
+          : _iosTestBannerAdUnitId;
+    }
     if (Platform.isAndroid) {
       return 'ca-app-pub-9132542494292379/5145106696';
     } else if (Platform.isIOS) {
@@ -197,17 +274,34 @@ class AdService {
   // ─── Banner Ad 1 ───────────────────────────────────────────────────────────
 
   /// Load banner ad — consent tamamlandıktan sonra çağrılmalı
-  void loadBannerAd({VoidCallback? onLoaded}) {
-    if (!_adsEnabled) return;
+  void loadBannerAd({
+    AdSize size = AdSize.banner,
+    VoidCallback? onLoaded,
+  }) {
+    if (!canRequestAds) return;
     if (_bannerAd != null) {
       // Zaten yüklü ya da yükleniyor
       if (_isBannerAdReady) onLoaded?.call();
       return;
     }
 
+    if (_bannerRetryTimer?.isActive ?? false) return;
+    final cooldown = _remainingBannerCooldown(_lastBannerRequestAt);
+    if (cooldown > Duration.zero) {
+      _bannerRetryTimer = Timer(
+        cooldown,
+        () {
+          _bannerRetryTimer = null;
+          loadBannerAd(size: size, onLoaded: onLoaded);
+        },
+      );
+      return;
+    }
+
+    _lastBannerRequestAt = DateTime.now();
     _bannerAd = BannerAd(
       adUnitId: bannerAdUnitId,
-      size: AdSize.banner,
+      size: size,
       request: const AdRequest(),
       listener: BannerAdListener(
         onAdLoaded: (ad) {
@@ -221,12 +315,14 @@ class AdService {
           _isBannerAdReady = false;
           ad.dispose();
           _bannerAd = null;
-          // Ustel geri cekilme ile tekrar dene (invalid traffic riskini onlemek icin)
-          final delay = _bannerRetryDelay(_bannerFailedAttempts);
           _bannerFailedAttempts++;
-          Future.delayed(delay, () {
-            loadBannerAd(onLoaded: onLoaded);
-          });
+          if (_bannerFailedAttempts <= maxBannerFailedLoadAttempts) {
+            final delay = _bannerRetryDelay(_bannerFailedAttempts - 1);
+            _bannerRetryTimer = Timer(delay, () {
+              _bannerRetryTimer = null;
+              loadBannerAd(size: size, onLoaded: onLoaded);
+            });
+          }
         },
         onAdOpened: (ad) {},
         onAdClosed: (ad) {},
@@ -240,24 +336,44 @@ class AdService {
   bool get isBannerAdReady => _adsEnabled && _isBannerAdReady;
 
   void disposeBannerAd() {
+    _bannerRetryTimer?.cancel();
+    _bannerRetryTimer = null;
     _bannerAd?.dispose();
     _bannerAd = null;
     _isBannerAdReady = false;
+    _bannerFailedAttempts = 0;
   }
 
   // ─── Banner Ad 2 ───────────────────────────────────────────────────────────
 
   /// Load second banner ad — consent tamamlandıktan sonra çağrılmalı
-  void loadBannerAd2({VoidCallback? onLoaded}) {
-    if (!_adsEnabled) return;
+  void loadBannerAd2({
+    AdSize size = AdSize.banner,
+    VoidCallback? onLoaded,
+  }) {
+    if (!canRequestAds) return;
     if (_bannerAd2 != null) {
       if (_isBannerAd2Ready) onLoaded?.call();
       return;
     }
 
+    if (_banner2RetryTimer?.isActive ?? false) return;
+    final cooldown = _remainingBannerCooldown(_lastBanner2RequestAt);
+    if (cooldown > Duration.zero) {
+      _banner2RetryTimer = Timer(
+        cooldown,
+        () {
+          _banner2RetryTimer = null;
+          loadBannerAd2(size: size, onLoaded: onLoaded);
+        },
+      );
+      return;
+    }
+
+    _lastBanner2RequestAt = DateTime.now();
     _bannerAd2 = BannerAd(
       adUnitId: bannerAd2UnitId,
-      size: AdSize.banner,
+      size: size,
       request: const AdRequest(),
       listener: BannerAdListener(
         onAdLoaded: (ad) {
@@ -271,12 +387,14 @@ class AdService {
           _isBannerAd2Ready = false;
           ad.dispose();
           _bannerAd2 = null;
-          // Ustel geri cekilme ile tekrar dene (invalid traffic riskini onlemek icin)
-          final delay = _bannerRetryDelay(_banner2FailedAttempts);
           _banner2FailedAttempts++;
-          Future.delayed(delay, () {
-            loadBannerAd2(onLoaded: onLoaded);
-          });
+          if (_banner2FailedAttempts <= maxBannerFailedLoadAttempts) {
+            final delay = _bannerRetryDelay(_banner2FailedAttempts - 1);
+            _banner2RetryTimer = Timer(delay, () {
+              _banner2RetryTimer = null;
+              loadBannerAd2(size: size, onLoaded: onLoaded);
+            });
+          }
         },
         onAdOpened: (ad) {},
         onAdClosed: (ad) {},
@@ -290,41 +408,64 @@ class AdService {
   bool get isBannerAd2Ready => _adsEnabled && _isBannerAd2Ready;
 
   void disposeBannerAd2() {
+    _banner2RetryTimer?.cancel();
+    _banner2RetryTimer = null;
     _bannerAd2?.dispose();
     _bannerAd2 = null;
     _isBannerAd2Ready = false;
+    _banner2FailedAttempts = 0;
   }
 
   // ─── Interstitial Ad (Paylaşım) ────────────────────────────────────────────
 
   Future<void> loadInterstitialAd() async {
     if (!_adsEnabled) return;
+    if (_isInterstitialAdLoading ||
+        _interstitialAd != null ||
+        (_interstitialRetryTimer?.isActive ?? false)) {
+      return;
+    }
 
     // Consent tamamlanmamışsa bekle
     if (!_consentCompleted) {
       await requestConsentAndPermissions();
     }
+    if (!canRequestAds || _isInterstitialAdLoading || _interstitialAd != null) {
+      return;
+    }
 
+    _isInterstitialAdLoading = true;
     InterstitialAd.load(
       adUnitId: interstitialAdUnitId,
       request: const AdRequest(),
       adLoadCallback: InterstitialAdLoadCallback(
         onAdLoaded: (InterstitialAd ad) {
           debugPrint('Interstitial Ad loaded.');
+          _isInterstitialAdLoading = false;
+          _interstitialRetryTimer?.cancel();
+          _interstitialRetryTimer = null;
+          if (!canRequestAds) {
+            ad.dispose();
+            return;
+          }
           _interstitialAd = ad;
           _isInterstitialAdReady = true;
           _numInterstitialLoadAttempts = 0;
         },
         onAdFailedToLoad: (LoadAdError error) {
           debugPrint('Interstitial Ad failed to load: $error');
+          _isInterstitialAdLoading = false;
           _numInterstitialLoadAttempts += 1;
           _interstitialAd = null;
           _isInterstitialAdReady = false;
 
           if (_numInterstitialLoadAttempts < maxFailedLoadAttempts) {
-            Future.delayed(
+            _interstitialRetryTimer = Timer(
               Duration(seconds: _numInterstitialLoadAttempts * 3),
-              loadInterstitialAd,
+              () {
+                _interstitialRetryTimer = null;
+                loadInterstitialAd();
+              },
             );
           }
         },
@@ -340,17 +481,19 @@ class AdService {
       return false;
     }
 
+    final ad = _interstitialAd!;
+    _interstitialAd = null;
+    _isInterstitialAdReady = false;
+
     try {
       _adDismissedCompleter = Completer<void>();
 
-      _interstitialAd!.fullScreenContentCallback = FullScreenContentCallback(
+      ad.fullScreenContentCallback = FullScreenContentCallback(
         onAdShowedFullScreenContent: (InterstitialAd ad) {
           debugPrint('Interstitial Ad showed.');
         },
         onAdDismissedFullScreenContent: (InterstitialAd ad) {
           ad.dispose();
-          _interstitialAd = null;
-          _isInterstitialAdReady = false;
           if (_adDismissedCompleter != null &&
               !_adDismissedCompleter!.isCompleted) {
             _adDismissedCompleter!.complete();
@@ -360,8 +503,6 @@ class AdService {
         onAdFailedToShowFullScreenContent: (InterstitialAd ad, AdError error) {
           debugPrint('Interstitial Ad failed to show: $error');
           ad.dispose();
-          _interstitialAd = null;
-          _isInterstitialAdReady = false;
           if (_adDismissedCompleter != null &&
               !_adDismissedCompleter!.isCompleted) {
             _adDismissedCompleter!.complete();
@@ -370,11 +511,13 @@ class AdService {
         },
       );
 
-      await _interstitialAd!.show();
+      await ad.show();
       await _adDismissedCompleter!.future;
       return true;
     } catch (e) {
       debugPrint('showInterstitialAd error: $e');
+      ad.dispose();
+      loadInterstitialAd();
       return false;
     }
   }
@@ -382,40 +525,66 @@ class AdService {
   bool get isInterstitialAdReady => _isInterstitialAdReady;
 
   void disposeInterstitialAd() {
+    _interstitialRetryTimer?.cancel();
+    _interstitialRetryTimer = null;
     _interstitialAd?.dispose();
     _interstitialAd = null;
     _isInterstitialAdReady = false;
+    _isInterstitialAdLoading = false;
+    _numInterstitialLoadAttempts = 0;
   }
 
   // ─── Next Button Interstitial Ad ───────────────────────────────────────────
 
   Future<void> loadNextButtonInterstitialAd() async {
     if (!_adsEnabled) return;
+    if (_isNextButtonInterstitialAdLoading ||
+        _nextButtonInterstitialAd != null ||
+        (_nextButtonInterstitialRetryTimer?.isActive ?? false)) {
+      return;
+    }
 
     if (!_consentCompleted) {
       await requestConsentAndPermissions();
     }
+    if (!canRequestAds ||
+        _isNextButtonInterstitialAdLoading ||
+        _nextButtonInterstitialAd != null) {
+      return;
+    }
 
+    _isNextButtonInterstitialAdLoading = true;
     InterstitialAd.load(
       adUnitId: nextButtonInterstitialAdUnitId,
       request: const AdRequest(),
       adLoadCallback: InterstitialAdLoadCallback(
         onAdLoaded: (InterstitialAd ad) {
           debugPrint('NextButton Interstitial Ad loaded.');
+          _isNextButtonInterstitialAdLoading = false;
+          _nextButtonInterstitialRetryTimer?.cancel();
+          _nextButtonInterstitialRetryTimer = null;
+          if (!canRequestAds) {
+            ad.dispose();
+            return;
+          }
           _nextButtonInterstitialAd = ad;
           _isNextButtonInterstitialAdReady = true;
           _numNextButtonInterstitialLoadAttempts = 0;
         },
         onAdFailedToLoad: (LoadAdError error) {
           debugPrint('NextButton Interstitial Ad failed: $error');
+          _isNextButtonInterstitialAdLoading = false;
           _numNextButtonInterstitialLoadAttempts += 1;
           _nextButtonInterstitialAd = null;
           _isNextButtonInterstitialAdReady = false;
 
           if (_numNextButtonInterstitialLoadAttempts < maxFailedLoadAttempts) {
-            Future.delayed(
+            _nextButtonInterstitialRetryTimer = Timer(
               Duration(seconds: _numNextButtonInterstitialLoadAttempts * 3),
-              loadNextButtonInterstitialAd,
+              () {
+                _nextButtonInterstitialRetryTimer = null;
+                loadNextButtonInterstitialAd();
+              },
             );
           }
         },
@@ -431,18 +600,19 @@ class AdService {
       return false;
     }
 
+    final ad = _nextButtonInterstitialAd!;
+    _nextButtonInterstitialAd = null;
+    _isNextButtonInterstitialAdReady = false;
+
     try {
       _nextButtonAdDismissedCompleter = Completer<void>();
 
-      _nextButtonInterstitialAd!.fullScreenContentCallback =
-          FullScreenContentCallback(
+      ad.fullScreenContentCallback = FullScreenContentCallback(
         onAdShowedFullScreenContent: (InterstitialAd ad) {
           debugPrint('NextButton Interstitial Ad showed.');
         },
         onAdDismissedFullScreenContent: (InterstitialAd ad) {
           ad.dispose();
-          _nextButtonInterstitialAd = null;
-          _isNextButtonInterstitialAdReady = false;
           if (_nextButtonAdDismissedCompleter != null &&
               !_nextButtonAdDismissedCompleter!.isCompleted) {
             _nextButtonAdDismissedCompleter!.complete();
@@ -452,8 +622,6 @@ class AdService {
         onAdFailedToShowFullScreenContent: (InterstitialAd ad, AdError error) {
           debugPrint('NextButton Interstitial Ad failed to show: $error');
           ad.dispose();
-          _nextButtonInterstitialAd = null;
-          _isNextButtonInterstitialAdReady = false;
           if (_nextButtonAdDismissedCompleter != null &&
               !_nextButtonAdDismissedCompleter!.isCompleted) {
             _nextButtonAdDismissedCompleter!.complete();
@@ -462,11 +630,13 @@ class AdService {
         },
       );
 
-      await _nextButtonInterstitialAd!.show();
+      await ad.show();
       await _nextButtonAdDismissedCompleter!.future;
       return true;
     } catch (e) {
       debugPrint('showNextButtonInterstitialAd error: $e');
+      ad.dispose();
+      loadNextButtonInterstitialAd();
       return false;
     }
   }
@@ -474,9 +644,13 @@ class AdService {
   bool get isNextButtonInterstitialAdReady => _isNextButtonInterstitialAdReady;
 
   void disposeNextButtonInterstitialAd() {
+    _nextButtonInterstitialRetryTimer?.cancel();
+    _nextButtonInterstitialRetryTimer = null;
     _nextButtonInterstitialAd?.dispose();
     _nextButtonInterstitialAd = null;
     _isNextButtonInterstitialAdReady = false;
+    _isNextButtonInterstitialAdLoading = false;
+    _numNextButtonInterstitialLoadAttempts = 0;
   }
 
   // ─── Dispose All ───────────────────────────────────────────────────────────
@@ -506,6 +680,7 @@ class _AdBannerWidgetState extends State<AdBannerWidget> {
   final AdService _adService = AdService();
   bool _isAdLoaded = false;
   bool _isLoading = false;
+  AdSize _adSize = AdSize.banner;
 
   @override
   void initState() {
@@ -521,6 +696,16 @@ class _AdBannerWidgetState extends State<AdBannerWidget> {
     // Consent ve ATT izninin tamamlanmasını bekle
     await AdService.requestConsentAndPermissions();
 
+    if (!mounted || !AdService.canRequestAds) {
+      _isLoading = false;
+      return;
+    }
+
+    final availableWidth = MediaQuery.sizeOf(context).width.truncate();
+    _adSize =
+        await AdSize.getLargeAnchoredAdaptiveBannerAdSize(availableWidth) ??
+            AdSize.banner;
+
     if (!mounted) return;
 
     // Reklam yükleme isteği — callback ile setState çağrılır
@@ -531,30 +716,50 @@ class _AdBannerWidgetState extends State<AdBannerWidget> {
     if (!mounted) return;
 
     if (widget.useSecondAd) {
-      _adService.loadBannerAd2(onLoaded: () {
-        if (mounted) {
-          setState(() => _isAdLoaded = true);
-        }
-      });
+      _adService.loadBannerAd2(
+          size: _adSize,
+          onLoaded: () {
+            if (mounted) {
+              setState(() {
+                _isAdLoaded = true;
+                _isLoading = false;
+              });
+            }
+          });
       // Zaten hazırsa hemen göster
       if (_adService.isBannerAd2Ready && mounted) {
-        setState(() => _isAdLoaded = true);
+        setState(() {
+          _isAdLoaded = true;
+          _isLoading = false;
+        });
       }
     } else {
-      _adService.loadBannerAd(onLoaded: () {
-        if (mounted) {
-          setState(() => _isAdLoaded = true);
-        }
-      });
+      _adService.loadBannerAd(
+          size: _adSize,
+          onLoaded: () {
+            if (mounted) {
+              setState(() {
+                _isAdLoaded = true;
+                _isLoading = false;
+              });
+            }
+          });
       if (_adService.isBannerAdReady && mounted) {
-        setState(() => _isAdLoaded = true);
+        setState(() {
+          _isAdLoaded = true;
+          _isLoading = false;
+        });
       }
     }
   }
 
   @override
   void dispose() {
-    // Singleton olduğu için dispose etmiyoruz — uygulama genelinde paylaşılıyor
+    if (widget.useSecondAd) {
+      _adService.disposeBannerAd2();
+    } else {
+      _adService.disposeBannerAd();
+    }
     super.dispose();
   }
 
@@ -564,18 +769,34 @@ class _AdBannerWidgetState extends State<AdBannerWidget> {
 
     final BannerAd? ad =
         widget.useSecondAd ? _adService.bannerAd2 : _adService.bannerAd;
+    if (AdService.canRequestAds && !_isLoading && ad == null) {
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (!mounted) return;
+        _isAdLoaded = false;
+        _initAd();
+      });
+    }
 
     if (_isAdLoaded && ad != null) {
       return Container(
+        width: double.infinity,
         alignment: Alignment.center,
-        width: ad.size.width.toDouble(),
-        height: ad.size.height.toDouble(),
-        margin: const EdgeInsets.symmetric(vertical: 4),
-        child: AdWidget(ad: ad),
+        padding: const EdgeInsets.symmetric(vertical: 8),
+        decoration: const BoxDecoration(
+          color: Color(0xFFF8FAFC),
+          border: Border.symmetric(
+            horizontal: BorderSide(color: Color(0xFFE2E8F0)),
+          ),
+        ),
+        child: SizedBox(
+          width: ad.size.width.toDouble(),
+          height: ad.size.height.toDouble(),
+          child: AdWidget(ad: ad),
+        ),
       );
     }
 
     // Reklam yüklenene kadar yer tutucu gösterme (boş alan)
-    return const SizedBox(height: 50);
+    return SizedBox(height: _adSize.height.toDouble() + 16);
   }
 }

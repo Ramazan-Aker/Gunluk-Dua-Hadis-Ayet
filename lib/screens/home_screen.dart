@@ -36,6 +36,7 @@ class _HomeScreenState extends State<HomeScreen> {
   int _readingStreak = 0;
   String? _errorMessage;
   int _nextButtonClickCount = 0; // Sonraki buton tıklama sayacı
+  bool _isPrivacyOptionsRequired = false;
 
   @override
   void initState() {
@@ -43,19 +44,40 @@ class _HomeScreenState extends State<HomeScreen> {
     _loadDailyItem();
     _checkReadingStatus();
     _showReminderIfNeeded();
-    
+
     // Schedule notifications and request battery optimization exemption
     WidgetsBinding.instance.addPostFrameCallback((_) async {
       await _setupNotificationsAndPermissions();
       // Önce rıza/takip izni al (ATT + UMP) — tamamlanana kadar bekle
       await AdService.requestConsentAndPermissions();
+      await _updatePrivacyOptionsRequirement();
       // Consent tamamlandıktan sonra interstitial reklamları yükle
       _adService.loadInterstitialAd();
       _adService.loadNextButtonInterstitialAd();
     });
-    
+
     // Log screen view to Analytics
     FirebaseService.logScreenView(screenName: AnalyticsEvents.screenHome);
+  }
+
+  Future<void> _updatePrivacyOptionsRequirement() async {
+    final isRequired = await AdService.isPrivacyOptionsRequired();
+    if (mounted) {
+      setState(() => _isPrivacyOptionsRequired = isRequired);
+    }
+  }
+
+  Future<void> _showPrivacyOptions() async {
+    final error = await AdService.showPrivacyOptionsForm();
+    if (!mounted) return;
+    if (error != null) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('Gizlilik seçenekleri açılamadı: ${error.message}'),
+        ),
+      );
+    }
+    await _updatePrivacyOptionsRequirement();
   }
 
   /// Setup notifications and request necessary permissions
@@ -85,7 +107,8 @@ class _HomeScreenState extends State<HomeScreen> {
           if (mounted) {
             ScaffoldMessenger.of(context).showSnackBar(
               const SnackBar(
-                content: Text('Bildirimler açıldı. Günlük hatırlatmalar planlandı.'),
+                content:
+                    Text('Bildirimler açıldı. Günlük hatırlatmalar planlandı.'),
                 backgroundColor: Colors.green,
                 duration: Duration(seconds: 2),
               ),
@@ -100,7 +123,7 @@ class _HomeScreenState extends State<HomeScreen> {
       // Notifications setup failed
     }
   }
-  
+
   /// Check if today's content is read
   Future<void> _checkReadingStatus() async {
     final hasRead = await _reminderService.hasReadToday();
@@ -115,13 +138,13 @@ class _HomeScreenState extends State<HomeScreen> {
   Future<void> _showReminderIfNeeded() async {
     // Wait a bit for the UI to load
     await Future.delayed(const Duration(seconds: 1));
-    
+
     if (!mounted) return;
-    
+
     final shouldShow = await _reminderService.shouldShowReminder();
     if (shouldShow && _currentItem != null) {
       await _reminderService.markReminderAsShown();
-      
+
       // Log reminder shown to Analytics
       FirebaseService.logEvent(
         name: AnalyticsEvents.reminderShown,
@@ -129,7 +152,7 @@ class _HomeScreenState extends State<HomeScreen> {
           AnalyticsParams.itemType: _currentItem!.type,
         },
       );
-      
+
       if (mounted) {
         _showReminderDialog();
       }
@@ -139,9 +162,9 @@ class _HomeScreenState extends State<HomeScreen> {
   /// Show reminder dialog
   void _showReminderDialog() {
     if (_currentItem == null) return;
-    
+
     final message = _reminderService.getReminderMessage(_currentItem!.type);
-    
+
     showDialog(
       context: context,
       barrierDismissible: true,
@@ -242,7 +265,7 @@ class _HomeScreenState extends State<HomeScreen> {
   Future<void> _markAsRead() async {
     await _reminderService.markAsRead();
     await _checkReadingStatus();
-    
+
     // Log reading event to Analytics
     if (_currentItem != null) {
       FirebaseService.logEvent(
@@ -254,7 +277,7 @@ class _HomeScreenState extends State<HomeScreen> {
         },
       );
     }
-    
+
     if (mounted) {
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
@@ -286,7 +309,7 @@ class _HomeScreenState extends State<HomeScreen> {
 
     try {
       final item = await _dataService.getDailyItem(forceRefresh: forceRefresh);
-      
+
       setState(() {
         _currentItem = item;
         _isLoading = false;
@@ -294,11 +317,11 @@ class _HomeScreenState extends State<HomeScreen> {
 
       // Check reading status after loading item
       await _checkReadingStatus();
-      
+
       // Show reminder if needed (only after item is loaded)
       if (item != null) {
         _showReminderIfNeeded();
-        
+
         // Log daily item viewed to Analytics
         FirebaseService.logEvent(
           name: AnalyticsEvents.dailyItemViewed,
@@ -308,7 +331,7 @@ class _HomeScreenState extends State<HomeScreen> {
           },
         );
       }
-      
+
       if (item == null) {
         setState(() {
           _errorMessage = 'İçerik bulunamadı. Lütfen tekrar deneyin.';
@@ -324,7 +347,7 @@ class _HomeScreenState extends State<HomeScreen> {
         _isLoading = false;
         _errorMessage = 'İçerik yüklenirken bir hata oluştu: ${e.toString()}';
       });
-      
+
       // Show error message
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
@@ -379,14 +402,14 @@ class _HomeScreenState extends State<HomeScreen> {
     });
 
     _nextButtonClickCount++;
-    
+
     if (_nextButtonClickCount >= 4) {
       try {
         await _adService.showNextButtonInterstitialAd();
       } catch (e) {
         // Ad not shown
       }
-      
+
       // Sayacı sıfırla
       _nextButtonClickCount = 0;
     }
@@ -474,13 +497,15 @@ class _HomeScreenState extends State<HomeScreen> {
       if (bytes != null && bytes.isNotEmpty) {
         // Save image to temporary directory
         final directory = await getTemporaryDirectory();
-        final imagePath = '${directory.path}/share_card_${DateTime.now().millisecondsSinceEpoch}.png';
+        final imagePath =
+            '${directory.path}/share_card_${DateTime.now().millisecondsSinceEpoch}.png';
         final imageFile = File(imagePath);
         await imageFile.writeAsBytes(bytes);
 
         // Share the image
         // iOS'ta share sheet'in konumunu belirtmek zorunlu (iPad + iPhone uyumu)
-        final box = _shareButtonKey.currentContext?.findRenderObject() as RenderBox?;
+        final box =
+            _shareButtonKey.currentContext?.findRenderObject() as RenderBox?;
         final origin = box != null
             ? box.localToGlobal(Offset.zero) & box.size
             : Rect.fromCenter(
@@ -491,7 +516,8 @@ class _HomeScreenState extends State<HomeScreen> {
 
         await Share.shareXFiles(
           [XFile(imagePath)],
-          text: '${item.getIcon()} ${item.getTitle()}\n\nHer Gün İslam uygulamasından paylaşıldı',
+          text:
+              '${item.getIcon()} ${item.getTitle()}\n\nHer Gün İslam uygulamasından paylaşıldı',
           subject: '${item.getIcon()} ${item.getTitle()}',
           sharePositionOrigin: origin,
         );
@@ -535,7 +561,8 @@ class _HomeScreenState extends State<HomeScreen> {
         ScaffoldMessenger.of(context).hideCurrentSnackBar();
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
-            content: Text('Görsel oluşturulamadı, metin olarak paylaşılıyor: $e'),
+            content:
+                Text('Görsel oluşturulamadı, metin olarak paylaşılıyor: $e'),
             backgroundColor: Colors.orange,
             duration: const Duration(seconds: 2),
           ),
@@ -564,7 +591,8 @@ Her Gün İslam uygulamasından paylaşıldı
 ''';
 
     // iOS'ta share sheet konumu zorunlu
-    final box = _shareButtonKey.currentContext?.findRenderObject() as RenderBox?;
+    final box =
+        _shareButtonKey.currentContext?.findRenderObject() as RenderBox?;
     final origin = box != null
         ? box.localToGlobal(Offset.zero) & box.size
         : Rect.fromCenter(
@@ -594,7 +622,8 @@ Her Gün İslam uygulamasından paylaşıldı
               Row(
                 mainAxisSize: MainAxisSize.min,
                 children: [
-                  const Icon(Icons.local_fire_department, color: Color(0xFFF59E0B), size: 16),
+                  const Icon(Icons.local_fire_department,
+                      color: Color(0xFFF59E0B), size: 16),
                   const SizedBox(width: 4),
                   Text(
                     '$_readingStreak gün',
@@ -618,9 +647,17 @@ Her Gün İslam uygulamasından paylaşıldı
             ),
           ),
         ),
-        actions: WidgetShortcutHelper.appBarActions(context),
+        actions: [
+          if (_isPrivacyOptionsRequired)
+            IconButton(
+              tooltip: 'Gizlilik seçenekleri',
+              icon: const Icon(Icons.privacy_tip_outlined),
+              onPressed: _showPrivacyOptions,
+            ),
+          ...WidgetShortcutHelper.appBarActions(context),
+        ],
       ),
-      
+
       // Body with gradient background
       body: Container(
         decoration: const BoxDecoration(
@@ -635,7 +672,7 @@ Her Gün İslam uygulamasından paylaşıldı
             children: [
               // Upper banner ad (new position)
               const AdBannerWidget(useSecondAd: true),
-              
+
               // Main content area
               Expanded(
                 child: Center(
@@ -663,7 +700,7 @@ Her Gün İslam uygulamasından paylaşıldı
                   ),
                 ),
               ),
-              
+
               // Banner ad at the bottom
               const AdBannerWidget(),
             ],
@@ -686,13 +723,16 @@ Her Gün İslam uygulamasından paylaşıldı
           crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
             InkWell(
-              borderRadius: const BorderRadius.vertical(top: Radius.circular(16)),
+              borderRadius:
+                  const BorderRadius.vertical(top: Radius.circular(16)),
               onTap: () => WidgetShortcutHelper.offerPinWidget(context),
               child: Padding(
-                padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+                padding:
+                    const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
                 child: Row(
                   children: [
-                    const Icon(Icons.widgets_outlined, color: Color(0xFF1E40AF), size: 28),
+                    const Icon(Icons.widgets_outlined,
+                        color: Color(0xFF1E40AF), size: 28),
                     const SizedBox(width: 14),
                     Expanded(
                       child: Column(
@@ -700,12 +740,14 @@ Her Gün İslam uygulamasından paylaşıldı
                         children: [
                           const Text(
                             'Günlük ayet widget\'ı',
-                            style: TextStyle(fontWeight: FontWeight.w700, fontSize: 16),
+                            style: TextStyle(
+                                fontWeight: FontWeight.w700, fontSize: 16),
                           ),
                           const SizedBox(height: 4),
                           Text(
                             'Türkçe meal rastgele ayet; birkaç saatte bir kendiliğinden yenilenir — tamamen çevrimdışı',
-                            style: TextStyle(fontSize: 13, color: Colors.grey[700]),
+                            style: TextStyle(
+                                fontSize: 13, color: Colors.grey[700]),
                           ),
                         ],
                       ),
@@ -721,13 +763,15 @@ Her Gün İslam uygulamasından paylaşıldı
               child: Row(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  Icon(Icons.touch_app_outlined, size: 22, color: Colors.teal.shade700),
+                  Icon(Icons.touch_app_outlined,
+                      size: 22, color: Colors.teal.shade700),
                   const SizedBox(width: 10),
                   Expanded(
                     child: Text(
                       'Meal tam görünmüyorsa widget’a dokunun; '
                       'Kur’an sekmesinde ilgili sure açılır ve ayete konumlanırsınız.',
-                      style: TextStyle(fontSize: 12, color: Colors.grey[800], height: 1.35),
+                      style: TextStyle(
+                          fontSize: 12, color: Colors.grey[800], height: 1.35),
                     ),
                   ),
                 ],
@@ -807,4 +851,3 @@ Her Gün İslam uygulamasından paylaşıldı
     );
   }
 }
-
