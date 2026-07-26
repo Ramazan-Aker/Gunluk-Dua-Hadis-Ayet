@@ -7,13 +7,14 @@ import '../models/prayer_times.dart';
 /// Service for fetching Ramadan prayer times
 /// Uses ezanvakti.imsakiyem.com API (Diyanet) - supports full Ramadan range including past days
 class RamadanApiService {
-  static const String _abdusBaseUrl = 'https://prayertimes.api.abdus.dev/api/diyanet';
+  static const String _abdusBaseUrl =
+      'https://prayertimes.api.abdus.dev/api/diyanet';
   static const String _ezanvaktiBaseUrl = 'https://ezanvakti.imsakiyem.com/api';
   static const Duration timeoutDuration = Duration(seconds: 10);
 
   /// Cache: stateId -> districtId (il merkezi)
   final Map<String, String> _districtIdCache = {};
-  
+
   // Cache keys for SharedPreferences
   static const String _keyCachedPrayerTimes = 'cached_prayer_times';
   static const String _keyCacheDate = 'prayer_times_cache_date';
@@ -33,9 +34,8 @@ class RamadanApiService {
 
       if (response.statusCode == 200) {
         final List<dynamic> jsonList = json.decode(response.body);
-        final cities = jsonList
-            .map((json) => TurkishCity.fromJson(json))
-            .toList();
+        final cities =
+            jsonList.map((json) => TurkishCity.fromJson(json)).toList();
         return cities;
       }
       return [];
@@ -60,10 +60,15 @@ class RamadanApiService {
     if (useCache) {
       final cachedData = await _loadCachedPrayerTimes(districtId);
       if (cachedData != null && cachedData.isNotEmpty) {
-        final filtered = cachedData.where((pt) =>
-            _isDateInRange(pt.date, startDate, endDate)).toList();
-        final cachedStart = cachedData.map((p) => p.date).reduce((a, b) => a.isBefore(b) ? a : b);
-        final cachedEnd = cachedData.map((p) => p.date).reduce((a, b) => a.isAfter(b) ? a : b);
+        final filtered = cachedData
+            .where((pt) => _isDateInRange(pt.date, startDate, endDate))
+            .toList();
+        final cachedStart = cachedData
+            .map((p) => p.date)
+            .reduce((a, b) => a.isBefore(b) ? a : b);
+        final cachedEnd = cachedData
+            .map((p) => p.date)
+            .reduce((a, b) => a.isAfter(b) ? a : b);
         if (!startDate.isBefore(cachedStart) && !endDate.isAfter(cachedEnd)) {
           return filtered;
         }
@@ -71,8 +76,10 @@ class RamadanApiService {
     }
 
     try {
-      final startStr = '${startDate.year}-${startDate.month.toString().padLeft(2, '0')}-${startDate.day.toString().padLeft(2, '0')}';
-      final endStr = '${endDate.year}-${endDate.month.toString().padLeft(2, '0')}-${endDate.day.toString().padLeft(2, '0')}';
+      final startStr =
+          '${startDate.year}-${startDate.month.toString().padLeft(2, '0')}-${startDate.day.toString().padLeft(2, '0')}';
+      final endStr =
+          '${endDate.year}-${endDate.month.toString().padLeft(2, '0')}-${endDate.day.toString().padLeft(2, '0')}';
       final uri = Uri.parse('$_ezanvaktiBaseUrl/prayer-times/$districtId/range')
           .replace(queryParameters: {'startDate': startStr, 'endDate': endStr});
 
@@ -92,9 +99,8 @@ class RamadanApiService {
             final dayOnly = DateTime(date.year, date.month, date.day);
             if (!_isDateInRange(dayOnly, startDate, endDate)) continue;
             final rawTimes = row['times'];
-            final Map<String, dynamic> timesMap = rawTimes is Map
-                ? Map<String, dynamic>.from(rawTimes)
-                : row;
+            final Map<String, dynamic> timesMap =
+                rawTimes is Map ? Map<String, dynamic>.from(rawTimes) : row;
             prayerTimesList.add(PrayerTimes.fromJson(timesMap, dayOnly));
           }
         }
@@ -159,33 +165,104 @@ class RamadanApiService {
       _toAsciiSearchQuery(s).toUpperCase();
 
   static const Map<String, String> _stateIdToName = {
-    '500': 'ADANA', '501': 'ADIYAMAN', '502': 'AFYONKARAHISAR', '503': 'AGRI',
-    '504': 'AKSARAY', '505': 'AMASYA', '506': 'ANKARA', '507': 'ANTALYA',
-    '508': 'ARDAHAN', '509': 'ARTVIN', '510': 'AYDIN', '511': 'BALIKESIR',
-    '512': 'BARTIN', '513': 'BATMAN', '514': 'BAYBURT', '515': 'BILECIK',
-    '516': 'BINGOL', '517': 'BITLIS', '518': 'BOLU', '519': 'BURDUR',
-    '520': 'BURSA', '521': 'CANAKKALE', '522': 'CANKIRI', '523': 'CORUM',
-    '524': 'DENIZLI', '525': 'DIYARBAKIR', '526': 'DUZCE', '527': 'EDIRNE',
-    '528': 'ELAZIG', '529': 'ERZINCAN', '530': 'ERZURUM', '531': 'ESKISEHIR',
-    '532': 'GAZIANTEP', '533': 'GIRESUN', '534': 'GUMUSHANE', '535': 'HAKKARI',
-    '536': 'HATAY', '537': 'IGDIR', '538': 'ISPARTA', '539': 'ISTANBUL',
-    '540': 'IZMIR', '541': 'KAHRAMANMARAS', '542': 'KARABUK', '543': 'KARAMAN',
-    '544': 'KARS', '545': 'KASTAMONU', '546': 'KAYSERI', '547': 'KILIS',
-    '548': 'KIRIKKALE', '549': 'KIRKLARELI', '550': 'KIRSEHIR', '551': 'KOCAELI',
-    '552': 'KONYA', '553': 'KUTAHYA', '554': 'MALATYA', '555': 'MANISA',
-    '556': 'MARDIN', '557': 'MERSIN', '558': 'MUGLA', '559': 'MUS',
-    '560': 'NEVSEHIR', '561': 'NIGDE', '562': 'ORDU', '563': 'OSMANIYE',
-    '564': 'RIZE', '565': 'SAKARYA', '566': 'SAMSUN', '567': 'SANLIURFA',
-    '568': 'SIIRT', '569': 'SINOP', '570': 'SIRNAK', '571': 'SIVAS',
-    '572': 'TEKIRDAG', '573': 'TOKAT', '574': 'TRABZON', '575': 'TUNCELI',
-    '576': 'USAK', '577': 'VAN', '578': 'YALOVA', '579': 'YOZGAT', '580': 'ZONGULDAK',
+    '500': 'ADANA',
+    '501': 'ADIYAMAN',
+    '502': 'AFYONKARAHISAR',
+    '503': 'AGRI',
+    '504': 'AKSARAY',
+    '505': 'AMASYA',
+    '506': 'ANKARA',
+    '507': 'ANTALYA',
+    '508': 'ARDAHAN',
+    '509': 'ARTVIN',
+    '510': 'AYDIN',
+    '511': 'BALIKESIR',
+    '512': 'BARTIN',
+    '513': 'BATMAN',
+    '514': 'BAYBURT',
+    '515': 'BILECIK',
+    '516': 'BINGOL',
+    '517': 'BITLIS',
+    '518': 'BOLU',
+    '519': 'BURDUR',
+    '520': 'BURSA',
+    '521': 'CANAKKALE',
+    '522': 'CANKIRI',
+    '523': 'CORUM',
+    '524': 'DENIZLI',
+    '525': 'DIYARBAKIR',
+    '526': 'DUZCE',
+    '527': 'EDIRNE',
+    '528': 'ELAZIG',
+    '529': 'ERZINCAN',
+    '530': 'ERZURUM',
+    '531': 'ESKISEHIR',
+    '532': 'GAZIANTEP',
+    '533': 'GIRESUN',
+    '534': 'GUMUSHANE',
+    '535': 'HAKKARI',
+    '536': 'HATAY',
+    '537': 'IGDIR',
+    '538': 'ISPARTA',
+    '539': 'ISTANBUL',
+    '540': 'IZMIR',
+    '541': 'KAHRAMANMARAS',
+    '542': 'KARABUK',
+    '543': 'KARAMAN',
+    '544': 'KARS',
+    '545': 'KASTAMONU',
+    '546': 'KAYSERI',
+    '547': 'KILIS',
+    '548': 'KIRIKKALE',
+    '549': 'KIRKLARELI',
+    '550': 'KIRSEHIR',
+    '551': 'KOCAELI',
+    '552': 'KONYA',
+    '553': 'KUTAHYA',
+    '554': 'MALATYA',
+    '555': 'MANISA',
+    '556': 'MARDIN',
+    '557': 'MERSIN',
+    '558': 'MUGLA',
+    '559': 'MUS',
+    '560': 'NEVSEHIR',
+    '561': 'NIGDE',
+    '562': 'ORDU',
+    '563': 'OSMANIYE',
+    '564': 'RIZE',
+    '565': 'SAKARYA',
+    '566': 'SAMSUN',
+    '567': 'SANLIURFA',
+    '568': 'SIIRT',
+    '569': 'SINOP',
+    '570': 'SIRNAK',
+    '571': 'SIVAS',
+    '572': 'TEKIRDAG',
+    '573': 'TOKAT',
+    '574': 'TRABZON',
+    '575': 'TUNCELI',
+    '576': 'USAK',
+    '577': 'VAN',
+    '578': 'YALOVA',
+    '579': 'YOZGAT',
+    '580': 'ZONGULDAK',
   };
 
   /// Convert Turkish characters to ASCII for API search
   static String _toAsciiSearchQuery(String query) {
     const Map<String, String> trToAscii = {
-      'ı': 'i', 'İ': 'I', 'ğ': 'g', 'Ğ': 'G', 'ü': 'u', 'Ü': 'U',
-      'ş': 's', 'Ş': 'S', 'ö': 'o', 'Ö': 'O', 'ç': 'c', 'Ç': 'C',
+      'ı': 'i',
+      'İ': 'I',
+      'ğ': 'g',
+      'Ğ': 'G',
+      'ü': 'u',
+      'Ü': 'U',
+      'ş': 's',
+      'Ş': 'S',
+      'ö': 'o',
+      'Ö': 'O',
+      'ç': 'c',
+      'Ç': 'C',
     };
     String result = query;
     trToAscii.forEach((tr, ascii) {
@@ -197,7 +274,7 @@ class RamadanApiService {
   /// Check if a date is within the specified range
   bool _isDateInRange(DateTime date, DateTime startDate, DateTime endDate) {
     return date.isAfter(startDate.subtract(const Duration(days: 1))) &&
-           date.isBefore(endDate.add(const Duration(days: 1)));
+        date.isBefore(endDate.add(const Duration(days: 1)));
   }
 
   /// Get Ramadan dates for a specific year
@@ -206,8 +283,9 @@ class RamadanApiService {
   Map<String, DateTime> getRamadanDates(int year) {
     // Ramadan 2026: February 19 - March 19 (29 days)
     // Ramadan 2027: February 8 - March 8 (29 days)
+    // Ramadan 2028: January 28 - February 25 (29 days)
     // Note: In production, use a proper Islamic calendar library
-    
+
     if (year == 2026) {
       return {
         'start': DateTime(2026, 2, 19),
@@ -218,13 +296,49 @@ class RamadanApiService {
         'start': DateTime(2027, 2, 8),
         'end': DateTime(2027, 3, 8),
       };
+    } else if (year == 2028) {
+      return {
+        'start': DateTime(2028, 1, 28),
+        'end': DateTime(2028, 2, 25),
+      };
     } else {
-      // Default fallback (shouldn't happen with dynamic year detection)
+      // Legacy fallback. Unknown years are never treated as Ramadan by
+      // isRamadanDate, so this estimate cannot mislabel the daily schedule.
       return {
         'start': DateTime(year, 3, 1),
         'end': DateTime(year, 3, 29),
       };
     }
+  }
+
+  /// Whether [date] falls inside the configured Ramadan date range.
+  bool isRamadanDate(DateTime date) {
+    if (date.year < 2026 || date.year > 2028) return false;
+
+    final day = DateTime(date.year, date.month, date.day);
+    final ramadan = getRamadanDates(day.year);
+    final start = ramadan['start']!;
+    final end = ramadan['end']!;
+    return !day.isBefore(start) && !day.isAfter(end);
+  }
+
+  /// Date range shown on the prayer-times screen.
+  ///
+  /// During Ramadan the whole imsakiye is shown. Outside Ramadan users see
+  /// today and the following 30 days of regular prayer times.
+  Map<String, DateTime> getPrayerTimesDateRange(DateTime referenceDate) {
+    final today = DateTime(
+      referenceDate.year,
+      referenceDate.month,
+      referenceDate.day,
+    );
+    if (isRamadanDate(today)) {
+      return getRamadanDates(today.year);
+    }
+    return {
+      'start': today,
+      'end': today.add(const Duration(days: 30)),
+    };
   }
 
   /// Determine which Ramadan year to show
@@ -233,30 +347,31 @@ class RamadanApiService {
   int getCurrentRamadanYear() {
     final now = DateTime.now();
     final currentYear = now.year;
-    
+
     // Check if we're currently in Ramadan
     final currentRamadan = getRamadanDates(currentYear);
-    if (now.isAfter(currentRamadan['start']!) && 
+    if (now.isAfter(currentRamadan['start']!) &&
         now.isBefore(currentRamadan['end']!.add(const Duration(days: 1)))) {
       return currentYear;
     }
-    
+
     // Check if Ramadan is coming this year
     if (now.isBefore(currentRamadan['start']!)) {
       return currentYear;
     }
-    
+
     // Ramadan has passed, show next year
     return currentYear + 1;
   }
 
   /// Cache prayer times to SharedPreferences
-  Future<void> _cachePrayerTimes(String locationId, List<PrayerTimes> prayerTimes) async {
+  Future<void> _cachePrayerTimes(
+      String locationId, List<PrayerTimes> prayerTimes) async {
     try {
       final prefs = await SharedPreferences.getInstance();
       final jsonList = prayerTimes.map((pt) => pt.toJson()).toList();
       final jsonString = json.encode(jsonList);
-      
+
       await prefs.setString(_keyCachedPrayerTimes, jsonString);
       await prefs.setString(_keyCacheDate, DateTime.now().toIso8601String());
       await prefs.setString(_keyCachedCityId, locationId);
@@ -270,13 +385,15 @@ class RamadanApiService {
       final cachedJson = prefs.getString(_keyCachedPrayerTimes);
       final cacheDate = prefs.getString(_keyCacheDate);
       final cachedCityId = prefs.getString(_keyCachedCityId);
-      
-      if (cachedJson != null && cacheDate != null && cachedCityId == locationId) {
+
+      if (cachedJson != null &&
+          cacheDate != null &&
+          cachedCityId == locationId) {
         // Check if cache is less than 24 hours old
         final cacheTime = DateTime.parse(cacheDate);
         final now = DateTime.now();
         final difference = now.difference(cacheTime);
-        
+
         if (difference.inHours < 24) {
           final List<dynamic> jsonList = json.decode(cachedJson);
           return jsonList.map((json) {
@@ -311,46 +428,86 @@ class RamadanApiService {
   /// Used for Ramadan imsakiye - supports full range including past days
   List<Map<String, String>> getAllTurkishCities() {
     return [
-      {'name': 'Adana', 'id': '500'}, {'name': 'Adıyaman', 'id': '501'},
-      {'name': 'Afyonkarahisar', 'id': '502'}, {'name': 'Ağrı', 'id': '503'},
-      {'name': 'Aksaray', 'id': '504'}, {'name': 'Amasya', 'id': '505'},
-      {'name': 'Ankara', 'id': '506'}, {'name': 'Antalya', 'id': '507'},
-      {'name': 'Ardahan', 'id': '508'}, {'name': 'Artvin', 'id': '509'},
-      {'name': 'Aydın', 'id': '510'}, {'name': 'Balıkesir', 'id': '511'},
-      {'name': 'Bartın', 'id': '512'}, {'name': 'Batman', 'id': '513'},
-      {'name': 'Bayburt', 'id': '514'}, {'name': 'Bilecik', 'id': '515'},
-      {'name': 'Bingöl', 'id': '516'}, {'name': 'Bitlis', 'id': '517'},
-      {'name': 'Bolu', 'id': '518'}, {'name': 'Burdur', 'id': '519'},
-      {'name': 'Bursa', 'id': '520'}, {'name': 'Çanakkale', 'id': '521'},
-      {'name': 'Çankırı', 'id': '522'}, {'name': 'Çorum', 'id': '523'},
-      {'name': 'Denizli', 'id': '524'}, {'name': 'Diyarbakır', 'id': '525'},
-      {'name': 'Düzce', 'id': '526'}, {'name': 'Edirne', 'id': '527'},
-      {'name': 'Elazığ', 'id': '528'}, {'name': 'Erzincan', 'id': '529'},
-      {'name': 'Erzurum', 'id': '530'}, {'name': 'Eskişehir', 'id': '531'},
-      {'name': 'Gaziantep', 'id': '532'}, {'name': 'Giresun', 'id': '533'},
-      {'name': 'Gümüşhane', 'id': '534'}, {'name': 'Hakkari', 'id': '535'},
-      {'name': 'Hatay', 'id': '536'}, {'name': 'Iğdır', 'id': '537'},
-      {'name': 'Isparta', 'id': '538'}, {'name': 'İstanbul', 'id': '539'},
-      {'name': 'İzmir', 'id': '540'}, {'name': 'Kahramanmaraş', 'id': '541'},
-      {'name': 'Karabük', 'id': '542'}, {'name': 'Karaman', 'id': '543'},
-      {'name': 'Kars', 'id': '544'}, {'name': 'Kastamonu', 'id': '545'},
-      {'name': 'Kayseri', 'id': '546'}, {'name': 'Kırıkkale', 'id': '548'},
-      {'name': 'Kırklareli', 'id': '549'}, {'name': 'Kırşehir', 'id': '550'},
-      {'name': 'Kilis', 'id': '547'}, {'name': 'Kocaeli', 'id': '551'},
-      {'name': 'Konya', 'id': '552'}, {'name': 'Kütahya', 'id': '553'},
-      {'name': 'Malatya', 'id': '554'}, {'name': 'Manisa', 'id': '555'},
-      {'name': 'Mardin', 'id': '556'}, {'name': 'Mersin', 'id': '557'},
-      {'name': 'Muğla', 'id': '558'}, {'name': 'Muş', 'id': '559'},
-      {'name': 'Nevşehir', 'id': '560'}, {'name': 'Niğde', 'id': '561'},
-      {'name': 'Ordu', 'id': '562'}, {'name': 'Osmaniye', 'id': '563'},
-      {'name': 'Rize', 'id': '564'}, {'name': 'Sakarya', 'id': '565'},
-      {'name': 'Samsun', 'id': '566'}, {'name': 'Şanlıurfa', 'id': '567'},
-      {'name': 'Siirt', 'id': '568'}, {'name': 'Sinop', 'id': '569'},
-      {'name': 'Sivas', 'id': '571'}, {'name': 'Şırnak', 'id': '570'},
-      {'name': 'Tekirdağ', 'id': '572'}, {'name': 'Tokat', 'id': '573'},
-      {'name': 'Trabzon', 'id': '574'}, {'name': 'Tunceli', 'id': '575'},
-      {'name': 'Uşak', 'id': '576'}, {'name': 'Van', 'id': '577'},
-      {'name': 'Yalova', 'id': '578'}, {'name': 'Yozgat', 'id': '579'},
+      {'name': 'Adana', 'id': '500'},
+      {'name': 'Adıyaman', 'id': '501'},
+      {'name': 'Afyonkarahisar', 'id': '502'},
+      {'name': 'Ağrı', 'id': '503'},
+      {'name': 'Aksaray', 'id': '504'},
+      {'name': 'Amasya', 'id': '505'},
+      {'name': 'Ankara', 'id': '506'},
+      {'name': 'Antalya', 'id': '507'},
+      {'name': 'Ardahan', 'id': '508'},
+      {'name': 'Artvin', 'id': '509'},
+      {'name': 'Aydın', 'id': '510'},
+      {'name': 'Balıkesir', 'id': '511'},
+      {'name': 'Bartın', 'id': '512'},
+      {'name': 'Batman', 'id': '513'},
+      {'name': 'Bayburt', 'id': '514'},
+      {'name': 'Bilecik', 'id': '515'},
+      {'name': 'Bingöl', 'id': '516'},
+      {'name': 'Bitlis', 'id': '517'},
+      {'name': 'Bolu', 'id': '518'},
+      {'name': 'Burdur', 'id': '519'},
+      {'name': 'Bursa', 'id': '520'},
+      {'name': 'Çanakkale', 'id': '521'},
+      {'name': 'Çankırı', 'id': '522'},
+      {'name': 'Çorum', 'id': '523'},
+      {'name': 'Denizli', 'id': '524'},
+      {'name': 'Diyarbakır', 'id': '525'},
+      {'name': 'Düzce', 'id': '526'},
+      {'name': 'Edirne', 'id': '527'},
+      {'name': 'Elazığ', 'id': '528'},
+      {'name': 'Erzincan', 'id': '529'},
+      {'name': 'Erzurum', 'id': '530'},
+      {'name': 'Eskişehir', 'id': '531'},
+      {'name': 'Gaziantep', 'id': '532'},
+      {'name': 'Giresun', 'id': '533'},
+      {'name': 'Gümüşhane', 'id': '534'},
+      {'name': 'Hakkari', 'id': '535'},
+      {'name': 'Hatay', 'id': '536'},
+      {'name': 'Iğdır', 'id': '537'},
+      {'name': 'Isparta', 'id': '538'},
+      {'name': 'İstanbul', 'id': '539'},
+      {'name': 'İzmir', 'id': '540'},
+      {'name': 'Kahramanmaraş', 'id': '541'},
+      {'name': 'Karabük', 'id': '542'},
+      {'name': 'Karaman', 'id': '543'},
+      {'name': 'Kars', 'id': '544'},
+      {'name': 'Kastamonu', 'id': '545'},
+      {'name': 'Kayseri', 'id': '546'},
+      {'name': 'Kırıkkale', 'id': '548'},
+      {'name': 'Kırklareli', 'id': '549'},
+      {'name': 'Kırşehir', 'id': '550'},
+      {'name': 'Kilis', 'id': '547'},
+      {'name': 'Kocaeli', 'id': '551'},
+      {'name': 'Konya', 'id': '552'},
+      {'name': 'Kütahya', 'id': '553'},
+      {'name': 'Malatya', 'id': '554'},
+      {'name': 'Manisa', 'id': '555'},
+      {'name': 'Mardin', 'id': '556'},
+      {'name': 'Mersin', 'id': '557'},
+      {'name': 'Muğla', 'id': '558'},
+      {'name': 'Muş', 'id': '559'},
+      {'name': 'Nevşehir', 'id': '560'},
+      {'name': 'Niğde', 'id': '561'},
+      {'name': 'Ordu', 'id': '562'},
+      {'name': 'Osmaniye', 'id': '563'},
+      {'name': 'Rize', 'id': '564'},
+      {'name': 'Sakarya', 'id': '565'},
+      {'name': 'Samsun', 'id': '566'},
+      {'name': 'Şanlıurfa', 'id': '567'},
+      {'name': 'Siirt', 'id': '568'},
+      {'name': 'Sinop', 'id': '569'},
+      {'name': 'Sivas', 'id': '571'},
+      {'name': 'Şırnak', 'id': '570'},
+      {'name': 'Tekirdağ', 'id': '572'},
+      {'name': 'Tokat', 'id': '573'},
+      {'name': 'Trabzon', 'id': '574'},
+      {'name': 'Tunceli', 'id': '575'},
+      {'name': 'Uşak', 'id': '576'},
+      {'name': 'Van', 'id': '577'},
+      {'name': 'Yalova', 'id': '578'},
+      {'name': 'Yozgat', 'id': '579'},
       {'name': 'Zonguldak', 'id': '580'},
     ];
   }
@@ -403,17 +560,6 @@ class RamadanApiService {
       }
     }
 
-    if (allTimes.isNotEmpty) return allTimes;
-
-    // Gelecek Ramazan için API henüz veri dönmüyorsa (ör. 2027 aralığı boş) günlük vakitlere düş.
-    final now = DateTime.now();
-    final today = DateTime(now.year, now.month, now.day);
-    final fallbackEnd = today.add(const Duration(days: 30));
-    return fetchPrayerTimes(
-      locationId: locationId,
-      startDate: today,
-      endDate: fallbackEnd,
-      useCache: false,
-    );
+    return allTimes;
   }
 }

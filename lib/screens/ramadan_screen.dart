@@ -4,10 +4,11 @@ import 'package:shared_preferences/shared_preferences.dart';
 import '../models/turkish_city.dart';
 import '../models/prayer_times.dart';
 import '../services/ramadan_api_service.dart';
-import '../services/firebase_service.dart' show FirebaseService, AnalyticsEvents, AnalyticsParams;
+import '../services/firebase_service.dart'
+    show FirebaseService, AnalyticsEvents, AnalyticsParams;
 import '../services/ad_service.dart';
 
-/// Ramadan / İmsakiye ekranı — sonraki namaz vaktine geri sayım, günlük vakitler ve liste
+/// Namaz vakitleri / İmsakiye ekranı — geri sayım, günlük vakitler ve liste
 class RamadanScreen extends StatefulWidget {
   const RamadanScreen({super.key});
 
@@ -17,15 +18,18 @@ class RamadanScreen extends StatefulWidget {
 
 class _RamadanScreenState extends State<RamadanScreen> {
   final RamadanApiService _apiService = RamadanApiService();
-  final ScrollController _imsakiyeScrollController = ScrollController(); // İmsakiye listesi için iç scroll
-  
+  final ScrollController _imsakiyeScrollController =
+      ScrollController(); // İmsakiye listesi için iç scroll
+
   TurkishCity? _selectedCity;
   List<PrayerTimes> _prayerTimesList = [];
   PrayerTimes? _todaysPrayerTimes;
-  
+  bool _isShowingRamadan = false;
+  int? _displayRamadanYear;
+
   bool _isLoading = true;
   String? _errorMessage;
-  
+
   // SharedPreferences keys
   static const String _keySelectedCityId = 'ramadan_selected_city_id';
   static const String _keySelectedCityName = 'ramadan_selected_city_name';
@@ -40,7 +44,7 @@ class _RamadanScreenState extends State<RamadanScreen> {
   void initState() {
     super.initState();
     _loadSavedCity();
-    
+
     // Log screen view
     FirebaseService.logScreenView(screenName: AnalyticsEvents.screenRamadan);
     FirebaseService.logEvent(name: AnalyticsEvents.ramadanScreenViewed);
@@ -100,39 +104,46 @@ class _RamadanScreenState extends State<RamadanScreen> {
       final prefs = await SharedPreferences.getInstance();
       await prefs.setString(_keySelectedCityId, city.id);
       await prefs.setString(_keySelectedCityName, city.name);
-      
+
       // Log city selection
       FirebaseService.logEvent(
         name: AnalyticsEvents.ramadanCitySelected,
         parameters: {AnalyticsParams.cityName: city.name},
       );
-    } catch (e) {
-    }
+    } catch (e) {}
   }
 
   /// Load prayer times for selected city
   Future<void> _loadPrayerTimes({bool forceRefresh = false}) async {
     if (_selectedCity == null) return;
-    
+
     setState(() {
       _isLoading = true;
       _errorMessage = null;
     });
 
     try {
-      // Get Ramadan dates for current/next year
-      final ramadanYear = _apiService.getCurrentRamadanYear();
-      final ramadanDates = _apiService.getRamadanDates(ramadanYear);
-      final startDate = ramadanDates['start']!;
-      final endDate = ramadanDates['end']!;
-      
-      // Fetch prayer times (handles multi-month Ramadan e.g. Feb-Mar 2026)
-      final prayerTimes = await _apiService.fetchPrayerTimesForRamadan(
-        locationId: _selectedCity!.id,
-        startDate: startDate,
-        endDate: endDate,
-        useCache: !forceRefresh,
-      );
+      final now = DateTime.now();
+      final isRamadan = _apiService.isRamadanDate(now);
+      final dateRange = _apiService.getPrayerTimesDateRange(now);
+      final startDate = dateRange['start']!;
+      final endDate = dateRange['end']!;
+
+      // Ramazan'da tam imsakiye, diğer günlerde bugünden itibaren 30 günlük
+      // normal namaz vakitleri gösterilir.
+      final prayerTimes = isRamadan
+          ? await _apiService.fetchPrayerTimesForRamadan(
+              locationId: _selectedCity!.id,
+              startDate: startDate,
+              endDate: endDate,
+              useCache: !forceRefresh,
+            )
+          : await _apiService.fetchPrayerTimes(
+              locationId: _selectedCity!.id,
+              startDate: startDate,
+              endDate: endDate,
+              useCache: !forceRefresh,
+            );
 
       if (prayerTimes.isEmpty) {
         setState(() {
@@ -143,9 +154,8 @@ class _RamadanScreenState extends State<RamadanScreen> {
       }
 
       // Find today's prayer times
-      final now = DateTime.now();
       PrayerTimes? todaysTimes;
-      
+
       for (var pt in prayerTimes) {
         if (pt.date.year == now.year &&
             pt.date.month == now.month &&
@@ -158,6 +168,8 @@ class _RamadanScreenState extends State<RamadanScreen> {
       setState(() {
         _prayerTimesList = prayerTimes;
         _todaysPrayerTimes = todaysTimes;
+        _isShowingRamadan = isRamadan;
+        _displayRamadanYear = isRamadan ? now.year : null;
         _isLoading = false;
       });
 
@@ -171,20 +183,32 @@ class _RamadanScreenState extends State<RamadanScreen> {
         name: AnalyticsEvents.ramadanTimesLoaded,
         parameters: {
           AnalyticsParams.cityName: _selectedCity!.name,
-          AnalyticsParams.year: ramadanYear,
+          AnalyticsParams.year: now.year,
         },
       );
     } catch (e) {
       setState(() {
         _isLoading = false;
-        _errorMessage = 'Namaz vakitleri yüklenirken hata oluştu: ${e.toString()}';
+        _errorMessage =
+            'Namaz vakitleri yüklenirken hata oluştu: ${e.toString()}';
       });
-      
+
       FirebaseService.logError(
         exception: e,
         reason: 'Error loading prayer times',
       );
     }
+  }
+
+  String get _scheduleTitle {
+    final cityName = _selectedCity?.name;
+    if (_isShowingRamadan) {
+      final year = _displayRamadanYear ?? DateTime.now().year;
+      return cityName == null
+          ? 'Ramazan İmsakiyesi $year'
+          : '$cityName İmsakiye $year';
+    }
+    return cityName == null ? 'Namaz Vakitleri' : '$cityName Namaz Vakitleri';
   }
 
   /// Show city selection dialog with search - 81 cities
@@ -201,8 +225,9 @@ class _RamadanScreenState extends State<RamadanScreen> {
           final filteredCities = searchQuery.isEmpty
               ? allCities
               : allCities
-                  .where((c) =>
-                      c['name']!.toLowerCase().contains(searchQuery.toLowerCase()))
+                  .where((c) => c['name']!
+                      .toLowerCase()
+                      .contains(searchQuery.toLowerCase()))
                   .toList();
 
           return AlertDialog(
@@ -222,7 +247,8 @@ class _RamadanScreenState extends State<RamadanScreen> {
                   TextField(
                     decoration: InputDecoration(
                       hintText: 'Şehir ara...',
-                      prefixIcon: const Icon(Icons.search, color: Color(0xFF1E40AF)),
+                      prefixIcon:
+                          const Icon(Icons.search, color: Color(0xFF1E40AF)),
                       border: OutlineInputBorder(
                         borderRadius: BorderRadius.circular(12),
                       ),
@@ -310,7 +336,8 @@ class _RamadanScreenState extends State<RamadanScreen> {
     final targetOffset = (todayIndex * rowHeight) - 80;
     if (_imsakiyeScrollController.hasClients) {
       _imsakiyeScrollController.animateTo(
-        targetOffset.clamp(0.0, _imsakiyeScrollController.position.maxScrollExtent),
+        targetOffset.clamp(
+            0.0, _imsakiyeScrollController.position.maxScrollExtent),
         duration: const Duration(milliseconds: 500),
         curve: Curves.easeInOut,
       );
@@ -325,7 +352,7 @@ class _RamadanScreenState extends State<RamadanScreen> {
   /// Refresh prayer times
   Future<void> _refreshPrayerTimes() async {
     await _loadPrayerTimes(forceRefresh: true);
-    
+
     if (mounted) {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
@@ -335,7 +362,7 @@ class _RamadanScreenState extends State<RamadanScreen> {
         ),
       );
     }
-    
+
     FirebaseService.logEvent(name: AnalyticsEvents.ramadanTimesRefreshed);
   }
 
@@ -344,7 +371,7 @@ class _RamadanScreenState extends State<RamadanScreen> {
     return Scaffold(
       appBar: AppBar(
         title: Text(
-          _selectedCity != null ? '${_selectedCity!.name} İmsakiyesi' : 'Ramazan İmsakiyesi',
+          _scheduleTitle,
           style: const TextStyle(
             fontWeight: FontWeight.bold,
             fontSize: 20,
@@ -439,53 +466,6 @@ class _RamadanScreenState extends State<RamadanScreen> {
     );
   }
 
-  Widget _buildImsakiyeHeaderPart() {
-    return Container(
-      margin: const EdgeInsets.symmetric(horizontal: 16),
-      decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: const BorderRadius.vertical(top: Radius.circular(20)),
-        boxShadow: [
-          BoxShadow(
-            color: Colors.black.withValues(alpha: 0.1),
-            blurRadius: 10,
-            offset: const Offset(0, 5),
-          ),
-        ],
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          Padding(
-            padding: EdgeInsets.fromLTRB(
-              MediaQuery.of(context).size.width < 360 ? 12 : 20,
-              20,
-              MediaQuery.of(context).size.width < 360 ? 12 : 20,
-              16,
-            ),
-            child: Text(
-              '${_selectedCity?.name ?? ''} İmsakiye ${_apiService.getCurrentRamadanYear()}',
-              style: TextStyle(
-                fontSize: MediaQuery.of(context).size.width < 360 ? 16 : 18,
-                fontWeight: FontWeight.bold,
-                color: const Color(0xFF1E3A8A),
-              ),
-              overflow: TextOverflow.ellipsis,
-            ),
-          ),
-          Padding(
-            padding: EdgeInsets.symmetric(
-              horizontal: MediaQuery.of(context).size.width < 360 ? 12 : 20,
-            ),
-            child: _buildTableHeader(),
-          ),
-          const Divider(height: 1, thickness: 1),
-        ],
-      ),
-    );
-  }
-
   /// Modern kart tasarımı ile imsakiye takvimi
   Widget _buildImsakiyeCalendar() {
     return Container(
@@ -509,37 +489,50 @@ class _RamadanScreenState extends State<RamadanScreen> {
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
               Text(
-                '${_selectedCity?.name ?? ''} İmsakiye ${_apiService.getCurrentRamadanYear()}',
+                _scheduleTitle,
                 style: const TextStyle(
                   fontSize: 18,
                   fontWeight: FontWeight.bold,
                   color: Color(0xFF1E3A8A),
                 ),
               ),
-              Icon(Icons.calendar_month, color: const Color(0xFF1E40AF), size: 24),
+              const Icon(
+                Icons.calendar_month,
+                color: Color(0xFF1E40AF),
+                size: 24,
+              ),
             ],
           ),
           const SizedBox(height: 12),
-          
+
           // Günler listesi (her gün bir kart)
           ..._prayerTimesList.asMap().entries.map((entry) {
             final index = entry.key;
             final prayerTime = entry.value;
             final isToday = prayerTime.isToday;
-            final ramadanDay = index + 1;
-            
+            final displayedDay =
+                _isShowingRamadan ? index + 1 : prayerTime.date.day;
+            final dateCaption = _isShowingRamadan
+                ? prayerTime.dateLabel
+                : prayerTime.dateLabel.replaceFirst(
+                    '${prayerTime.date.day} ',
+                    '',
+                  );
+
             return Container(
               margin: const EdgeInsets.only(bottom: 8),
               decoration: BoxDecoration(
                 color: isToday ? const Color(0xFFDBEAFE) : Colors.grey[50],
                 borderRadius: BorderRadius.circular(12),
                 border: Border.all(
-                  color: isToday ? const Color(0xFF1E40AF) : Colors.grey.shade200,
+                  color:
+                      isToday ? const Color(0xFF1E40AF) : Colors.grey.shade200,
                   width: isToday ? 2 : 1,
                 ),
               ),
               child: Padding(
-                padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+                padding:
+                    const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
                 child: Row(
                   children: [
                     // Tarih (gün + ay)
@@ -548,15 +541,17 @@ class _RamadanScreenState extends State<RamadanScreen> {
                       child: Column(
                         children: [
                           Text(
-                            '$ramadanDay',
+                            '$displayedDay',
                             style: TextStyle(
                               fontSize: 18,
                               fontWeight: FontWeight.bold,
-                              color: isToday ? const Color(0xFF1E40AF) : const Color(0xFF1E3A8A),
+                              color: isToday
+                                  ? const Color(0xFF1E40AF)
+                                  : const Color(0xFF1E3A8A),
                             ),
                           ),
                           Text(
-                            prayerTime.dateLabel,
+                            dateCaption,
                             style: TextStyle(
                               fontSize: 10,
                               color: Colors.grey[600],
@@ -568,21 +563,27 @@ class _RamadanScreenState extends State<RamadanScreen> {
                         ],
                       ),
                     ),
-                    
+
                     const SizedBox(width: 12),
-                    
+
                     // Namaz vakitleri (kompakt grid)
                     Expanded(
                       child: Wrap(
                         spacing: 6,
                         runSpacing: 6,
                         children: [
-                          _buildTimeChip('İmsak', prayerTime.imsak, Icons.nightlight),
-                          _buildTimeChip('Güneş', prayerTime.gunes, Icons.wb_sunny),
-                          _buildTimeChip('Öğle', prayerTime.ogle, Icons.wb_sunny_outlined),
-                          _buildTimeChip('İkindi', prayerTime.ikindi, Icons.wb_twilight),
-                          _buildTimeChip('Akşam', prayerTime.aksam, Icons.nights_stay),
-                          _buildTimeChip('Yatsı', prayerTime.yatsi, Icons.dark_mode),
+                          _buildTimeChip(
+                              'İmsak', prayerTime.imsak, Icons.nightlight),
+                          _buildTimeChip(
+                              'Güneş', prayerTime.gunes, Icons.wb_sunny),
+                          _buildTimeChip(
+                              'Öğle', prayerTime.ogle, Icons.wb_sunny_outlined),
+                          _buildTimeChip(
+                              'İkindi', prayerTime.ikindi, Icons.wb_twilight),
+                          _buildTimeChip(
+                              'Akşam', prayerTime.aksam, Icons.nights_stay),
+                          _buildTimeChip(
+                              'Yatsı', prayerTime.yatsi, Icons.dark_mode),
                         ],
                       ),
                     ),
@@ -639,7 +640,7 @@ class _RamadanScreenState extends State<RamadanScreen> {
       ),
       child: const Center(
         child: Text(
-          'İmsakiye verisi yüklenemedi',
+          'Namaz vakitleri yüklenemedi',
           style: TextStyle(fontSize: 14, color: Color(0xFF757575)),
         ),
       ),
@@ -649,16 +650,16 @@ class _RamadanScreenState extends State<RamadanScreen> {
   /// Build today's prayer times card - responsive for different screen sizes
   Widget _buildTodaysPrayerTimesCard() {
     if (_todaysPrayerTimes == null) return const SizedBox.shrink();
-    
+
     final pt = _todaysPrayerTimes!;
     final mediaQuery = MediaQuery.of(context);
     final screenWidth = mediaQuery.size.width;
     final isSmallScreen = screenWidth < 360 || mediaQuery.size.height < 600;
-    
+
     final cardPadding = isSmallScreen ? 8.0 : 12.0;
     final titleFontSize = isSmallScreen ? 15.0 : 17.0;
     final spacing = isSmallScreen ? 8.0 : 12.0;
-    
+
     return Container(
       margin: EdgeInsets.symmetric(horizontal: isSmallScreen ? 8 : 12),
       padding: EdgeInsets.all(cardPadding),
@@ -687,216 +688,121 @@ class _RamadanScreenState extends State<RamadanScreen> {
           SizedBox(height: spacing),
           // Column+Row - overflow önlemek için GridView yerine (sabit aspect ratio sorun çıkarıyordu)
           Column(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                Row(
-                  children: [
-                    Expanded(child: _buildPrayerTimeItem(context, 'İmsak', pt.imsak, Icons.bedtime, isSpecial: true)),
-                    SizedBox(width: isSmallScreen ? 8 : 10),
-                    Expanded(child: _buildPrayerTimeItem(context, 'Güneş', pt.gunes, Icons.wb_sunny)),
-                  ],
-                ),
-                SizedBox(height: isSmallScreen ? 8 : 10),
-                Row(
-                  children: [
-                    Expanded(child: _buildPrayerTimeItem(context, 'Öğle', pt.ogle, Icons.light_mode)),
-                    SizedBox(width: isSmallScreen ? 8 : 10),
-                    Expanded(child: _buildPrayerTimeItem(context, 'İkindi', pt.ikindi, Icons.brightness_6)),
-                  ],
-                ),
-                SizedBox(height: isSmallScreen ? 8 : 10),
-                Row(
-                  children: [
-                    Expanded(child: _buildPrayerTimeItem(context, 'Akşam', pt.aksam, Icons.nightlight, isIftar: true)),
-                    SizedBox(width: isSmallScreen ? 8 : 10),
-                    Expanded(child: _buildPrayerTimeItem(context, 'Yatsı', pt.yatsi, Icons.dark_mode)),
-                  ],
-                ),
-              ],
-            ),
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Row(
+                children: [
+                  Expanded(
+                      child: _buildPrayerTimeItem(
+                          context, 'İmsak', pt.imsak, Icons.bedtime,
+                          isSpecial: true)),
+                  SizedBox(width: isSmallScreen ? 8 : 10),
+                  Expanded(
+                      child: _buildPrayerTimeItem(
+                          context, 'Güneş', pt.gunes, Icons.wb_sunny)),
+                ],
+              ),
+              SizedBox(height: isSmallScreen ? 8 : 10),
+              Row(
+                children: [
+                  Expanded(
+                      child: _buildPrayerTimeItem(
+                          context, 'Öğle', pt.ogle, Icons.light_mode)),
+                  SizedBox(width: isSmallScreen ? 8 : 10),
+                  Expanded(
+                      child: _buildPrayerTimeItem(
+                          context, 'İkindi', pt.ikindi, Icons.brightness_6)),
+                ],
+              ),
+              SizedBox(height: isSmallScreen ? 8 : 10),
+              Row(
+                children: [
+                  Expanded(
+                      child: _buildPrayerTimeItem(
+                          context, 'Akşam', pt.aksam, Icons.nightlight,
+                          isIftar: true)),
+                  SizedBox(width: isSmallScreen ? 8 : 10),
+                  Expanded(
+                      child: _buildPrayerTimeItem(
+                          context, 'Yatsı', pt.yatsi, Icons.dark_mode)),
+                ],
+              ),
+            ],
+          ),
         ],
       ),
     );
   }
 
   /// Build individual prayer time item - responsive, overflow-safe
-  Widget _buildPrayerTimeItem(BuildContext context, String name, String time, IconData icon, {bool isSpecial = false, bool isIftar = false}) {
+  Widget _buildPrayerTimeItem(
+      BuildContext context, String name, String time, IconData icon,
+      {bool isSpecial = false, bool isIftar = false}) {
     final isSmallScreen = MediaQuery.of(context).size.width < 360;
     final iconSize = isSmallScreen ? 16.0 : 18.0;
     final nameFontSize = isSmallScreen ? 10.0 : 11.0;
     final timeFontSize = isSmallScreen ? 13.0 : 14.0;
     final padding = isSmallScreen ? 4.0 : 6.0;
-    
-    return Container(
-        padding: EdgeInsets.symmetric(horizontal: 10, vertical: padding),
-        decoration: BoxDecoration(
-          color: isSpecial 
-              ? const Color(0xFFDBEAFE) 
-              : isIftar 
-                  ? const Color(0xFFFFF3E0)
-                  : const Color(0xFFF5F5F5),
-          borderRadius: BorderRadius.circular(10),
-          border: Border.all(
-            color: isSpecial 
-                ? const Color(0xFF1E40AF)
-                : isIftar
-                    ? const Color(0xFFFF9800)
-                    : Colors.transparent,
-            width: 2,
-          ),
-        ),
-        child: FittedBox(
-          fit: BoxFit.scaleDown,
-          alignment: Alignment.centerLeft,
-          child: Row(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              Icon(
-                icon,
-                size: iconSize,
-                color: isSpecial 
-                    ? const Color(0xFF1E40AF)
-                    : isIftar
-                        ? const Color(0xFFFF9800)
-                        : const Color(0xFF757575),
-              ),
-              const SizedBox(width: 6),
-              Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                mainAxisSize: MainAxisSize.min,
-                mainAxisAlignment: MainAxisAlignment.center,
-                children: [
-                  Text(
-                    name,
-                    style: TextStyle(
-                      fontSize: nameFontSize,
-                      fontWeight: FontWeight.w600,
-                      color: const Color(0xFF2C3E50),
-                    ),
-                  ),
-                  Text(
-                    time,
-                    style: TextStyle(
-                      fontSize: timeFontSize,
-                      fontWeight: FontWeight.bold,
-                      color: const Color(0xFF1E3A8A),
-                    ),
-                  ),
-                ],
-              ),
-            ],
-          ),
-        ),
-      );
-  }
 
-  /// Build table header - responsive padding
-  Widget _buildTableHeader() {
-    final isSmallScreen = MediaQuery.of(context).size.width < 360;
     return Container(
-      padding: EdgeInsets.symmetric(
-        vertical: isSmallScreen ? 6 : 8,
-        horizontal: isSmallScreen ? 2 : 4,
-      ),
+      padding: EdgeInsets.symmetric(horizontal: 10, vertical: padding),
       decoration: BoxDecoration(
-        color: const Color(0xFF1E40AF).withValues(alpha: 0.1),
-        borderRadius: const BorderRadius.vertical(top: Radius.circular(8)),
-      ),
-      child: Row(
-        children: [
-          _buildHeaderCell('Tarih', flex: 2),
-          _buildHeaderCell('İmsak', flex: 2),
-          _buildHeaderCell('Güneş', flex: 2),
-          _buildHeaderCell('Öğle', flex: 2),
-          _buildHeaderCell('İkindi', flex: 2),
-          _buildHeaderCell('Akşam', flex: 2),
-          _buildHeaderCell('Yatsı', flex: 2),
-        ],
-      ),
-    );
-  }
-
-  /// Build header cell - responsive font size
-  Widget _buildHeaderCell(String text, {int flex = 1}) {
-    final isSmallScreen = MediaQuery.of(context).size.width < 360;
-    return Expanded(
-      flex: flex,
-      child: Text(
-        text,
-        style: TextStyle(
-          fontSize: isSmallScreen ? 9 : 11,
-          fontWeight: FontWeight.bold,
-          color: const Color(0xFF1E3A8A),
-        ),
-        textAlign: TextAlign.center,
-        overflow: TextOverflow.ellipsis,
-      ),
-    );
-  }
-
-  /// Build table row - shows "X. Gün" and date, past days included, today highlighted
-  Widget _buildTableRow(PrayerTimes prayerTime, int index) {
-    final isToday = prayerTime.isToday;
-    final isOddRow = index % 2 == 1;
-    final ramadanDayNum = index + 1;
-    final dateColumnText = '$ramadanDayNum. Gün\n${prayerTime.fullDateLabel}';
-
-    final isSmallScreen = MediaQuery.of(context).size.width < 360;
-    return Container(
-      padding: EdgeInsets.symmetric(
-        vertical: isSmallScreen ? 6 : 8,
-        horizontal: isSmallScreen ? 2 : 4,
-      ),
-      decoration: BoxDecoration(
-        color: isToday
+        color: isSpecial
             ? const Color(0xFFDBEAFE)
-            : isOddRow
-                ? const Color(0xFFF5F5F5)
-                : Colors.white,
-        border: Border(
-          left: isToday
-              ? const BorderSide(color: Color(0xFF1E40AF), width: 4)
-              : BorderSide.none,
+            : isIftar
+                ? const Color(0xFFFFF3E0)
+                : const Color(0xFFF5F5F5),
+        borderRadius: BorderRadius.circular(10),
+        border: Border.all(
+          color: isSpecial
+              ? const Color(0xFF1E40AF)
+              : isIftar
+                  ? const Color(0xFFFF9800)
+                  : Colors.transparent,
+          width: 2,
         ),
       ),
-      child: Row(
-        children: [
-          _buildDataCell(
-            dateColumnText,
-            flex: 2,
-            isBold: isToday,
-            isMultiline: true,
-          ),
-          _buildDataCell(prayerTime.imsak, flex: 2, isBold: isToday),
-          _buildDataCell(prayerTime.gunes, flex: 2, isBold: isToday),
-          _buildDataCell(prayerTime.ogle, flex: 2, isBold: isToday),
-          _buildDataCell(prayerTime.ikindi, flex: 2, isBold: isToday),
-          _buildDataCell(prayerTime.aksam, flex: 2, isBold: isToday),
-          _buildDataCell(prayerTime.yatsi, flex: 2, isBold: isToday),
-        ],
-      ),
-    );
-  }
-
-  /// Build data cell - responsive font size
-  Widget _buildDataCell(String text,
-      {int flex = 1, bool isBold = false, bool isMultiline = false}) {
-    final isSmallScreen = MediaQuery.of(context).size.width < 360;
-    final fontSize = isSmallScreen 
-        ? (isMultiline ? 9.0 : 10.0) 
-        : (isMultiline ? 10.0 : 11.0);
-    return Expanded(
-      flex: flex,
-      child: Text(
-        text,
-        style: TextStyle(
-          fontSize: fontSize,
-          fontWeight: isBold ? FontWeight.bold : FontWeight.normal,
-          color: isBold ? const Color(0xFF1E3A8A) : const Color(0xFF2C3E50),
+      child: FittedBox(
+        fit: BoxFit.scaleDown,
+        alignment: Alignment.centerLeft,
+        child: Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Icon(
+              icon,
+              size: iconSize,
+              color: isSpecial
+                  ? const Color(0xFF1E40AF)
+                  : isIftar
+                      ? const Color(0xFFFF9800)
+                      : const Color(0xFF757575),
+            ),
+            const SizedBox(width: 6),
+            Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              mainAxisSize: MainAxisSize.min,
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                Text(
+                  name,
+                  style: TextStyle(
+                    fontSize: nameFontSize,
+                    fontWeight: FontWeight.w600,
+                    color: const Color(0xFF2C3E50),
+                  ),
+                ),
+                Text(
+                  time,
+                  style: TextStyle(
+                    fontSize: timeFontSize,
+                    fontWeight: FontWeight.bold,
+                    color: const Color(0xFF1E3A8A),
+                  ),
+                ),
+              ],
+            ),
+          ],
         ),
-        textAlign: TextAlign.center,
-        maxLines: isMultiline ? 2 : 1,
-        overflow: TextOverflow.ellipsis,
       ),
     );
   }
@@ -985,7 +891,7 @@ class _RamadanScreenState extends State<RamadanScreen> {
             ),
             const SizedBox(height: 8),
             const Text(
-              'Ramazan imsakiyesini görmek için şehrinizi seçin',
+              'Namaz vakitlerini görmek için şehrinizi seçin',
               style: TextStyle(
                 fontSize: 14,
                 color: Color(0xFF757575),
@@ -999,7 +905,8 @@ class _RamadanScreenState extends State<RamadanScreen> {
               label: const Text('Şehir Seç'),
               style: ElevatedButton.styleFrom(
                 backgroundColor: const Color(0xFF1E40AF),
-                padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 12),
+                padding:
+                    const EdgeInsets.symmetric(horizontal: 24, vertical: 12),
               ),
             ),
           ],
@@ -1009,7 +916,7 @@ class _RamadanScreenState extends State<RamadanScreen> {
   }
 }
 
-/// Sonraki namaz vaktine geri sayım — yalnızca bu widget saniyede bir setState yapar.
+/// Sonraki vakte geri sayım — yalnızca bu widget saniyede bir setState yapar.
 class ImsakiyeCountdownCard extends StatefulWidget {
   final PrayerTimes? todaysPrayerTimes;
   final List<PrayerTimes> prayerTimesList;
@@ -1030,7 +937,8 @@ class _ImsakiyeCountdownCardState extends State<ImsakiyeCountdownCard> {
   Duration _timeUntilNext = Duration.zero;
   bool _hasCountdown = false;
 
-  static final List<(String label, String Function(PrayerTimes pt) timeOf)> _vakitSirasi = [
+  static final List<(String label, String Function(PrayerTimes pt) timeOf)>
+      _vakitSirasi = [
     ('İmsak', (pt) => pt.imsak),
     ('Güneş', (pt) => pt.gunes),
     ('Öğle', (pt) => pt.ogle),
@@ -1058,7 +966,8 @@ class _ImsakiyeCountdownCardState extends State<ImsakiyeCountdownCard> {
 
     final todayPt = widget.todaysPrayerTimes;
     if (todayPt != null) {
-      final cal = DateTime(todayPt.date.year, todayPt.date.month, todayPt.date.day);
+      final cal =
+          DateTime(todayPt.date.year, todayPt.date.month, todayPt.date.day);
       for (final entry in _vakitSirasi) {
         final t = _timeOnCalendarDay(entry.$2(todayPt), cal);
         if (t != null && now.isBefore(t)) {
@@ -1070,12 +979,15 @@ class _ImsakiyeCountdownCardState extends State<ImsakiyeCountdownCard> {
       }
     }
 
-    final tomorrow = DateTime(now.year, now.month, now.day).add(const Duration(days: 1));
+    final tomorrow =
+        DateTime(now.year, now.month, now.day).add(const Duration(days: 1));
 
     if (!has) {
       for (final pt in widget.prayerTimesList) {
         final d = DateTime(pt.date.year, pt.date.month, pt.date.day);
-        if (d.year == tomorrow.year && d.month == tomorrow.month && d.day == tomorrow.day) {
+        if (d.year == tomorrow.year &&
+            d.month == tomorrow.month &&
+            d.day == tomorrow.day) {
           final t = _timeOnCalendarDay(pt.imsak, tomorrow);
           if (t != null) {
             name = 'İmsak';
@@ -1107,7 +1019,8 @@ class _ImsakiyeCountdownCardState extends State<ImsakiyeCountdownCard> {
   void initState() {
     super.initState();
     _updateCountdown();
-    _timer = Timer.periodic(const Duration(seconds: 1), (_) => _updateCountdown());
+    _timer =
+        Timer.periodic(const Duration(seconds: 1), (_) => _updateCountdown());
   }
 
   @override
@@ -1136,7 +1049,7 @@ class _ImsakiyeCountdownCardState extends State<ImsakiyeCountdownCard> {
 
     final subtitle = _hasCountdown && _nextPrayerName.isNotEmpty
         ? '$_nextPrayerName vaktine kalan süre'
-        : 'Sonraki namaz vaktine kalan süre';
+        : 'Sonraki vakte kalan süre';
 
     return Container(
       margin: const EdgeInsets.all(16),
@@ -1183,58 +1096,4 @@ class _ImsakiyeCountdownCardState extends State<ImsakiyeCountdownCard> {
       ),
     );
   }
-}
-
-/// SliverPersistentHeader delegate - countdown ve bugünkü vakitler alanı
-/// maxExtent'tan minExtent'a küçülür; imsakiye üstü ekran ortasına gelebilir
-class _ImsakiyeHeaderDelegate extends SliverPersistentHeaderDelegate {
-  final double _minExtent;
-  final double _maxExtent;
-  final Widget child;
-
-  _ImsakiyeHeaderDelegate({
-    required double minExtent,
-    required double maxExtent,
-    required this.child,
-  })  : _minExtent = minExtent,
-        _maxExtent = maxExtent;
-
-  @override
-  double get minExtent => _minExtent;
-
-  @override
-  double get maxExtent => _maxExtent;
-
-  @override
-  Widget build(
-    BuildContext context,
-    double shrinkOffset,
-    bool overlapsContent,
-  ) {
-    final currentExtent = (_maxExtent - shrinkOffset).clamp(_minExtent, _maxExtent);
-    return SizedBox(
-      height: currentExtent,
-      child: Stack(
-        clipBehavior: Clip.hardEdge,
-        alignment: Alignment.bottomCenter,
-        children: [
-          Positioned(
-            bottom: 0,
-            left: 0,
-            right: 0,
-            height: _maxExtent,
-            child: SingleChildScrollView(
-              physics: const ClampingScrollPhysics(),
-              child: child,
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-
-  @override
-  bool shouldRebuild(covariant _ImsakiyeHeaderDelegate oldDelegate) =>
-      _minExtent != oldDelegate._minExtent ||
-      _maxExtent != oldDelegate._maxExtent;
 }
