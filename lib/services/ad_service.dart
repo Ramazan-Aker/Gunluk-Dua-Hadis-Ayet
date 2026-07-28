@@ -534,11 +534,8 @@ class _AdBannerWidgetState extends State<AdBannerWidget>
       return;
     }
 
-    final size = await _bannerSizeForPlatform();
-    if (!mounted) {
-      _isLoading = false;
-      return;
-    }
+    // Android ve iOS ayni banner boyutunu ve yukleme akisini kullanir.
+    const size = AdSize.banner;
 
     late final BannerAd bannerAd;
     bannerAd = BannerAd(
@@ -549,7 +546,7 @@ class _AdBannerWidgetState extends State<AdBannerWidget>
       request: const AdRequest(),
       listener: BannerAdListener(
         onAdLoaded: (ad) {
-          if (!mounted) {
+          if (!mounted || _bannerAd != ad) {
             ad.dispose();
             return;
           }
@@ -572,7 +569,7 @@ class _AdBannerWidgetState extends State<AdBannerWidget>
             '${widget.useSecondAd ? 'top' : 'bottom'}): $error',
           );
           ad.dispose();
-          if (!mounted) return;
+          if (!mounted || _bannerAd != ad) return;
           setState(() {
             _bannerAd = null;
             _isAdLoaded = false;
@@ -589,7 +586,7 @@ class _AdBannerWidgetState extends State<AdBannerWidget>
     } catch (error) {
       debugPrint('Banner load exception: $error');
       bannerAd.dispose();
-      if (!mounted) return;
+      if (!mounted || _bannerAd != bannerAd) return;
       setState(() {
         _bannerAd = null;
         _isAdLoaded = false;
@@ -597,14 +594,6 @@ class _AdBannerWidgetState extends State<AdBannerWidget>
       });
       _scheduleRetry();
     }
-  }
-
-  Future<AdSize> _bannerSizeForPlatform() async {
-    if (!Platform.isIOS) return AdSize.banner;
-
-    final width = MediaQuery.sizeOf(context).width.truncate();
-    return await AdSize.getLargeAnchoredAdaptiveBannerAdSize(width) ??
-        AdSize.banner;
   }
 
   void _scheduleRetry() {

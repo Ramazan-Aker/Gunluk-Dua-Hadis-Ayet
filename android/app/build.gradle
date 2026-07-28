@@ -35,7 +35,7 @@ android {
         applicationId "com.tahram.gunlukduahadis"
         minSdkVersion flutter.minSdkVersion
         targetSdk 37
-        versionCode 21
+        versionCode 22
         versionName "1.1.4"
         multiDexEnabled true
     }
