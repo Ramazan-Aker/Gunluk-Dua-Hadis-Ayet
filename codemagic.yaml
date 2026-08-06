@@ -50,12 +50,32 @@ workflows:
 
       - name: Fetch iOS signing files
         script: |
+          set -eo pipefail
+
+          if [ -z "${CM_CERTIFICATE:-}" ] || [ -z "${CM_CERTIFICATE_PASSWORD:-}" ]; then
+            echo "CM_CERTIFICATE veya CM_CERTIFICATE_PASSWORD tanımlı değil."
+            exit 1
+          fi
+
+          printf '%s' "$CM_CERTIFICATE" | base64 --decode > /tmp/certificate.p12
+          openssl pkcs12 \
+            -in /tmp/certificate.p12 \
+            -nodes \
+            -nocerts \
+            -passin env:CM_CERTIFICATE_PASSWORD \
+            | openssl pkey -out /tmp/certificate_private_key.pem
+          chmod 600 /tmp/certificate_private_key.pem
+
           app-store-connect fetch-signing-files "$BUNDLE_ID" \
             --type IOS_APP_STORE \
-            --create
+            --create \
+            --certificate-key @file:/tmp/certificate_private_key.pem
           app-store-connect fetch-signing-files "$WIDGET_BUNDLE_ID" \
             --type IOS_APP_STORE \
-            --create
+            --create \
+            --certificate-key @file:/tmp/certificate_private_key.pem
+
+          rm -f /tmp/certificate.p12 /tmp/certificate_private_key.pem
 
       - name: Add signing certificates to keychain
         script: keychain add-certificates
