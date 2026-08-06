@@ -27,7 +27,8 @@ class WidgetVerseLaunchHandler {
 
     final emptyPluginUri = uri.scheme.isEmpty && uri.host.isEmpty;
     if (emptyPluginUri) {
-      final idx = await HomeWidget.getWidgetData<int>(_hatimKey, defaultValue: 0) ?? 0;
+      final idx =
+          await HomeWidget.getWidgetData<int>(_hatimKey, defaultValue: 0) ?? 0;
       return Uri.parse('hergunislam://widgetVerse?i=$idx');
     }
     return uri;
@@ -45,7 +46,7 @@ class WidgetVerseLaunchHandler {
   }
 
   static Future<void> handleInitialLaunch() async {
-    if (kIsWeb || !Platform.isAndroid) return;
+    if (kIsWeb || !(Platform.isAndroid || Platform.isIOS)) return;
     try {
       final raw = await HomeWidget.initiallyLaunchedFromHomeWidget();
       final uri = await _ensureWidgetVerseUri(raw);
@@ -54,7 +55,7 @@ class WidgetVerseLaunchHandler {
   }
 
   static StreamSubscription<Uri?>? subscribeWidgetClicks() {
-    if (kIsWeb || !Platform.isAndroid) return null;
+    if (kIsWeb || !(Platform.isAndroid || Platform.isIOS)) return null;
     return HomeWidget.widgetClicked.listen((Uri? uri) {
       Future.microtask(() async {
         final u = await _ensureWidgetVerseUri(uri);

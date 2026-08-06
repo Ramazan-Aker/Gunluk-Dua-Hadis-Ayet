@@ -12,9 +12,11 @@ class NotificationService {
   factory NotificationService() => _instance;
   NotificationService._internal();
 
-  final FlutterLocalNotificationsPlugin _notifications = FlutterLocalNotificationsPlugin();
+  final FlutterLocalNotificationsPlugin _notifications =
+      FlutterLocalNotificationsPlugin();
   bool _isInitialized = false;
-  static const MethodChannel _channel = MethodChannel('com.tahram.gunlukduahadis/notification');
+  static const MethodChannel _channel =
+      MethodChannel('com.tahram.gunlukduahadis/notification');
 
   /// Initialize notification service
   Future<void> initialize() async {
@@ -30,7 +32,8 @@ class NotificationService {
           AndroidInitializationSettings('@mipmap/ic_launcher');
 
       // iOS initialization settings
-      const DarwinInitializationSettings iosSettings = DarwinInitializationSettings(
+      const DarwinInitializationSettings iosSettings =
+          DarwinInitializationSettings(
         requestAlertPermission: true,
         requestBadgePermission: true,
         requestSoundPermission: true,
@@ -64,25 +67,30 @@ class NotificationService {
       await initialize();
     }
     if (Platform.isAndroid) {
-      final androidImplementation = _notifications.resolvePlatformSpecificImplementation<
-          AndroidFlutterLocalNotificationsPlugin>();
+      final androidImplementation =
+          _notifications.resolvePlatformSpecificImplementation<
+              AndroidFlutterLocalNotificationsPlugin>();
       if (androidImplementation != null) {
-        final bool? granted = await androidImplementation.requestNotificationsPermission();
+        final bool? granted =
+            await androidImplementation.requestNotificationsPermission();
         return granted ?? false;
       }
     }
     return true; // iOS handles in DarwinInitializationSettings
   }
-  
+
   /// Check and request exact alarm permission with user dialog
-  Future<bool> checkAndRequestExactAlarmPermission(BuildContext? context) async {
+  Future<bool> checkAndRequestExactAlarmPermission(
+      BuildContext? context) async {
     if (Platform.isAndroid) {
-      final androidImplementation = _notifications.resolvePlatformSpecificImplementation<
-          AndroidFlutterLocalNotificationsPlugin>();
+      final androidImplementation =
+          _notifications.resolvePlatformSpecificImplementation<
+              AndroidFlutterLocalNotificationsPlugin>();
       if (androidImplementation != null) {
         // Check if exact alarm permission is granted
-        final bool? canScheduleExactAlarms = await androidImplementation.canScheduleExactNotifications();
-        
+        final bool? canScheduleExactAlarms =
+            await androidImplementation.canScheduleExactNotifications();
+
         // Don't show dialog to user - just return the status
         // If not granted, we'll use inexact mode which is good enough for daily reminders
         if (canScheduleExactAlarms == false) {
@@ -117,10 +125,12 @@ class NotificationService {
       if (!notificationsEnabled) return false;
 
       // Check exact alarm permission for Android 12+ and determine schedule mode
-      AndroidScheduleMode scheduleMode = AndroidScheduleMode.exactAllowWhileIdle;
-      
+      AndroidScheduleMode scheduleMode =
+          AndroidScheduleMode.exactAllowWhileIdle;
+
       if (Platform.isAndroid) {
-        final bool hasPermission = await checkAndRequestExactAlarmPermission(context);
+        final bool hasPermission =
+            await checkAndRequestExactAlarmPermission(context);
         if (!hasPermission) {
           scheduleMode = AndroidScheduleMode.inexactAllowWhileIdle;
         }
@@ -136,7 +146,8 @@ class NotificationService {
           android: AndroidNotificationDetails(
             'daily_reminder',
             'Her Gün İslam Hatırlatmaları',
-            channelDescription: 'Her gün günlük dua, hadis veya ayet için hatırlatmalar',
+            channelDescription:
+                'Her gün günlük dua, hadis veya ayet için hatırlatmalar',
             importance: Importance.max,
             priority: Priority.high,
             icon: '@mipmap/ic_launcher',
@@ -155,7 +166,8 @@ class NotificationService {
           ),
         ),
         androidScheduleMode: scheduleMode,
-        uiLocalNotificationDateInterpretation: UILocalNotificationDateInterpretation.absoluteTime,
+        uiLocalNotificationDateInterpretation:
+            UILocalNotificationDateInterpretation.absoluteTime,
         matchDateTimeComponents: DateTimeComponents.time,
       );
       return true;
@@ -179,14 +191,16 @@ class NotificationService {
         await checkAndRequestExactAlarmPermission(context);
       }
 
-      // Cancel existing notifications first
-      await cancelAllNotifications();
+      // Only replace the three daily reminders. Prayer-time notifications use
+      // their own ID range and must survive this refresh.
+      await cancelDailyReminderNotifications();
 
       // Schedule morning notification (9:00 AM)
       final morningSuccess = await scheduleDailyReminder(
         hour: 9,
         minute: 0,
-        customMessage: 'Günaydın! Bugünkü duayı, hadisi veya ayeti okudun mu? 🌅',
+        customMessage:
+            'Günaydın! Bugünkü duayı, hadisi veya ayeti okudun mu? 🌅',
         context: context,
         notificationId: 0,
       );
@@ -204,7 +218,8 @@ class NotificationService {
       final eveningSuccess = await scheduleDailyReminder(
         hour: 18,
         minute: 0,
-        customMessage: 'İyi akşamlar! Bugünkü duayı, hadisi veya ayeti okumayı unutma! 🌙',
+        customMessage:
+            'İyi akşamlar! Bugünkü duayı, hadisi veya ayeti okumayı unutma! 🌙',
         context: context,
         notificationId: 2,
       );
@@ -253,7 +268,8 @@ class NotificationService {
           android: AndroidNotificationDetails(
             'daily_reminder',
             'Her Gün İslam Hatırlatmaları',
-            channelDescription: 'Her gün günlük dua, hadis veya ayet için hatırlatmalar',
+            channelDescription:
+                'Her gün günlük dua, hadis veya ayet için hatırlatmalar',
             importance: Importance.max,
             priority: Priority.high,
             icon: '@mipmap/ic_launcher',
@@ -282,8 +298,9 @@ class NotificationService {
     }
 
     try {
-      final scheduledTime = tz.TZDateTime.now(tz.local).add(const Duration(seconds: 5));
-      
+      final scheduledTime =
+          tz.TZDateTime.now(tz.local).add(const Duration(seconds: 5));
+
       await _notifications.zonedSchedule(
         998, // Unique ID for test notifications
         'Test Bildirimi',
@@ -293,7 +310,8 @@ class NotificationService {
           android: AndroidNotificationDetails(
             'daily_reminder',
             'Her Gün İslam Hatırlatmaları',
-            channelDescription: 'Her gün günlük dua, hadis veya ayet için hatırlatmalar',
+            channelDescription:
+                'Her gün günlük dua, hadis veya ayet için hatırlatmalar',
             importance: Importance.max,
             priority: Priority.high,
             icon: '@mipmap/ic_launcher',
@@ -310,7 +328,8 @@ class NotificationService {
           ),
         ),
         androidScheduleMode: AndroidScheduleMode.exactAllowWhileIdle,
-        uiLocalNotificationDateInterpretation: UILocalNotificationDateInterpretation.absoluteTime,
+        uiLocalNotificationDateInterpretation:
+            UILocalNotificationDateInterpretation.absoluteTime,
       );
     } catch (e) {
       rethrow;
@@ -326,6 +345,13 @@ class NotificationService {
     }
   }
 
+  /// Cancel only the fixed daily reading reminders (IDs 0, 1 and 2).
+  Future<void> cancelDailyReminderNotifications() async {
+    for (var id = 0; id <= 2; id++) {
+      await cancelNotification(id);
+    }
+  }
+
   /// Cancel specific notification
   Future<void> cancelNotification(int id) async {
     try {
@@ -335,11 +361,63 @@ class NotificationService {
     }
   }
 
+  Future<bool> schedulePrayerNotification({
+    required int id,
+    required String title,
+    required String body,
+    required DateTime scheduledAt,
+  }) async {
+    if (!_isInitialized) await initialize();
+    if (scheduledAt.isBefore(DateTime.now())) return false;
+    if (!await areNotificationsEnabled()) return false;
+
+    var mode = AndroidScheduleMode.exactAllowWhileIdle;
+    if (Platform.isAndroid &&
+        !await checkAndRequestExactAlarmPermission(null)) {
+      mode = AndroidScheduleMode.inexactAllowWhileIdle;
+    }
+
+    try {
+      await _notifications.zonedSchedule(
+        id,
+        title,
+        body,
+        tz.TZDateTime.from(scheduledAt, tz.local),
+        const NotificationDetails(
+          android: AndroidNotificationDetails(
+            'prayer_times',
+            'Namaz Vakti Bildirimleri',
+            channelDescription:
+                'Seçtiğiniz şehir için yaklaşan namaz vakitleri',
+            importance: Importance.max,
+            priority: Priority.high,
+            icon: '@mipmap/ic_launcher',
+            enableVibration: true,
+            playSound: true,
+          ),
+          iOS: DarwinNotificationDetails(
+            presentAlert: true,
+            presentBadge: true,
+            presentSound: true,
+            interruptionLevel: InterruptionLevel.timeSensitive,
+          ),
+        ),
+        androidScheduleMode: mode,
+        uiLocalNotificationDateInterpretation:
+            UILocalNotificationDateInterpretation.absoluteTime,
+      );
+      return true;
+    } catch (_) {
+      return false;
+    }
+  }
+
   /// Check if notifications are enabled
   Future<bool> areNotificationsEnabled() async {
     if (Platform.isAndroid) {
-      final androidImplementation = _notifications.resolvePlatformSpecificImplementation<
-          AndroidFlutterLocalNotificationsPlugin>();
+      final androidImplementation =
+          _notifications.resolvePlatformSpecificImplementation<
+              AndroidFlutterLocalNotificationsPlugin>();
       if (androidImplementation != null) {
         return await androidImplementation.areNotificationsEnabled() ?? false;
       }
@@ -347,12 +425,13 @@ class NotificationService {
     // For iOS, assume enabled if no error
     return true;
   }
-  
+
   /// Check if app should reschedule notifications (after boot)
   Future<bool> shouldRescheduleNotifications() async {
     if (Platform.isAndroid) {
       try {
-        final bool? shouldReschedule = await _channel.invokeMethod<bool>('shouldRescheduleNotifications');
+        final bool? shouldReschedule =
+            await _channel.invokeMethod<bool>('shouldRescheduleNotifications');
         return shouldReschedule ?? false;
       } catch (e) {
         return false;
@@ -360,15 +439,17 @@ class NotificationService {
     }
     return false;
   }
-  
+
   /// Check and request battery optimization exemption
   /// This helps ensure notifications work reliably even when app is in background
-  Future<void> requestBatteryOptimizationExemption(BuildContext? context) async {
+  Future<void> requestBatteryOptimizationExemption(
+      BuildContext? context) async {
     if (Platform.isAndroid) {
       try {
         final prefs = await SharedPreferences.getInstance();
-        final bool hasAskedBefore = prefs.getBool('battery_optimization_asked') ?? false;
-        
+        final bool hasAskedBefore =
+            prefs.getBool('battery_optimization_asked') ?? false;
+
         if (!hasAskedBefore && context != null && context.mounted) {
           final bool? userAccepted = await showDialog<bool>(
             context: context,
@@ -376,10 +457,9 @@ class NotificationService {
               return AlertDialog(
                 title: const Text('Bildirimler İçin Önemli'),
                 content: const Text(
-                  'Bildirimlerin düzenli çalışması için batarya optimizasyonlarından muaf tutulmalıyız.\n\n'
-                  'Bu, bildirimlerin her zaman zamanında gelmesini sağlar.\n\n'
-                  'Ayarlara gitmek ister misiniz?'
-                ),
+                    'Bildirimlerin düzenli çalışması için batarya optimizasyonlarından muaf tutulmalıyız.\n\n'
+                    'Bu, bildirimlerin her zaman zamanında gelmesini sağlar.\n\n'
+                    'Ayarlara gitmek ister misiniz?'),
                 actions: [
                   TextButton(
                     onPressed: () => Navigator.of(dialogContext).pop(false),
@@ -393,9 +473,9 @@ class NotificationService {
               );
             },
           );
-          
+
           await prefs.setBool('battery_optimization_asked', true);
-          
+
           if (userAccepted == true) {
             // Open battery optimization settings
             const platform = MethodChannel('com.tahram.gunlukduahadis/battery');
@@ -411,7 +491,7 @@ class NotificationService {
       }
     }
   }
-  
+
   /// Get list of pending notifications (for debugging)
   Future<List<PendingNotificationRequest>> getPendingNotifications() async {
     try {
@@ -421,4 +501,3 @@ class NotificationService {
     }
   }
 }
-

@@ -37,18 +37,20 @@ class PixabayImageService {
   /// İslami görsel URL'si getir - her mesaj için farklı görsel
   /// [categoryId] - Mesaj kategorisi (cuma, mevlid, ramazan_bayrami vb.)
   /// [messageId] - Mesaj ID'si (her mesajda farklı görsel için). Boşsa rastgele.
-  Future<String?> fetchRandomImage(String categoryId, {String? messageId}) async {
+  Future<String?> fetchRandomImage(String categoryId,
+      {String? messageId, bool forceRefresh = false}) async {
     if (apiKey.isEmpty) return null;
 
     final cacheKey = messageId != null && messageId.isNotEmpty
         ? '${categoryId}_$messageId'
         : '${categoryId}_${DateTime.now().millisecondsSinceEpoch}';
 
-    if (_urlCache.containsKey(cacheKey)) {
+    if (!forceRefresh && _urlCache.containsKey(cacheKey)) {
       return _urlCache[cacheKey];
     }
 
-    final terms = _searchTerms[categoryId] ?? ['مسجد', 'islamic mosque', 'mosque'];
+    final terms =
+        _searchTerms[categoryId] ?? ['مسجد', 'islamic mosque', 'mosque'];
     var query = terms[_random.nextInt(terms.length)];
 
     try {
@@ -71,7 +73,8 @@ class PixabayImageService {
         final hits = data['hits'] as List? ?? [];
 
         if (hits.isNotEmpty) {
-          final hit = hits[_random.nextInt(hits.length)] as Map<String, dynamic>;
+          final hit =
+              hits[_random.nextInt(hits.length)] as Map<String, dynamic>;
           final url = hit['largeImageURL'] as String? ??
               hit['webformatURL'] as String? ??
               hit['previewURL'] as String?;

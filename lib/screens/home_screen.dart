@@ -13,6 +13,14 @@ import '../services/notification_service.dart';
 import '../services/firebase_service.dart';
 import '../widgets/item_card.dart';
 import '../widgets/shareable_card.dart';
+import '../models/share_format.dart';
+import '../theme/app_theme.dart';
+import '../models/religious_day.dart';
+import '../services/religious_days_service.dart';
+import '../services/quran_audio_service.dart';
+import 'quran_screen.dart';
+import 'ramadan_screen.dart';
+import 'religious_days_screen.dart';
 import '../widgets/widget_shortcut_helper.dart';
 
 /// Main home screen displaying the daily item
@@ -21,6 +29,133 @@ class HomeScreen extends StatefulWidget {
 
   @override
   State<HomeScreen> createState() => _HomeScreenState();
+}
+
+class _HomeShortcutCard extends StatelessWidget {
+  final String eyebrow;
+  final String title;
+  final String subtitle;
+  final IconData icon;
+  final Color accent;
+  final VoidCallback onTap;
+
+  const _HomeShortcutCard(
+      {required this.eyebrow,
+      required this.title,
+      required this.subtitle,
+      required this.icon,
+      required this.accent,
+      required this.onTap});
+
+  @override
+  Widget build(BuildContext context) {
+    return Material(
+      color: Colors.white,
+      borderRadius: BorderRadius.circular(16),
+      child: InkWell(
+        onTap: onTap,
+        borderRadius: BorderRadius.circular(16),
+        child: Container(
+          height: 142,
+          padding: const EdgeInsets.all(16),
+          decoration: BoxDecoration(
+            borderRadius: BorderRadius.circular(16),
+            border: Border(left: BorderSide(color: accent, width: 4)),
+            boxShadow: AppTheme.ambientShadow,
+          ),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Row(children: [
+                Expanded(
+                    child: Text(eyebrow,
+                        style: TextStyle(
+                            color: accent,
+                            fontSize: 10,
+                            fontWeight: FontWeight.w700,
+                            letterSpacing: .7))),
+                Icon(icon, color: accent, size: 22)
+              ]),
+              const Spacer(),
+              Text(title,
+                  maxLines: 2,
+                  overflow: TextOverflow.ellipsis,
+                  style: const TextStyle(
+                      color: AppTheme.navy,
+                      fontSize: 17,
+                      fontWeight: FontWeight.w700)),
+              const SizedBox(height: 4),
+              Text(subtitle,
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style:
+                      const TextStyle(color: AppTheme.textMuted, fontSize: 12)),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+class _HomeWideCard extends StatelessWidget {
+  final IconData icon;
+  final String title;
+  final String value;
+  final String badge;
+  final VoidCallback onTap;
+
+  const _HomeWideCard(
+      {required this.icon,
+      required this.title,
+      required this.value,
+      required this.badge,
+      required this.onTap});
+
+  @override
+  Widget build(BuildContext context) {
+    return Material(
+      color: Colors.white,
+      borderRadius: BorderRadius.circular(16),
+      child: InkWell(
+        onTap: onTap,
+        borderRadius: BorderRadius.circular(16),
+        child: Container(
+          padding: const EdgeInsets.all(18),
+          decoration: BoxDecoration(
+              borderRadius: BorderRadius.circular(16),
+              boxShadow: AppTheme.ambientShadow),
+          child: Column(
+            children: [
+              Row(children: [
+                Icon(icon, color: AppTheme.gold),
+                const SizedBox(width: 10),
+                Text(title,
+                    style: const TextStyle(
+                        color: AppTheme.navy,
+                        fontSize: 18,
+                        fontWeight: FontWeight.w700))
+              ]),
+              const SizedBox(height: 14),
+              Row(children: [
+                Expanded(
+                    child: Text(value, style: const TextStyle(fontSize: 14))),
+                Container(
+                    padding:
+                        const EdgeInsets.symmetric(horizontal: 12, vertical: 7),
+                    decoration: BoxDecoration(
+                        color: const Color(0xFFFFDEA3),
+                        borderRadius: BorderRadius.circular(999)),
+                    child: Text(badge,
+                        style: const TextStyle(
+                            color: Color(0xFF7B5700), fontSize: 11)))
+              ]),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
 }
 
 class _HomeScreenState extends State<HomeScreen> {
@@ -37,10 +172,14 @@ class _HomeScreenState extends State<HomeScreen> {
   String? _errorMessage;
   int _nextButtonClickCount = 0; // Sonraki buton tıklama sayacı
   bool _isPrivacyOptionsRequired = false;
+  String _homeCityName = 'Şehir seçin';
+  int? _homeLastReadSurah;
+  ReligiousDay? _upcomingReligiousDay;
 
   @override
   void initState() {
     super.initState();
+    _loadHomeShortcuts();
     _loadDailyItem();
     _checkReadingStatus();
     _showReminderIfNeeded();
@@ -58,6 +197,19 @@ class _HomeScreenState extends State<HomeScreen> {
 
     // Log screen view to Analytics
     FirebaseService.logScreenView(screenName: AnalyticsEvents.screenHome);
+  }
+
+  Future<void> _loadHomeShortcuts() async {
+    final prefs = await SharedPreferences.getInstance();
+    final city = prefs.getString('ramadan_selected_city_name');
+    final lastRead = prefs.getInt('quran_last_read_surah');
+    final upcoming = ReligiousDaysService().getUpcomingDays();
+    if (!mounted) return;
+    setState(() {
+      _homeCityName = city ?? 'Şehir seçin';
+      _homeLastReadSurah = lastRead;
+      _upcomingReligiousDay = upcoming.isEmpty ? null : upcoming.first;
+    });
   }
 
   Future<void> _updatePrivacyOptionsRequirement() async {
@@ -446,6 +598,8 @@ class _HomeScreenState extends State<HomeScreen> {
   /// Reklam ve görsel oluşturma paralel çalışır - reklam bittiğinde görsel hazır olur
   Future<void> _shareItem() async {
     if (_currentItem == null) return;
+    final format = await _chooseShareFormat();
+    if (format == null) return;
 
     setState(() {
       _isSharing = true;
@@ -471,8 +625,8 @@ class _HomeScreenState extends State<HomeScreen> {
                     textDirection: TextDirection.ltr,
                     child: ShareableCard(
                       item: item,
-                      width: 1080,
-                      height: 1080,
+                      width: format.width,
+                      height: format.height,
                     ),
                   ),
                 ),
@@ -498,7 +652,7 @@ class _HomeScreenState extends State<HomeScreen> {
         // Save image to temporary directory
         final directory = await getTemporaryDirectory();
         final imagePath =
-            '${directory.path}/share_card_${DateTime.now().millisecondsSinceEpoch}.png';
+            '${directory.path}/share_card_${format.name}_${DateTime.now().millisecondsSinceEpoch}.png';
         final imageFile = File(imagePath);
         await imageFile.writeAsBytes(bytes);
 
@@ -576,6 +730,52 @@ class _HomeScreenState extends State<HomeScreen> {
     }
   }
 
+  Future<ShareFormat?> _chooseShareFormat() {
+    return showModalBottomSheet<ShareFormat>(
+      context: context,
+      showDragHandle: true,
+      builder: (context) => SafeArea(
+        child: Padding(
+          padding: const EdgeInsets.fromLTRB(20, 4, 20, 24),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              const Text('Paylaşım biçimi',
+                  style: TextStyle(
+                      color: AppTheme.navy,
+                      fontSize: 21,
+                      fontWeight: FontWeight.w700)),
+              const SizedBox(height: 6),
+              const Text(
+                  'Instagram’da kırpılmaması için kullanacağınız alanı seçin.',
+                  style: TextStyle(color: AppTheme.textMuted)),
+              const SizedBox(height: 14),
+              ...ShareFormat.values.map(
+                (format) => ListTile(
+                  contentPadding: EdgeInsets.zero,
+                  leading: AspectRatio(
+                    aspectRatio: format.aspectRatio,
+                    child: Container(
+                        decoration: BoxDecoration(
+                            color: AppTheme.surfaceLow,
+                            border: Border.all(color: AppTheme.navy),
+                            borderRadius: BorderRadius.circular(5))),
+                  ),
+                  title: Text(format.label),
+                  subtitle: Text(
+                      '${format.width.toInt()} × ${format.height.toInt()}'),
+                  trailing: const Icon(Icons.chevron_right_rounded),
+                  onTap: () => Navigator.pop(context, format),
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
   /// Fallback: Share as text
   void _shareAsText() {
     if (_currentItem == null) return;
@@ -607,73 +807,42 @@ Her Gün İslam uygulamasından paylaşıldı
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      // App Bar with gradient
       appBar: AppBar(
+        toolbarHeight: 72,
+        titleSpacing: 20,
+        centerTitle: false,
         title: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            const Text(
-              'Her Gün İslam',
-              style: TextStyle(
-                fontWeight: FontWeight.bold,
-                fontSize: 22,
-              ),
-            ),
-            if (_readingStreak > 0)
-              Row(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  const Icon(Icons.local_fire_department,
-                      color: Color(0xFFF59E0B), size: 16),
-                  const SizedBox(width: 4),
-                  Text(
-                    '$_readingStreak gün',
-                    style: const TextStyle(
-                      fontSize: 12,
-                      fontWeight: FontWeight.normal,
-                    ),
-                  ),
-                ],
-              ),
+            const Text('Hayırlı Günler',
+                style: TextStyle(
+                    color: AppTheme.navy,
+                    fontSize: 22,
+                    fontWeight: FontWeight.w600)),
+            Text(_todayLabel(),
+                style: const TextStyle(
+                    color: AppTheme.textMuted,
+                    fontSize: 12,
+                    fontWeight: FontWeight.w400)),
           ],
-        ),
-        centerTitle: true,
-        elevation: 0,
-        flexibleSpace: Container(
-          decoration: const BoxDecoration(
-            gradient: LinearGradient(
-              colors: [Color(0xFF1E40AF), Color(0xFF3B82F6)],
-              begin: Alignment.topLeft,
-              end: Alignment.bottomRight,
-            ),
-          ),
         ),
         actions: [
           if (_isPrivacyOptionsRequired)
             IconButton(
               tooltip: 'Gizlilik seçenekleri',
-              icon: const Icon(Icons.privacy_tip_outlined),
+              icon:
+                  const Icon(Icons.privacy_tip_outlined, color: AppTheme.navy),
               onPressed: _showPrivacyOptions,
             ),
           ...WidgetShortcutHelper.appBarActions(context),
         ],
       ),
-
-      // Body with gradient background
       body: Container(
-        decoration: const BoxDecoration(
-          gradient: LinearGradient(
-            colors: [Color(0xFFEFF6FF), Color(0xFFDBEAFE)],
-            begin: Alignment.topCenter,
-            end: Alignment.bottomCenter,
-          ),
-        ),
+        color: AppTheme.ivory,
         child: SafeArea(
           child: Column(
             children: [
-              // Upper banner ad (new position)
               const AdBannerWidget(useSecondAd: true),
-
-              // Main content area
               Expanded(
                 child: Center(
                   child: SingleChildScrollView(
@@ -692,7 +861,9 @@ Her Gün İslam uygulamasından paylaşıldı
                                     isRead: _isRead,
                                     shareButtonKey: _shareButtonKey,
                                   ),
-                                  if (!kIsWeb && Platform.isAndroid)
+                                  _buildHomeShortcuts(),
+                                  if (!kIsWeb &&
+                                      (Platform.isAndroid || Platform.isIOS))
                                     _buildWidgetPromoCard(),
                                 ],
                               )
@@ -700,8 +871,6 @@ Her Gün İslam uygulamasından paylaşıldı
                   ),
                 ),
               ),
-
-              // Banner ad at the bottom
               const AdBannerWidget(),
             ],
           ),
@@ -710,74 +879,160 @@ Her Gün İslam uygulamasından paylaşıldı
     );
   }
 
-  Widget _buildWidgetPromoCard() {
+  String _todayLabel() {
+    final now = DateTime.now();
+    const months = [
+      'Ocak',
+      'Şubat',
+      'Mart',
+      'Nisan',
+      'Mayıs',
+      'Haziran',
+      'Temmuz',
+      'Ağustos',
+      'Eylül',
+      'Ekim',
+      'Kasım',
+      'Aralık'
+    ];
+    const weekdays = [
+      'Pazartesi',
+      'Salı',
+      'Çarşamba',
+      'Perşembe',
+      'Cuma',
+      'Cumartesi',
+      'Pazar'
+    ];
+    return '${now.day} ${months[now.month - 1]} ${weekdays[now.weekday - 1]}';
+  }
+
+  Widget _buildHomeShortcuts() {
+    final surahName = _homeLastReadSurah == null
+        ? 'Kur\'an okumaya başla'
+        : '${QuranAudioService.turkishSurahNames[_homeLastReadSurah] ?? 'Sure'} Suresi';
     return Padding(
-      padding: const EdgeInsets.fromLTRB(16, 12, 16, 24),
-      child: Material(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(16),
-        elevation: 2,
-        shadowColor: Colors.black26,
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          crossAxisAlignment: CrossAxisAlignment.stretch,
-          children: [
-            InkWell(
-              borderRadius:
-                  const BorderRadius.vertical(top: Radius.circular(16)),
-              onTap: () => WidgetShortcutHelper.offerPinWidget(context),
-              child: Padding(
-                padding:
-                    const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
-                child: Row(
-                  children: [
-                    const Icon(Icons.widgets_outlined,
-                        color: Color(0xFF1E40AF), size: 28),
-                    const SizedBox(width: 14),
-                    Expanded(
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          const Text(
-                            'Günlük ayet widget\'ı',
-                            style: TextStyle(
-                                fontWeight: FontWeight.w700, fontSize: 16),
-                          ),
-                          const SizedBox(height: 4),
-                          Text(
-                            'Türkçe meal rastgele ayet; birkaç saatte bir kendiliğinden yenilenir — tamamen çevrimdışı',
-                            style: TextStyle(
-                                fontSize: 13, color: Colors.grey[700]),
-                          ),
-                        ],
-                      ),
-                    ),
-                    Icon(Icons.chevron_right, color: Colors.grey[600]),
-                  ],
+      padding: const EdgeInsets.fromLTRB(20, 0, 20, 12),
+      child: Column(
+        children: [
+          Row(
+            children: [
+              Expanded(
+                child: _HomeShortcutCard(
+                  eyebrow: 'SIRADAKİ NAMAZ',
+                  title: 'Namaz Vakitleri',
+                  subtitle: _homeCityName,
+                  icon: Icons.mosque_outlined,
+                  accent: AppTheme.emerald,
+                  onTap: () => Navigator.push<void>(context,
+                      MaterialPageRoute(builder: (_) => const RamadanScreen())),
                 ),
               ),
+              const SizedBox(width: 12),
+              Expanded(
+                child: _HomeShortcutCard(
+                  eyebrow: 'KALDIĞIN YER',
+                  title: surahName,
+                  subtitle: _homeLastReadSurah == null
+                      ? 'Sureler ve cüzler'
+                      : 'Okumaya devam et',
+                  icon: Icons.auto_stories_outlined,
+                  accent: AppTheme.navy,
+                  onTap: () => Navigator.push<void>(context,
+                      MaterialPageRoute(builder: (_) => const QuranScreen())),
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 12),
+          if (_upcomingReligiousDay != null)
+            _HomeWideCard(
+              icon: Icons.calendar_month_outlined,
+              title: 'Yaklaşan Gün',
+              value: _upcomingReligiousDay!.name,
+              badge: _upcomingReligiousDay!.countdownText,
+              onTap: () => Navigator.push<void>(
+                  context,
+                  MaterialPageRoute(
+                      builder: (_) => const ReligiousDaysScreen())),
             ),
-            Divider(height: 1, thickness: 1, color: Colors.grey[200]),
-            Padding(
-              padding: const EdgeInsets.fromLTRB(14, 10, 14, 12),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildWidgetPromoCard() {
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(20, 4, 20, 24),
+      child: DecoratedBox(
+        decoration: BoxDecoration(
+          gradient: const LinearGradient(
+            colors: [AppTheme.navy, AppTheme.navyContainer],
+          ),
+          borderRadius: BorderRadius.circular(22),
+          border: Border.all(color: AppTheme.gold.withValues(alpha: .55)),
+          boxShadow: AppTheme.ambientShadow,
+        ),
+        child: Material(
+          color: Colors.transparent,
+          child: InkWell(
+            borderRadius: BorderRadius.circular(22),
+            onTap: () => WidgetShortcutHelper.offerPinWidget(context),
+            child: Padding(
+              padding: const EdgeInsets.all(16),
               child: Row(
-                crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  Icon(Icons.touch_app_outlined,
-                      size: 22, color: Colors.teal.shade700),
-                  const SizedBox(width: 10),
-                  Expanded(
-                    child: Text(
-                      'Meal tam görünmüyorsa widget’a dokunun; '
-                      'Kur’an sekmesinde ilgili sure açılır ve ayete konumlanırsınız.',
-                      style: TextStyle(
-                          fontSize: 12, color: Colors.grey[800], height: 1.35),
+                  Container(
+                    width: 46,
+                    height: 46,
+                    decoration: BoxDecoration(
+                      color: AppTheme.emerald.withValues(alpha: .34),
+                      shape: BoxShape.circle,
+                      border: Border.all(
+                        color: AppTheme.gold.withValues(alpha: .72),
+                      ),
                     ),
+                    child: const Icon(
+                      Icons.widgets_rounded,
+                      color: AppTheme.gold,
+                      size: 24,
+                    ),
+                  ),
+                  const SizedBox(width: 14),
+                  const Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          'Günün ayeti ana ekranında',
+                          style: TextStyle(
+                            color: AppTheme.ivory,
+                            fontSize: 15,
+                            fontWeight: FontWeight.w800,
+                          ),
+                        ),
+                        SizedBox(height: 5),
+                        Text(
+                          'Widget’ı ekle, ayete dokun ve okumaya devam et.',
+                          style: TextStyle(
+                            color: AppTheme.mint,
+                            fontSize: 12,
+                            height: 1.35,
+                            fontWeight: FontWeight.w500,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                  const SizedBox(width: 8),
+                  const Icon(
+                    Icons.arrow_forward_rounded,
+                    color: AppTheme.gold,
                   ),
                 ],
               ),
             ),
-          ],
+          ),
         ),
       ),
     );

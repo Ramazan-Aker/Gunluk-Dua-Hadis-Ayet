@@ -7,16 +7,16 @@ import 'package:shared_preferences/shared_preferences.dart';
 class AudioCacheService {
   static const String _cacheKeyPrefix = 'quran_audio_cached_';
   static const int maxCacheSizeMB = 500; // Maximum 500MB cache
-  
+
   /// Get cache directory for audio files
   Future<Directory> _getCacheDir() async {
     final appDir = await getApplicationDocumentsDirectory();
     final cacheDir = Directory('${appDir.path}/quran_audio_cache');
-    
+
     if (!await cacheDir.exists()) {
       await cacheDir.create(recursive: true);
     }
-    
+
     return cacheDir;
   }
 
@@ -63,7 +63,8 @@ class AudioCacheService {
   Future<void> invalidateSurahCache(int surahNumber, int reciterId) async {
     try {
       final cacheDir = await _getCacheDir();
-      final file = File('${cacheDir.path}/${_getCacheFileName(surahNumber, reciterId)}');
+      final file =
+          File('${cacheDir.path}/${_getCacheFileName(surahNumber, reciterId)}');
       if (await file.exists()) {
         await file.delete();
       }
@@ -161,7 +162,7 @@ class AudioCacheService {
       final prefs = await SharedPreferences.getInstance();
       final key = '$_cacheKeyPrefix${surahNumber}_$reciterId';
       await prefs.setBool(key, true);
-      
+
       // Store timestamp for LRU cache management
       final timestampKey = '${key}_timestamp';
       await prefs.setInt(timestampKey, DateTime.now().millisecondsSinceEpoch);
@@ -201,11 +202,12 @@ class AudioCacheService {
     try {
       final prefs = await SharedPreferences.getInstance();
       final cacheDir = await _getCacheDir();
-      
+
       // Get all cached files with timestamps
       final cachedFiles = <String, int>{};
-      final keys = prefs.getKeys().where((k) => k.startsWith(_cacheKeyPrefix) && k.endsWith('_timestamp'));
-      
+      final keys = prefs.getKeys().where(
+          (k) => k.startsWith(_cacheKeyPrefix) && k.endsWith('_timestamp'));
+
       for (final key in keys) {
         final timestamp = prefs.getInt(key) ?? 0;
         final baseKey = key.replaceAll('_timestamp', '');
@@ -221,19 +223,19 @@ class AudioCacheService {
       for (var i = 0; i < deleteCount && i < sortedKeys.length; i++) {
         final key = sortedKeys[i];
         final parts = key.replaceAll(_cacheKeyPrefix, '').split('_');
-        
+
         if (parts.length >= 2) {
           final surahNumber = int.tryParse(parts[0]);
           final reciterId = int.tryParse(parts[1]);
-          
+
           if (surahNumber != null && reciterId != null) {
             final fileName = _getCacheFileName(surahNumber, reciterId);
             final file = File('${cacheDir.path}/$fileName');
-            
+
             if (await file.exists()) {
               await file.delete();
             }
-            
+
             await _markAsNotCached(surahNumber, reciterId);
           }
         }
@@ -245,14 +247,14 @@ class AudioCacheService {
   Future<void> clearAllCache() async {
     try {
       final cacheDir = await _getCacheDir();
-      
+
       if (await cacheDir.exists()) {
         await cacheDir.delete(recursive: true);
       }
 
       final prefs = await SharedPreferences.getInstance();
       final keys = prefs.getKeys().where((k) => k.startsWith(_cacheKeyPrefix));
-      
+
       for (final key in keys) {
         await prefs.remove(key);
       }
@@ -264,8 +266,10 @@ class AudioCacheService {
     try {
       final sizeMB = await _getCacheSizeInMB();
       final prefs = await SharedPreferences.getInstance();
-      final cachedCount = prefs.getKeys()
-          .where((k) => k.startsWith(_cacheKeyPrefix) && !k.endsWith('_timestamp'))
+      final cachedCount = prefs
+          .getKeys()
+          .where(
+              (k) => k.startsWith(_cacheKeyPrefix) && !k.endsWith('_timestamp'))
           .length;
 
       return {

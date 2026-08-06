@@ -42,7 +42,7 @@ class QuranTextService {
       for (int i = 0; i < arabicAyahs.length; i++) {
         final arabicAyah = arabicAyahs[i] as Map<String, dynamic>;
         final turkishAyah = turkishAyahs[i] as Map<String, dynamic>;
-        
+
         verses.add(QuranVerse.fromJson(arabicAyah, turkishAyah));
       }
 
@@ -64,7 +64,7 @@ class QuranTextService {
 
       if (response.statusCode == 200) {
         final jsonData = json.decode(response.body) as Map<String, dynamic>;
-        
+
         // API returns {code: 200, status: "OK", data: {...}}
         if (jsonData['code'] == 200 && jsonData['data'] != null) {
           return jsonData;
@@ -112,7 +112,7 @@ class QuranTextService {
 
       if (response.statusCode == 200) {
         final jsonData = json.decode(response.body) as Map<String, dynamic>;
-        
+
         if (jsonData['code'] == 200 && jsonData['data'] != null) {
           return jsonData;
         }
@@ -131,7 +131,7 @@ class QuranTextService {
 
       if (response.statusCode == 200) {
         final jsonData = json.decode(response.body) as Map<String, dynamic>;
-        
+
         if (jsonData['code'] == 200 && jsonData['data'] != null) {
           final data = jsonData['data'] as Map<String, dynamic>;
           return {

@@ -34,16 +34,26 @@ class ReligiousDay {
 
   String get formattedDate {
     const months = [
-      'Ocak', 'Şubat', 'Mart', 'Nisan', 'Mayıs', 'Haziran',
-      'Temmuz', 'Ağustos', 'Eylül', 'Ekim', 'Kasım', 'Aralık'
+      'Ocak',
+      'Şubat',
+      'Mart',
+      'Nisan',
+      'Mayıs',
+      'Haziran',
+      'Temmuz',
+      'Ağustos',
+      'Eylül',
+      'Ekim',
+      'Kasım',
+      'Aralık'
     ];
     return '${date.day} ${months[date.month - 1]} ${date.year}';
   }
 }
 
 enum IconType {
-  moon,      // Kandiller
-  mosque,    // Bayramlar, Ramazan
-  star,      // Kadir Gecesi
-  calendar,  // Üç aylar, Hicri yılbaşı
+  moon, // Kandiller
+  mosque, // Bayramlar, Ramazan
+  star, // Kadir Gecesi
+  calendar, // Üç aylar, Hicri yılbaşı
 }

@@ -15,15 +15,14 @@ class QuranVerse {
   });
 
   /// Factory constructor from Al-Quran Cloud API response
-  factory QuranVerse.fromJson(Map<String, dynamic> arabicJson, Map<String, dynamic> turkishJson) {
+  factory QuranVerse.fromJson(
+      Map<String, dynamic> arabicJson, Map<String, dynamic> turkishJson) {
     final arabicText = arabicJson['text'] as String? ?? '';
-    
+
     // Split Arabic text by space to get words
     // Filter out empty strings
-    final words = arabicText
-        .split(' ')
-        .where((word) => word.trim().isNotEmpty)
-        .toList();
+    final words =
+        arabicText.split(' ').where((word) => word.trim().isNotEmpty).toList();
 
     return QuranVerse(
       number: arabicJson['number'] as int? ?? 0,

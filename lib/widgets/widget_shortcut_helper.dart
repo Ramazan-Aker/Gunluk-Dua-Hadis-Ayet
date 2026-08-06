@@ -10,23 +10,34 @@ class WidgetShortcutHelper {
   WidgetShortcutHelper._();
 
   static Future<void> offerPinWidget(BuildContext context) async {
-    if (kIsWeb || !Platform.isAndroid) return;
-    final supported = await HomeScreenWidgetService.isPinWidgetSupported();
-    if (!context.mounted) return;
-    if (supported) {
-      await HomeScreenWidgetService.requestPinWidgetFromApp();
-      return;
+    if (kIsWeb || !(Platform.isAndroid || Platform.isIOS)) return;
+
+    if (Platform.isAndroid) {
+      final supported = await HomeScreenWidgetService.isPinWidgetSupported();
+      if (!context.mounted) return;
+      if (supported) {
+        await HomeScreenWidgetService.requestPinWidgetFromApp();
+        return;
+      }
     }
+
     await HomeScreenWidgetService.syncRandomVerseForWidget();
     if (!context.mounted) return;
+
+    final instructions = Platform.isIOS
+        ? 'iPhone ana ekranında boş bir yere basılı tutun → sol üstteki “+” '
+            'simgesine dokunun → “Her Gün İslam”ı arayın → küçük, orta veya '
+            'büyük boyutu seçip “Widget Ekle”ye dokunun.'
+        : 'Ana ekranda boş bir yere basılı tutun → “Widget\'lar” → '
+            '“Her Gün İslam” uygulamasından günlük ayet widget\'ını sürükleyip bırakın.';
+
     await showDialog<void>(
       context: context,
       builder: (ctx) => AlertDialog(
-        title: const Text('Ana ekrana widget ekleyin'),
-        content: const Text(
-          'Ana ekranda boş bir yere basılı tutun → "Widget\'lar" → '
-          '"Her Gün İslam" uygulamasından günlük ayet widget\'ını sürükleyip bırakın. '
-          'Ayetler Türkçe meal olarak rastgele seçilir ve birkaç saatte bir yenilenir.',
+        icon: const Icon(Icons.widgets_rounded),
+        title: const Text('Günlük ayeti ana ekrana ekleyin'),
+        content: Text(
+          '$instructions\n\nWidget’a dokunduğunuzda ilgili ayet Kur’an ekranında açılır.',
         ),
         actions: [
           TextButton(
@@ -39,7 +50,7 @@ class WidgetShortcutHelper {
   }
 
   static List<Widget> appBarActions(BuildContext context) {
-    if (kIsWeb || !Platform.isAndroid) return const [];
+    if (kIsWeb || !(Platform.isAndroid || Platform.isIOS)) return const [];
     return [
       IconButton(
         tooltip: 'Ana ekrana widget',

@@ -15,6 +15,8 @@ class HomeScreenWidgetService {
 
   static const String qualifiedAndroidName =
       'com.tahram.gunlukduahadis.DailyContentWidgetProvider';
+  static const String iosWidgetName = 'DailyVerseWidget';
+  static const String iosAppGroupId = 'group.com.tahram.gunlukduahadis';
 
   static const String _keyListIndex = 'widget_hatim_index';
   static const String _keyExpireAt = 'widget_verse_expire_at';
@@ -23,6 +25,15 @@ class HomeScreenWidgetService {
   static const Duration _verseRotation = Duration(hours: 6);
 
   static const int _maxTurkishChars = 1100;
+
+  static bool get _isSupportedPlatform =>
+      !kIsWeb && (Platform.isAndroid || Platform.isIOS);
+
+  static Future<void> _configureSharedStorage() async {
+    if (Platform.isIOS) {
+      await HomeWidget.setAppGroupId(iosAppGroupId);
+    }
+  }
 
   static String _clip(String text, int maxChars) {
     final ch = text.characters;
@@ -46,6 +57,7 @@ class HomeScreenWidgetService {
     await HomeWidget.saveWidgetData('ayah_footer', a.footer);
     await HomeWidget.updateWidget(
       qualifiedAndroidName: qualifiedAndroidName,
+      iOSName: iosWidgetName,
     );
   }
 
@@ -62,18 +74,21 @@ class HomeScreenWidgetService {
 
   /// Uygulama açılışında / widget eklemeden önce: süre dolmuşsa veya metin yoksa rastgele ayet.
   static Future<void> syncRandomVerseForWidget() async {
-    if (kIsWeb || !Platform.isAndroid) return;
+    if (!_isSupportedPlatform) return;
     try {
+      await _configureSharedStorage();
       await QuranOfflineRepository.instance.ensureLoaded();
       final n = QuranOfflineRepository.instance.totalAyahCount;
       if (n == 0) return;
 
-      final expireRaw =
-          await HomeWidget.getWidgetData<String>(_keyExpireAt, defaultValue: '0') ?? '0';
+      final expireRaw = await HomeWidget.getWidgetData<String>(_keyExpireAt,
+              defaultValue: '0') ??
+          '0';
       final expireAt = int.tryParse(expireRaw) ?? 0;
       final now = DateTime.now().millisecondsSinceEpoch;
-      final turkish =
-          await HomeWidget.getWidgetData<String>('ayah_turkish', defaultValue: '') ?? '';
+      final turkish = await HomeWidget.getWidgetData<String>('ayah_turkish',
+              defaultValue: '') ??
+          '';
 
       if (now < expireAt && turkish.isNotEmpty) {
         return;

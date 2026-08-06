@@ -39,8 +39,7 @@ class AlquranCloudSurahService {
       for (final item in data) {
         if (item is! Map<String, dynamic>) continue;
         final edition = item['edition'];
-        if (edition is Map<String, dynamic> &&
-            edition['identifier'] == id) {
+        if (edition is Map<String, dynamic> && edition['identifier'] == id) {
           return item;
         }
       }

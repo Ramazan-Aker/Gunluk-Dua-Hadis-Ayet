@@ -4,6 +4,7 @@ class GreetingMessage {
   final String category;
   final String title;
   final String text;
+
   /// API'den gelen görsel URL'si (Pixabay vb.)
   final String? imageUrl;
 

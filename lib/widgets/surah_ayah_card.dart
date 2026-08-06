@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 import '../models/surah_ayah_detail.dart';
+import '../theme/app_theme.dart';
 
 /// Ayet kartı: Arapça (sağ, büyük), Türkçe meal, alt satırda aksiyonlar.
 class SurahAyahCard extends StatelessWidget {
@@ -32,10 +33,10 @@ class SurahAyahCard extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     const baseBg = Colors.white;
-    const activeBg = Color(0xFFDBEAFE);
+    const activeBg = AppTheme.mint;
     final borderColor = highlightActive
-        ? const Color(0xFF1E40AF).withValues(alpha: 0.35)
-        : Colors.grey.shade200;
+        ? AppTheme.emerald.withValues(alpha: 0.35)
+        : AppTheme.outline.withValues(alpha: .25);
 
     return Padding(
       padding: const EdgeInsets.only(bottom: 14),
@@ -45,12 +46,13 @@ class SurahAyahCard extends StatelessWidget {
           decoration: BoxDecoration(
             color: highlightActive ? activeBg : baseBg,
             borderRadius: BorderRadius.circular(16),
-            border: Border.all(color: borderColor, width: highlightActive ? 1.5 : 1),
+            border: Border.all(
+                color: borderColor, width: highlightActive ? 1.5 : 1),
             boxShadow: [
               BoxShadow(
-                color: Colors.black.withValues(alpha: 0.07),
-                blurRadius: 16,
-                offset: const Offset(0, 6),
+                color: AppTheme.navyContainer.withValues(alpha: 0.07),
+                blurRadius: 20,
+                offset: const Offset(0, 4),
                 spreadRadius: 0,
               ),
             ],
@@ -67,16 +69,16 @@ class SurahAyahCard extends StatelessWidget {
                         horizontal: 8,
                         vertical: 4,
                       ),
-                      decoration: BoxDecoration(
-                        color: const Color(0xFF1E40AF).withValues(alpha: 0.12),
-                        borderRadius: BorderRadius.circular(8),
+                      decoration: const BoxDecoration(
+                        color: AppTheme.surfaceLow,
+                        shape: BoxShape.circle,
                       ),
                       child: Text(
                         '${ayah.numberInSurah}',
                         style: const TextStyle(
                           fontSize: 12,
                           fontWeight: FontWeight.w700,
-                          color: Color(0xFF1E3A8A),
+                          color: AppTheme.textMuted,
                         ),
                       ),
                     ),
@@ -96,10 +98,10 @@ class SurahAyahCard extends StatelessWidget {
                   ayah.arabicText,
                   textAlign: TextAlign.right,
                   textDirection: TextDirection.rtl,
-                  style: GoogleFonts.amiriQuran(
-                    fontSize: 26,
-                    height: 1.75,
-                    color: const Color(0xFF1A1A1A),
+                  style: GoogleFonts.notoNaskhArabic(
+                    fontSize: 28,
+                    height: 1.85,
+                    color: AppTheme.navy,
                   ),
                 ),
                 const SizedBox(height: 12),
@@ -124,7 +126,9 @@ class SurahAyahCard extends StatelessWidget {
                       tooltip: hasAudio
                           ? (isPlaying ? 'Duraklat' : 'Oynat')
                           : 'Ses yok',
-                      icon: isPlaying ? Icons.pause_rounded : Icons.play_arrow_rounded,
+                      icon: isPlaying
+                          ? Icons.pause_rounded
+                          : Icons.play_arrow_rounded,
                       onPressed: hasAudio ? onPlayPause : null,
                       active: highlightActive && isPlaying,
                     ),
@@ -139,8 +143,11 @@ class SurahAyahCard extends StatelessWidget {
                       onPressed: onCopy,
                     ),
                     _ActionIcon(
-                      tooltip: isFavorite ? 'Favorilerden çıkar' : 'Favorilere ekle',
-                      icon: isFavorite ? Icons.star_rounded : Icons.star_outline_rounded,
+                      tooltip:
+                          isFavorite ? 'Favorilerden çıkar' : 'Favorilere ekle',
+                      icon: isFavorite
+                          ? Icons.star_rounded
+                          : Icons.star_outline_rounded,
                       onPressed: onFavorite,
                       active: isFavorite,
                     ),

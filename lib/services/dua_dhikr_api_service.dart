@@ -23,25 +23,32 @@ class DuaDhikrApiService {
       if (response.statusCode != 200) return [];
 
       final data = json.decode(response.body);
-      final list = data is List ? data : (data['data'] as List? ?? data['items'] as List? ?? []);
+      final list = data is List
+          ? data
+          : (data['data'] as List? ?? data['items'] as List? ?? []);
 
-      return list.asMap().entries.map((e) {
-        final item = e.value as Map<String, dynamic>;
-        final id = e.key;
-        final title = item['title'] as String? ?? 'Dua';
-        final translation = item['translation'] as String? ?? '';
-        final arabic = item['arabic'] as String? ?? '';
-        final text = translation.isNotEmpty
-            ? translation
-            : (item['latin'] as String? ?? arabic);
+      return list
+          .asMap()
+          .entries
+          .map((e) {
+            final item = e.value as Map<String, dynamic>;
+            final id = e.key;
+            final title = item['title'] as String? ?? 'Dua';
+            final translation = item['translation'] as String? ?? '';
+            final arabic = item['arabic'] as String? ?? '';
+            final text = translation.isNotEmpty
+                ? translation
+                : (item['latin'] as String? ?? arabic);
 
-        return GreetingMessage(
-          id: 'dua_${slug}_$id',
-          category: 'günlük_dua',
-          title: title,
-          text: text.isNotEmpty ? text : title,
-        );
-      }).where((m) => m.text.isNotEmpty).toList();
+            return GreetingMessage(
+              id: 'dua_${slug}_$id',
+              category: 'günlük_dua',
+              title: title,
+              text: text.isNotEmpty ? text : title,
+            );
+          })
+          .where((m) => m.text.isNotEmpty)
+          .toList();
     } catch (e) {
       return [];
     }
@@ -58,10 +65,15 @@ class DuaDhikrApiService {
       final data = json.decode(response.body);
       final list = data is List ? data : (data['data'] as List? ?? []);
 
-      return list.map((e) {
-        if (e is Map) return e['slug'] as String? ?? e['id'] as String? ?? '';
-        return e.toString();
-      }).where((s) => s.isNotEmpty).toList();
+      return list
+          .map((e) {
+            if (e is Map) {
+              return e['slug'] as String? ?? e['id'] as String? ?? '';
+            }
+            return e.toString();
+          })
+          .where((s) => s.isNotEmpty)
+          .toList();
     } catch (e) {
       return ['daily-dua', 'morning-dhikr', 'evening-dhikr'];
     }

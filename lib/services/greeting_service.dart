@@ -34,8 +34,7 @@ class GreetingService {
         _messages[category] = [
           for (final e in list)
             if (e is Map)
-              GreetingMessage.fromJson(
-                  Map<String, dynamic>.from(e), category),
+              GreetingMessage.fromJson(Map<String, dynamic>.from(e), category),
         ];
       }
 
@@ -49,7 +48,8 @@ class GreetingService {
   Future<void> _loadApiMessages() async {
     if (_apiMessagesLoaded) return;
     // JSON'da günlük_dua varsa (Türkçe mesajlar) API'yi atla - anlamlı Türkçe içerik öncelikli
-    if (_messages.containsKey('günlük_dua') && _messages['günlük_dua']!.isNotEmpty) {
+    if (_messages.containsKey('günlük_dua') &&
+        _messages['günlük_dua']!.isNotEmpty) {
       _apiMessagesLoaded = true;
       return;
     }
@@ -64,8 +64,13 @@ class GreetingService {
 
   /// Mesaj için görsel URL getir - her mesajda farklı görsel (Pixabay)
   /// [messageId] - Mesaj ID'si (boşsa özel mesaj, her seferinde yeni görsel)
-  Future<String?> fetchImageForMessage(String categoryId, {String? messageId}) async {
-    return _pixabay.fetchRandomImage(categoryId, messageId: messageId);
+  Future<String?> fetchImageForMessage(String categoryId,
+      {String? messageId, bool forceRefresh = false}) async {
+    return _pixabay.fetchRandomImage(
+      categoryId,
+      messageId: messageId,
+      forceRefresh: forceRefresh,
+    );
   }
 
   /// Görseli önceden yükle - mesaj seçim ekranına girildiğinde ping azaltır
@@ -84,7 +89,8 @@ class GreetingService {
       ...GreetingCategoryInfo.cumaIds,
       ...GreetingCategoryInfo.kandilIds,
       ...GreetingCategoryInfo.bayramIds,
-      if (_messages.containsKey('günlük_dua')) ...GreetingCategoryInfo.apiCategoryIds,
+      if (_messages.containsKey('günlük_dua'))
+        ...GreetingCategoryInfo.apiCategoryIds,
     ];
   }
 

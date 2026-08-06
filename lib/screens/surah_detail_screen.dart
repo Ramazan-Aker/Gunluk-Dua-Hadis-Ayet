@@ -17,6 +17,7 @@ import '../services/quran_audio_service.dart';
 import '../services/quran_timing_service.dart';
 import '../widgets/surah_ayah_card.dart';
 import '../widgets/surah_detail_shimmer.dart';
+import '../theme/app_theme.dart';
 
 /// Sure detay: metin Alquran.cloud; tek parça MP3 + ayet zaman damgaları Quran.com API v4.
 class SurahDetailScreen extends StatefulWidget {
@@ -213,9 +214,7 @@ class _SurahDetailScreenState extends State<SurahDetailScreen> {
         _loading = false;
       });
 
-      if (_audioUrl != null &&
-          _audioUrl!.isNotEmpty &&
-          _timings.isNotEmpty) {
+      if (_audioUrl != null && _audioUrl!.isNotEmpty && _timings.isNotEmpty) {
         try {
           await _ensureChapterSourceLoaded();
           _subscribePositionStream();
@@ -377,7 +376,8 @@ class _SurahDetailScreenState extends State<SurahDetailScreen> {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(
-            content: Text('Bu ayet için zaman damgası yok veya ses hazır değil.'),
+            content:
+                Text('Bu ayet için zaman damgası yok veya ses hazır değil.'),
             backgroundColor: Color(0xFF1E3A8A),
           ),
         );
@@ -385,14 +385,12 @@ class _SurahDetailScreenState extends State<SurahDetailScreen> {
       return;
     }
 
-    if (_activeAyahIndex == index &&
-        _player.state == PlayerState.playing) {
+    if (_activeAyahIndex == index && _player.state == PlayerState.playing) {
       await _player.pause();
       return;
     }
 
-    if (_activeAyahIndex == index &&
-        _player.state == PlayerState.paused) {
+    if (_activeAyahIndex == index && _player.state == PlayerState.paused) {
       await _player.resume();
       return;
     }
@@ -449,8 +447,7 @@ class _SurahDetailScreenState extends State<SurahDetailScreen> {
 
   void _showNextSurahDialog() {
     final next = widget.surahNumber + 1;
-    final name =
-        QuranAudioService.turkishSurahNames[next] ?? 'Sure $next';
+    final name = QuranAudioService.turkishSurahNames[next] ?? 'Sure $next';
 
     showDialog<void>(
       context: context,
@@ -517,11 +514,11 @@ class _SurahDetailScreenState extends State<SurahDetailScreen> {
                 fontSize: 18,
               ),
             ),
-            Text(
-              'Diyanet meali · Quran.com (tek parça ses)',
+            const Text(
+              'Diyanet İşleri • Quran.com',
               style: TextStyle(
                 fontSize: 11,
-                color: Colors.white.withValues(alpha: 0.9),
+                color: AppTheme.textMuted,
                 fontWeight: FontWeight.w400,
               ),
             ),
@@ -529,24 +526,9 @@ class _SurahDetailScreenState extends State<SurahDetailScreen> {
         ),
         centerTitle: true,
         elevation: 0,
-        flexibleSpace: Container(
-          decoration: const BoxDecoration(
-            gradient: LinearGradient(
-              colors: [Color(0xFF1E40AF), Color(0xFF3B82F6)],
-              begin: Alignment.topLeft,
-              end: Alignment.bottomRight,
-            ),
-          ),
-        ),
       ),
       body: Container(
-        decoration: const BoxDecoration(
-          gradient: LinearGradient(
-            colors: [Color(0xFFEFF6FF), Color(0xFFDBEAFE)],
-            begin: Alignment.topCenter,
-            end: Alignment.bottomCenter,
-          ),
-        ),
+        color: AppTheme.ivory,
         child: SafeArea(
           child: _loading
               ? const SingleChildScrollView(
@@ -585,7 +567,8 @@ class _SurahDetailScreenState extends State<SurahDetailScreen> {
               label: const Text('Tekrar dene'),
               style: ElevatedButton.styleFrom(
                 backgroundColor: const Color(0xFF1E40AF),
-                padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 14),
+                padding:
+                    const EdgeInsets.symmetric(horizontal: 24, vertical: 14),
               ),
             ),
           ],

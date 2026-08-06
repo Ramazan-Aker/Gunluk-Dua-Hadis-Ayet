@@ -3,7 +3,8 @@ import 'notification_service.dart';
 
 /// Service to handle daily reading reminders and tracking
 class DailyReminderService {
-  static final DailyReminderService _instance = DailyReminderService._internal();
+  static final DailyReminderService _instance =
+      DailyReminderService._internal();
   factory DailyReminderService() => _instance;
   DailyReminderService._internal();
 
@@ -12,7 +13,8 @@ class DailyReminderService {
   static const String _keyLastReadTime = 'last_read_time';
   static const String _keyDailyReadingStreak = 'daily_reading_streak';
   static const String _keyReminderEnabled = 'reminder_enabled';
-  static const String _keyReminderTime = 'reminder_time'; // Format: "HH:mm" (e.g., "09:00")
+  static const String _keyReminderTime =
+      'reminder_time'; // Format: "HH:mm" (e.g., "09:00")
   static const String _keyLastReminderShown = 'last_reminder_shown_date';
 
   /// Check if user has read today's content
@@ -21,7 +23,7 @@ class DailyReminderService {
       final prefs = await SharedPreferences.getInstance();
       final String? lastReadDate = prefs.getString(_keyLastReadDate);
       final String today = DateTime.now().toIso8601String().split('T')[0];
-      
+
       return lastReadDate == today;
     } catch (e) {
       return false;
@@ -34,15 +36,15 @@ class DailyReminderService {
       final prefs = await SharedPreferences.getInstance();
       final String today = DateTime.now().toIso8601String().split('T')[0];
       final DateTime now = DateTime.now();
-      
+
       // Get yesterday's date
       final String? lastReadDate = prefs.getString(_keyLastReadDate);
       final DateTime yesterday = now.subtract(const Duration(days: 1));
       final String yesterdayStr = yesterday.toIso8601String().split('T')[0];
-      
+
       // Check if reading streak should continue
       int currentStreak = prefs.getInt(_keyDailyReadingStreak) ?? 0;
-      
+
       if (lastReadDate == yesterdayStr) {
         // Consecutive day - increment streak
         currentStreak++;
@@ -52,7 +54,7 @@ class DailyReminderService {
         // Break in streak - reset to 1 (today)
         currentStreak = 1;
       }
-      
+
       await prefs.setString(_keyLastReadDate, today);
       await prefs.setString(_keyLastReadTime, now.toIso8601String());
       await prefs.setInt(_keyDailyReadingStreak, currentStreak);
@@ -64,22 +66,23 @@ class DailyReminderService {
     try {
       final prefs = await SharedPreferences.getInstance();
       final int streak = prefs.getInt(_keyDailyReadingStreak) ?? 0;
-      
+
       // Verify streak is still valid
       final bool hasReadToday = await this.hasReadToday();
       if (!hasReadToday) {
         // Check if yesterday was read
         final String? lastReadDate = prefs.getString(_keyLastReadDate);
-        final DateTime yesterday = DateTime.now().subtract(const Duration(days: 1));
+        final DateTime yesterday =
+            DateTime.now().subtract(const Duration(days: 1));
         final String yesterdayStr = yesterday.toIso8601String().split('T')[0];
-        
+
         if (lastReadDate != yesterdayStr) {
           // Streak broken - reset
           await prefs.setInt(_keyDailyReadingStreak, 0);
           return 0;
         }
       }
-      
+
       return streak;
     } catch (e) {
       return 0;
@@ -91,25 +94,25 @@ class DailyReminderService {
     try {
       final prefs = await SharedPreferences.getInstance();
       final bool reminderEnabled = prefs.getBool(_keyReminderEnabled) ?? true;
-      
+
       if (!reminderEnabled) {
         return false;
       }
-      
+
       // Check if already read today
       final bool hasRead = await hasReadToday();
       if (hasRead) {
         return false;
       }
-      
+
       // Check if reminder was already shown today
       final String? lastReminderDate = prefs.getString(_keyLastReminderShown);
       final String today = DateTime.now().toIso8601String().split('T')[0];
-      
+
       if (lastReminderDate == today) {
         return false; // Already shown today
       }
-      
+
       return true;
     } catch (e) {
       return false;
@@ -130,14 +133,14 @@ class DailyReminderService {
     try {
       final prefs = await SharedPreferences.getInstance();
       await prefs.setBool(_keyReminderEnabled, enabled);
-      
+
       final notificationService = NotificationService();
       if (enabled) {
         // Schedule notifications if enabling (09:00, 12:00, 18:00)
         await initializeDailyReminder();
       } else {
-        // Cancel all notifications if disabling
-        await notificationService.cancelAllNotifications();
+        // Daily reminders and prayer-time alerts are independent preferences.
+        await notificationService.cancelDailyReminderNotifications();
       }
     } catch (e) {}
   }
@@ -158,13 +161,13 @@ class DailyReminderService {
     try {
       final prefs = await SharedPreferences.getInstance();
       await prefs.setString(_keyReminderTime, time);
-      
+
       // Schedule all daily reminders (09:00, 12:00, 18:00)
       final notificationService = NotificationService();
       await notificationService.scheduleDailyReminders(null);
     } catch (e) {}
   }
-  
+
   /// Initialize daily reminder notifications (09:00, 12:00, 18:00)
   Future<void> initializeDailyReminder() async {
     try {
@@ -232,4 +235,3 @@ class DailyReminderService {
     }
   }
 }
-

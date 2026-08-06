@@ -5,7 +5,8 @@ import 'package:http/http.dart' as http;
 /// Free API, no rate limits, 5 reciters available
 class QuranAudioService {
   static const String baseUrl = 'https://quranapi.pages.dev/api';
-  static const Duration timeoutDuration = Duration(seconds: 20); // Increased for slow networks
+  static const Duration timeoutDuration =
+      Duration(seconds: 20); // Increased for slow networks
 
   // Memory cache for audio URLs to avoid repeated API calls
   static final Map<String, String> _urlCache = {};
@@ -215,7 +216,7 @@ class QuranAudioService {
     } catch (e) {
       // Silently fail, will try fallback
     }
-    
+
     final fallbackUrl = _getFallbackUrl(surahNumber, reciterId);
     _urlCache[cacheKey] = fallbackUrl;
     return fallbackUrl;

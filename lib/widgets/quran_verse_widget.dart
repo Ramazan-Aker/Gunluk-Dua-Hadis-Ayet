@@ -6,7 +6,8 @@ import '../models/quran_verse.dart';
 class QuranVerseWidget extends StatelessWidget {
   final QuranVerse verse;
   final bool isCurrentVerse; // Is this verse currently being played?
-  final int? highlightedWordIndex; // Index of currently highlighted word (0-based)
+  final int?
+      highlightedWordIndex; // Index of currently highlighted word (0-based)
   final double arabicFontSize;
   final double turkishFontSize;
   final VoidCallback? onTap;
@@ -37,9 +38,9 @@ class QuranVerseWidget extends StatelessWidget {
         borderRadius: BorderRadius.circular(16),
         boxShadow: [
           BoxShadow(
-            color: isCurrentVerse 
-              ? const Color(0xFF1E40AF).withOpacity(0.15)
-              : Colors.grey.withOpacity(0.08),
+            color: isCurrentVerse
+                ? const Color(0xFF1E40AF).withOpacity(0.15)
+                : Colors.grey.withOpacity(0.08),
             blurRadius: isCurrentVerse ? 12 : 6,
             offset: const Offset(0, 2),
           ),
@@ -52,7 +53,8 @@ class QuranVerseWidget extends StatelessWidget {
         shape: RoundedRectangleBorder(
           borderRadius: BorderRadius.circular(16),
           side: BorderSide(
-            color: isCurrentVerse ? const Color(0xFF1E40AF) : Colors.grey.shade200,
+            color:
+                isCurrentVerse ? const Color(0xFF1E40AF) : Colors.grey.shade200,
             width: isCurrentVerse ? 2.5 : 1,
           ),
         ),
@@ -66,14 +68,14 @@ class QuranVerseWidget extends StatelessWidget {
               children: [
                 // Verse number badge - more compact
                 _buildVerseNumberBadge(),
-                
+
                 const SizedBox(height: 16),
-                
+
                 // Arabic text with word highlighting
                 _buildArabicText(context),
-                
+
                 const SizedBox(height: 12),
-                
+
                 // Divider
                 Container(
                   height: 1,
@@ -87,9 +89,9 @@ class QuranVerseWidget extends StatelessWidget {
                     ),
                   ),
                 ),
-                
+
                 const SizedBox(height: 12),
-                
+
                 // Turkish translation
                 _buildTurkishText(),
               ],

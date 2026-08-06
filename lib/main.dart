@@ -15,41 +15,46 @@ import 'screens/ramadan_screen.dart';
 import 'screens/messages_screen.dart';
 import 'screens/religious_days_screen.dart';
 import 'screens/quran_screen.dart';
+import 'screens/onboarding_screen.dart';
 import 'services/widget_verse_android_bridge.dart';
 import 'widget_verse_launch_handler.dart';
 import 'widget_verse_pending.dart';
+import 'theme/app_theme.dart';
 
 /// Main entry point of the Daily Dua & Hadith app
 void main() async {
   final widgetsBinding = WidgetsFlutterBinding.ensureInitialized();
   FlutterNativeSplash.preserve(widgetsBinding: widgetsBinding);
 
-  // Initialize Firebase (Analytics & Crashlytics)
-  try {
-    await FirebaseService.initialize();
-  } catch (e) {
-    // Firebase init failed - app continues without it
-  }
-  
-  // Initialize AdMob
-  await AdService.initialize();
-  
-  // Initialize Notification Service
-  final notificationService = NotificationService();
-  await notificationService.initialize();
-  
-  await notificationService.shouldRescheduleNotifications();
+  // These integrations are mobile-only. Skipping them on web keeps the
+  // browser preview usable without changing the Android/iOS startup flow.
+  if (!kIsWeb) {
+    // Initialize Firebase (Analytics & Crashlytics)
+    try {
+      await FirebaseService.initialize();
+    } catch (e) {
+      // Firebase init failed - app continues without it
+    }
 
-  // Initialize daily reminder notifications
-  final reminderService = DailyReminderService();
-  await reminderService.initializeDailyReminder();
-  
+    // Initialize AdMob
+    await AdService.initialize();
+
+    // Initialize Notification Service
+    final notificationService = NotificationService();
+    await notificationService.initialize();
+    await notificationService.shouldRescheduleNotifications();
+
+    // Initialize daily reminder notifications
+    final reminderService = DailyReminderService();
+    await reminderService.initializeDailyReminder();
+  }
+
   // Set preferred orientations (portrait only for better UX)
   await SystemChrome.setPreferredOrientations([
     DeviceOrientation.portraitUp,
     DeviceOrientation.portraitDown,
   ]);
-  
+
   // Set system UI overlay style
   SystemChrome.setSystemUIOverlayStyle(
     const SystemUiOverlayStyle(
@@ -74,12 +79,16 @@ class _DailyDuaAppState extends State<DailyDuaApp> with WidgetsBindingObserver {
   final GlobalKey<NavigatorState> _navigatorKey = GlobalKey<NavigatorState>();
   StreamSubscription<Uri?>? _widgetClickSub;
 
-  Future<void> _androidWidgetVersePipeline() async {
-    if (kIsWeb || !Platform.isAndroid) return;
+  Future<void> _widgetVersePipeline() async {
+    if (kIsWeb || !(Platform.isAndroid || Platform.isIOS)) return;
     await HomeScreenWidgetService.syncRandomVerseForWidget();
-    await WidgetVerseAndroidBridge.consumeAndDispatchToFlutter();
+    if (Platform.isAndroid) {
+      await WidgetVerseAndroidBridge.consumeAndDispatchToFlutter();
+    }
     await WidgetVerseLaunchHandler.handleInitialLaunch();
-    await WidgetVerseAndroidBridge.consumeAndDispatchToFlutter();
+    if (Platform.isAndroid) {
+      await WidgetVerseAndroidBridge.consumeAndDispatchToFlutter();
+    }
   }
 
   void _scheduleAndroidWidgetVersePulls() {
@@ -102,9 +111,9 @@ class _DailyDuaAppState extends State<DailyDuaApp> with WidgetsBindingObserver {
     _widgetClickSub = WidgetVerseLaunchHandler.subscribeWidgetClicks();
     WidgetsBinding.instance.addPostFrameCallback((_) async {
       FlutterNativeSplash.remove();
-      if (!kIsWeb && Platform.isAndroid) {
-        await _androidWidgetVersePipeline();
-        _scheduleAndroidWidgetVersePulls();
+      if (!kIsWeb && (Platform.isAndroid || Platform.isIOS)) {
+        await _widgetVersePipeline();
+        if (Platform.isAndroid) _scheduleAndroidWidgetVersePulls();
       }
     });
   }
@@ -122,6 +131,10 @@ class _DailyDuaAppState extends State<DailyDuaApp> with WidgetsBindingObserver {
       unawaited(HomeScreenWidgetService.syncRandomVerseForWidget());
       WidgetVerseAndroidBridge.consumeAndDispatchToFlutter();
       _scheduleAndroidWidgetVersePulls();
+    } else if (state == AppLifecycleState.resumed &&
+        !kIsWeb &&
+        Platform.isIOS) {
+      unawaited(HomeScreenWidgetService.syncRandomVerseForWidget());
     }
   }
 
@@ -132,82 +145,14 @@ class _DailyDuaAppState extends State<DailyDuaApp> with WidgetsBindingObserver {
       // App metadata
       title: 'Her Gün İslam',
       debugShowCheckedModeBanner: false,
-      
-      // Theme configuration
-      theme: ThemeData(
-        // Primary color scheme (blue + gold theme)
-        primarySwatch: Colors.blue,
-        primaryColor: const Color(0xFF1E40AF),
-        scaffoldBackgroundColor: const Color(0xFFEFF6FF),
-        
-        // AppBar theme
-        appBarTheme: const AppBarTheme(
-          backgroundColor: Color(0xFF1E40AF),
-          foregroundColor: Colors.white,
-          elevation: 0,
-          centerTitle: true,
-        ),
-        
-        // Text theme
-        textTheme: const TextTheme(
-          displayLarge: TextStyle(
-            fontSize: 32,
-            fontWeight: FontWeight.bold,
-            color: Color(0xFF1E3A8A),
-          ),
-          displayMedium: TextStyle(
-            fontSize: 24,
-            fontWeight: FontWeight.bold,
-            color: Color(0xFF1E3A8A),
-          ),
-          bodyLarge: TextStyle(
-            fontSize: 18,
-            color: Color(0xFF2C3E50),
-            height: 1.6,
-          ),
-          bodyMedium: TextStyle(
-            fontSize: 16,
-            color: Color(0xFF2C3E50),
-          ),
-        ),
-        
-        // Button theme
-        elevatedButtonTheme: ElevatedButtonThemeData(
-          style: ElevatedButton.styleFrom(
-            backgroundColor: const Color(0xFF1E40AF),
-            foregroundColor: Colors.white,
-            padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 12),
-            shape: RoundedRectangleBorder(
-              borderRadius: BorderRadius.circular(12),
-            ),
-            elevation: 2,
-          ),
-        ),
-        
-        // Card theme
-        cardTheme: CardThemeData(
-          elevation: 4,
-          shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(20),
-          ),
-          color: Colors.white,
-        ),
-        
-        // Color scheme
-        colorScheme: ColorScheme.fromSeed(
-          seedColor: const Color(0xFF1E40AF),
-          primary: const Color(0xFF1E40AF),
-          secondary: const Color(0xFFF59E0B),
-          surface: const Color(0xFFF8FAFC),
-        ),
-      ),
-      
+
+      theme: AppTheme.light,
+
       // Home screen with bottom navigation
-      home: const MainNavigationScreen(),
+      home: const OnboardingGate(child: MainNavigationScreen()),
     );
   }
 }
-
 
 /// Main navigation screen with bottom navigation bar
 class MainNavigationScreen extends StatefulWidget {
@@ -219,11 +164,12 @@ class MainNavigationScreen extends StatefulWidget {
 
 class _MainNavigationScreenState extends State<MainNavigationScreen> {
   /// Orta sekme: Ana Sayfa
-  int _selectedIndex = 2;
+  int _selectedIndex = 0;
 
   @override
   void initState() {
     super.initState();
+    if (pendingWidgetVerseListIndex.value != null) _selectedIndex = 1;
     pendingWidgetVerseListIndex.addListener(_onPendingWidgetVerseForNav);
   }
 
@@ -241,9 +187,9 @@ class _MainNavigationScreenState extends State<MainNavigationScreen> {
 
   // Sıra: İmsakiye, Kur'an, Ana Sayfa, Mesajlar, Dini Günler
   final List<Widget> _screens = [
-    const RamadanScreen(),
-    const QuranScreen(),
     const HomeScreen(),
+    const QuranScreen(),
+    const RamadanScreen(),
     const MessagesScreen(),
     const ReligiousDaysScreen(),
   ];
@@ -258,40 +204,81 @@ class _MainNavigationScreenState extends State<MainNavigationScreen> {
   Widget build(BuildContext context) {
     return Scaffold(
       body: _screens[_selectedIndex],
-      bottomNavigationBar: BottomNavigationBar(
-        currentIndex: _selectedIndex,
-        onTap: _onItemTapped,
-        type: BottomNavigationBarType.fixed,
-        backgroundColor: const Color(0xFF1E40AF),
-        selectedItemColor: const Color(0xFFF59E0B),
-        unselectedItemColor: Colors.white70,
-        selectedFontSize: 14,
-        unselectedFontSize: 12,
-        elevation: 8,
-        items: const [
-          BottomNavigationBarItem(
-            icon: Icon(Icons.mosque),
-            label: 'İmsakiye',
-          ),
-          BottomNavigationBarItem(
-            icon: Icon(Icons.menu_book),
-            label: 'Kur\'an',
-          ),
-          BottomNavigationBarItem(
-            icon: Icon(Icons.home),
-            label: 'Ana Sayfa',
-          ),
-          BottomNavigationBarItem(
-            icon: Icon(Icons.celebration),
-            label: 'Mesajlar',
-          ),
-          BottomNavigationBarItem(
-            icon: Icon(Icons.calendar_month),
-            label: 'Dini Günler',
-          ),
-        ],
+      bottomNavigationBar: Container(
+        decoration: BoxDecoration(
+          color: AppTheme.surface,
+          boxShadow: [
+            BoxShadow(
+              color: AppTheme.navy.withValues(alpha: .07),
+              blurRadius: 18,
+              offset: const Offset(0, -4),
+            ),
+          ],
+        ),
+        child: BottomNavigationBar(
+          currentIndex: _selectedIndex,
+          onTap: _onItemTapped,
+          type: BottomNavigationBarType.fixed,
+          backgroundColor: Colors.transparent,
+          selectedItemColor: AppTheme.navy,
+          unselectedItemColor: AppTheme.textMuted,
+          selectedFontSize: 12,
+          unselectedFontSize: 12,
+          selectedLabelStyle: const TextStyle(fontWeight: FontWeight.w700),
+          elevation: 0,
+          items: const [
+            BottomNavigationBarItem(
+              icon: Icon(Icons.home_outlined),
+              activeIcon: _ActiveNavIcon(Icons.home_rounded),
+              label: 'Ana Sayfa',
+            ),
+            BottomNavigationBarItem(
+              icon: Icon(Icons.menu_book_outlined),
+              activeIcon: _ActiveNavIcon(Icons.menu_book_rounded),
+              label: 'Kur\'an',
+            ),
+            BottomNavigationBarItem(
+              icon: Icon(Icons.mosque_outlined),
+              activeIcon: _ActiveNavIcon(Icons.mosque_rounded),
+              label: 'Namaz',
+            ),
+            BottomNavigationBarItem(
+              icon: Icon(Icons.chat_bubble_outline_rounded),
+              activeIcon: _ActiveNavIcon(Icons.chat_bubble_rounded),
+              label: 'Mesajlar',
+            ),
+            BottomNavigationBarItem(
+              icon: Icon(Icons.more_horiz_rounded),
+              activeIcon: _ActiveNavIcon(Icons.more_horiz_rounded),
+              label: 'Diğer',
+            ),
+          ],
+        ),
       ),
     );
   }
 }
 
+class _ActiveNavIcon extends StatelessWidget {
+  final IconData icon;
+  const _ActiveNavIcon(this.icon);
+
+  @override
+  Widget build(BuildContext context) {
+    return Column(
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        Icon(icon),
+        const SizedBox(height: 2),
+        Container(
+          width: 5,
+          height: 5,
+          decoration: const BoxDecoration(
+            color: AppTheme.gold,
+            shape: BoxShape.circle,
+          ),
+        ),
+      ],
+    );
+  }
+}

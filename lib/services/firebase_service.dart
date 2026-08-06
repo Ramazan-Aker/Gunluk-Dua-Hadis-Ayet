@@ -18,13 +18,13 @@ class FirebaseService {
       await Firebase.initializeApp();
       _analytics = FirebaseAnalytics.instance;
       _crashlytics = FirebaseCrashlytics.instance;
-      
+
       if (kDebugMode) {
         await _crashlytics?.setCrashlyticsCollectionEnabled(false);
       } else {
         await _crashlytics?.setCrashlyticsCollectionEnabled(true);
       }
-      
+
       FlutterError.onError = (errorDetails) {
         final s = errorDetails.exceptionAsString();
         if (s.contains('AudioPlayerException') ||
@@ -139,7 +139,7 @@ class AnalyticsEvents {
   static const String reminderEnabled = 'reminder_enabled';
   static const String reminderDisabled = 'reminder_disabled';
   static const String reminderShown = 'reminder_shown';
-  
+
   // Ramadan feature events
   static const String ramadanScreenViewed = 'ramadan_screen_viewed';
   static const String ramadanCitySelected = 'ramadan_city_selected';
@@ -170,4 +170,3 @@ class AnalyticsParams {
   static const String surahNumber = 'surah_number';
   static const String reciterId = 'reciter_id';
 }
-

@@ -3,11 +3,13 @@ import 'package:cached_network_image/cached_network_image.dart';
 import '../models/greeting_message.dart';
 
 /// Shareable card for Cuma, Kandil, and Bayram messages
-/// Always renders at 1080x1080 for consistent quality; use FittedBox for smaller preview
+/// Renders at the selected social-media dimensions; use FittedBox for preview.
 class GreetingShareableCard extends StatelessWidget {
   final String categoryId;
   final String messageText;
   final String messageTitle;
+  final String signature;
+
   /// Arka plan görseli (Pixabay vb.)
   final String? imageUrl;
   final double width;
@@ -18,6 +20,7 @@ class GreetingShareableCard extends StatelessWidget {
     required this.categoryId,
     required this.messageText,
     required this.messageTitle,
+    this.signature = '',
     this.imageUrl,
     this.width = 1080,
     this.height = 1080,
@@ -26,7 +29,7 @@ class GreetingShareableCard extends StatelessWidget {
   GreetingCategory get _categoryType =>
       GreetingCategoryInfo.getCategoryType(categoryId);
 
-  static const double _designSize = 1080;
+  bool get _hasImage => imageUrl != null && imageUrl!.isNotEmpty;
 
   @override
   Widget build(BuildContext context) {
@@ -40,15 +43,16 @@ class GreetingShareableCard extends StatelessWidget {
     }
   }
 
-  Widget _buildMessageContent(double fontSize, Color textColor, {bool hasImage = false}) {
+  Widget _buildMessageContent(double fontSize, Color textColor,
+      {bool hasImage = false}) {
     return SizedBox(
-      width: 920,
-      height: 580,
+      width: width - 120,
+      height: height * .46,
       child: FittedBox(
         fit: BoxFit.scaleDown,
         alignment: Alignment.center,
         child: SizedBox(
-          width: 900,
+          width: width - 160,
           child: Text(
             '"$messageText"',
             textAlign: TextAlign.center,
@@ -120,11 +124,85 @@ class GreetingShareableCard extends StatelessWidget {
     );
   }
 
+  Widget _imageBrandBadge() {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 12),
+      decoration: BoxDecoration(
+        color: Colors.black.withValues(alpha: .38),
+        borderRadius: BorderRadius.circular(30),
+        border: Border.all(color: Colors.white.withValues(alpha: .24)),
+      ),
+      child: const Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Icon(Icons.mosque_rounded, size: 22, color: Colors.white),
+          SizedBox(width: 9),
+          Text(
+            'Her Gün İslam',
+            style: TextStyle(
+              color: Colors.white,
+              fontSize: 18,
+              fontWeight: FontWeight.w700,
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _messageAttribution() {
+    return Row(
+      mainAxisAlignment: MainAxisAlignment.center,
+      children: [
+        Container(width: 42, height: 1, color: Colors.white54),
+        Flexible(
+          child: Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 16),
+            child: Text(
+              messageTitle.toUpperCase(),
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
+              style: const TextStyle(
+                color: Colors.white70,
+                fontSize: 17,
+                letterSpacing: 1.7,
+                fontWeight: FontWeight.w600,
+              ),
+            ),
+          ),
+        ),
+        Container(width: 42, height: 1, color: Colors.white54),
+      ],
+    );
+  }
+
+  Widget _signatureLabel({required bool onDark}) {
+    if (signature.trim().isEmpty) return const SizedBox.shrink();
+    return Text(
+      '— ${signature.trim()}',
+      textAlign: TextAlign.center,
+      style: TextStyle(
+        color: onDark ? Colors.white : const Color(0xFF173D32),
+        fontSize: 22,
+        fontStyle: FontStyle.italic,
+        fontWeight: FontWeight.w600,
+        shadows: onDark
+            ? [
+                Shadow(
+                  color: Colors.black.withValues(alpha: .4),
+                  blurRadius: 4,
+                ),
+              ]
+            : null,
+      ),
+    );
+  }
+
   /// Cuma theme: elegant gradient, mosque silhouette, floral decor
   Widget _buildCumaCard() {
     return Container(
-      width: _designSize,
-      height: _designSize,
+      width: width,
+      height: height,
       decoration: const BoxDecoration(
         gradient: LinearGradient(
           colors: [
@@ -140,6 +218,8 @@ class GreetingShareableCard extends StatelessWidget {
         children: [
           _buildImageBackground(),
           _buildImageOverlay(),
+          if (_hasImage)
+            Positioned(top: 34, right: 34, child: _imageBrandBadge()),
           // Mosque silhouette
           const Positioned(
             bottom: 80,
@@ -159,13 +239,15 @@ class GreetingShareableCard extends StatelessWidget {
             top: 50,
             left: 50,
             child: Icon(Icons.local_florist,
-                size: 55, color: const Color(0xFF1E40AF).withValues(alpha: 0.5)),
+                size: 55,
+                color: const Color(0xFF1E40AF).withValues(alpha: 0.5)),
           ),
           Positioned(
             bottom: 100,
             right: 55,
             child: Icon(Icons.local_florist,
-                size: 42, color: const Color(0xFFF59E0B).withValues(alpha: 0.5)),
+                size: 42,
+                color: const Color(0xFFF59E0B).withValues(alpha: 0.5)),
           ),
           // Main content - görsel varsa altta karartılmış alan üzerinde beyaz metin
           imageUrl != null && imageUrl!.isNotEmpty
@@ -178,21 +260,31 @@ class GreetingShareableCard extends StatelessWidget {
                       mainAxisSize: MainAxisSize.min,
                       mainAxisAlignment: MainAxisAlignment.center,
                       children: [
-                        _buildMessageContent(38, const Color(0xFF1E3A8A), hasImage: true),
-                        const SizedBox(height: 40),
-                        _appBadge(compact: true, onDark: true),
+                        _buildMessageContent(38, const Color(0xFF1E3A8A),
+                            hasImage: true),
+                        const SizedBox(height: 30),
+                        _messageAttribution(),
+                        if (signature.trim().isNotEmpty) ...[
+                          const SizedBox(height: 22),
+                          _signatureLabel(onDark: true),
+                        ],
                       ],
                     ),
                   ),
                 )
               : Center(
                   child: Padding(
-                    padding: const EdgeInsets.symmetric(horizontal: 60, vertical: 80),
+                    padding: const EdgeInsets.symmetric(
+                        horizontal: 60, vertical: 80),
                     child: Column(
                       mainAxisAlignment: MainAxisAlignment.center,
                       mainAxisSize: MainAxisSize.min,
                       children: [
                         _buildMessageContent(40, const Color(0xFF1E3A8A)),
+                        if (signature.trim().isNotEmpty) ...[
+                          const SizedBox(height: 28),
+                          _signatureLabel(onDark: false),
+                        ],
                         const SizedBox(height: 60),
                         _appBadge(),
                       ],
@@ -207,8 +299,8 @@ class GreetingShareableCard extends StatelessWidget {
   /// Kandil theme: warm gold/beige, lantern/crescent
   Widget _buildKandilCard() {
     return Container(
-      width: _designSize,
-      height: _designSize,
+      width: width,
+      height: height,
       decoration: const BoxDecoration(
         gradient: LinearGradient(
           colors: [
@@ -224,24 +316,29 @@ class GreetingShareableCard extends StatelessWidget {
         children: [
           _buildImageBackground(),
           _buildImageOverlay(),
+          if (_hasImage)
+            Positioned(top: 34, right: 34, child: _imageBrandBadge()),
           // Lantern/crescent decorations
           Positioned(
             top: 55,
             left: 65,
             child: Icon(Icons.nightlight_round,
-                size: 52, color: const Color(0xFFB8860B).withValues(alpha: 0.6)),
+                size: 52,
+                color: const Color(0xFFB8860B).withValues(alpha: 0.6)),
           ),
           Positioned(
             top: 85,
             right: 75,
             child: Icon(Icons.star,
-                size: 38, color: const Color(0xFFC9A227).withValues(alpha: 0.55)),
+                size: 38,
+                color: const Color(0xFFC9A227).withValues(alpha: 0.55)),
           ),
           Positioned(
             bottom: 85,
             left: 55,
             child: Icon(Icons.nightlight_round,
-                size: 44, color: const Color(0xFFD4A84B).withValues(alpha: 0.45)),
+                size: 44,
+                color: const Color(0xFFD4A84B).withValues(alpha: 0.45)),
           ),
           // Main content
           imageUrl != null && imageUrl!.isNotEmpty
@@ -254,9 +351,14 @@ class GreetingShareableCard extends StatelessWidget {
                       mainAxisSize: MainAxisSize.min,
                       mainAxisAlignment: MainAxisAlignment.center,
                       children: [
-                        _buildMessageContent(36, const Color(0xFF2C2416), hasImage: true),
-                        const SizedBox(height: 40),
-                        _appBadge(compact: true, onDark: true),
+                        _buildMessageContent(36, const Color(0xFF2C2416),
+                            hasImage: true),
+                        const SizedBox(height: 30),
+                        _messageAttribution(),
+                        if (signature.trim().isNotEmpty) ...[
+                          const SizedBox(height: 22),
+                          _signatureLabel(onDark: true),
+                        ],
                       ],
                     ),
                   ),
@@ -264,7 +366,8 @@ class GreetingShareableCard extends StatelessWidget {
               : Center(
                   child: Container(
                     margin: const EdgeInsets.all(55),
-                    padding: const EdgeInsets.symmetric(horizontal: 45, vertical: 50),
+                    padding: const EdgeInsets.symmetric(
+                        horizontal: 45, vertical: 50),
                     decoration: BoxDecoration(
                       color: Colors.white.withValues(alpha: 0.6),
                       borderRadius: BorderRadius.circular(24),
@@ -278,6 +381,10 @@ class GreetingShareableCard extends StatelessWidget {
                       mainAxisSize: MainAxisSize.min,
                       children: [
                         _buildMessageContent(36, const Color(0xFF2C2416)),
+                        if (signature.trim().isNotEmpty) ...[
+                          const SizedBox(height: 28),
+                          _signatureLabel(onDark: false),
+                        ],
                         const SizedBox(height: 50),
                         _appBadge(),
                       ],
@@ -314,8 +421,8 @@ class GreetingShareableCard extends StatelessWidget {
     ];
 
     return Container(
-      width: _designSize,
-      height: _designSize,
+      width: width,
+      height: height,
       decoration: BoxDecoration(
         color: const Color(0xFFFAFAFA),
         borderRadius: BorderRadius.circular(8),
@@ -331,12 +438,14 @@ class GreetingShareableCard extends StatelessWidget {
         children: [
           _buildImageBackground(),
           _buildImageOverlay(),
+          if (_hasImage)
+            Positioned(top: 34, right: 34, child: _imageBrandBadge()),
           // Star confetti (positions as fractions)
           ...List.generate(12, (i) {
             final p = positions[i];
             return Positioned(
-              left: _designSize * p.dx - 12,
-              top: _designSize * p.dy - 12,
+              left: width * p.dx - 12,
+              top: height * p.dy - 12,
               child: Icon(
                 Icons.star,
                 size: 18 + (i % 3) * 4,
@@ -355,20 +464,30 @@ class GreetingShareableCard extends StatelessWidget {
                       mainAxisSize: MainAxisSize.min,
                       mainAxisAlignment: MainAxisAlignment.center,
                       children: [
-                        _buildMessageContent(36, const Color(0xFF2C3E50), hasImage: true),
-                        const SizedBox(height: 40),
-                        _appBadge(compact: true, onDark: true),
+                        _buildMessageContent(36, const Color(0xFF2C3E50),
+                            hasImage: true),
+                        const SizedBox(height: 30),
+                        _messageAttribution(),
+                        if (signature.trim().isNotEmpty) ...[
+                          const SizedBox(height: 22),
+                          _signatureLabel(onDark: true),
+                        ],
                       ],
                     ),
                   ),
                 )
               : Center(
                   child: Padding(
-                    padding: const EdgeInsets.symmetric(horizontal: 60, vertical: 80),
+                    padding: const EdgeInsets.symmetric(
+                        horizontal: 60, vertical: 80),
                     child: Column(
                       mainAxisSize: MainAxisSize.min,
                       children: [
                         _buildMessageContent(36, const Color(0xFF2C3E50)),
+                        if (signature.trim().isNotEmpty) ...[
+                          const SizedBox(height: 28),
+                          _signatureLabel(onDark: false),
+                        ],
                         const SizedBox(height: 60),
                         _appBadge(),
                       ],

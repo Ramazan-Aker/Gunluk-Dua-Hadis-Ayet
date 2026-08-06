@@ -89,15 +89,19 @@ class ShareableCard extends StatelessWidget {
               const SizedBox(height: 40),
               // Main text
               Flexible(
-                child: SingleChildScrollView(
-                  child: Text(
-                    item.text,
-                    textAlign: TextAlign.center,
-                    style: const TextStyle(
-                      fontSize: 32,
-                      height: 1.8,
-                      color: Color(0xFF2C3E50),
-                      letterSpacing: 0.5,
+                child: FittedBox(
+                  fit: BoxFit.scaleDown,
+                  child: SizedBox(
+                    width: width - 220,
+                    child: Text(
+                      item.text,
+                      textAlign: TextAlign.center,
+                      style: const TextStyle(
+                        fontSize: 32,
+                        height: 1.8,
+                        color: Color(0xFF2C3E50),
+                        letterSpacing: 0.5,
+                      ),
                     ),
                   ),
                 ),
@@ -105,7 +109,8 @@ class ShareableCard extends StatelessWidget {
               const SizedBox(height: 40),
               // Source
               Container(
-                padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 14),
+                padding:
+                    const EdgeInsets.symmetric(horizontal: 24, vertical: 14),
                 decoration: BoxDecoration(
                   color: const Color(0xFFEFF6FF).withValues(alpha: 0.5),
                   borderRadius: BorderRadius.circular(12),

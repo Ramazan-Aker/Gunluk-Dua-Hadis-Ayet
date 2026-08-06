@@ -1,4 +1,4 @@
-﻿import 'verse_timing.dart';
+import 'verse_timing.dart';
 
 /// Single response from Quran.com: chapter audio URL + verse timings (same file).
 class ChapterRecitationResult {
@@ -13,7 +13,5 @@ class ChapterRecitationResult {
   });
 
   bool get hasSyncData =>
-      audioUrl != null &&
-      audioUrl!.isNotEmpty &&
-      timings.isNotEmpty;
+      audioUrl != null && audioUrl!.isNotEmpty && timings.isNotEmpty;
 }

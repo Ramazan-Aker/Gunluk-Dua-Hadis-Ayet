@@ -1,7 +1,6 @@
 import 'package:flutter/material.dart';
-import 'package:cached_network_image/cached_network_image.dart';
 import '../models/daily_item.dart';
-import '../services/pixabay_image_service.dart';
+import '../theme/app_theme.dart';
 
 /// Beautiful card widget to display Daily Dua/Hadith/Ayah
 class ItemCard extends StatefulWidget {
@@ -11,6 +10,7 @@ class ItemCard extends StatefulWidget {
   final VoidCallback? onMarkAsRead;
   final bool isSharing;
   final bool isRead;
+
   /// iOS share sheet konumu için paylaş butonuna atanan key
   final GlobalKey? shareButtonKey;
 
@@ -30,26 +30,6 @@ class ItemCard extends StatefulWidget {
 }
 
 class _ItemCardState extends State<ItemCard> {
-  final PixabayImageService _pixabay = PixabayImageService();
-  String? _imageUrl;
-  bool _imageLoading = true;
-
-  @override
-  void initState() {
-    super.initState();
-    _loadBackgroundImage();
-  }
-
-  Future<void> _loadBackgroundImage() async {
-    final url = await _pixabay.fetchRandomImage('günlük_dua');
-    if (mounted) {
-      setState(() {
-        _imageUrl = url;
-        _imageLoading = false;
-      });
-    }
-  }
-
   @override
   Widget build(BuildContext context) {
     return Container(
@@ -58,7 +38,7 @@ class _ItemCardState extends State<ItemCard> {
         borderRadius: BorderRadius.circular(20),
         boxShadow: [
           BoxShadow(
-            color: Colors.black.withValues(alpha: 0.1),
+            color: AppTheme.navyContainer.withValues(alpha: 0.07),
             blurRadius: 20,
             offset: const Offset(0, 10),
           ),
@@ -68,34 +48,13 @@ class _ItemCardState extends State<ItemCard> {
         borderRadius: BorderRadius.circular(20),
         child: Stack(
           children: [
-            // Background image
-            if (_imageUrl != null && !_imageLoading)
-              Positioned.fill(
-                child: CachedNetworkImage(
-                  imageUrl: _imageUrl!,
-                  fit: BoxFit.cover,
-                  placeholder: (context, url) => Container(color: Colors.white),
-                  errorWidget: (context, url, error) => Container(color: Colors.white),
-                ),
-              ),
-            
-            // White overlay for readability
             Positioned.fill(
-              child: Container(
-                decoration: BoxDecoration(
-                  gradient: LinearGradient(
-                    begin: Alignment.topCenter,
-                    end: Alignment.bottomCenter,
-                    colors: [
-                      Colors.white.withOpacity(0.92),
-                      Colors.white.withOpacity(0.95),
-                      Colors.white.withOpacity(0.92),
-                    ],
-                  ),
-                ),
+              child: ColoredBox(
+                color: Colors.white,
+                child: CustomPaint(painter: _DiamondPatternPainter()),
               ),
             ),
-            
+
             // Content
             Padding(
               padding: const EdgeInsets.all(24),
@@ -105,34 +64,42 @@ class _ItemCardState extends State<ItemCard> {
                 children: [
                   // Title with icon
                   Row(
-                    mainAxisAlignment: MainAxisAlignment.center,
                     children: [
                       Text(
                         widget.item.getIcon(),
                         style: const TextStyle(fontSize: 28),
                       ),
                       const SizedBox(width: 12),
-                      Text(
-                        widget.item.getTitle(),
-                        style: const TextStyle(
-                          fontSize: 22,
-                          fontWeight: FontWeight.bold,
-                          color: Color(0xFF1E3A8A),
+                      Expanded(
+                        child: Text(
+                          widget.item.getTitle(),
+                          style: const TextStyle(
+                            fontSize: 22,
+                            fontWeight: FontWeight.w700,
+                            color: AppTheme.navy,
+                          ),
                         ),
                       ),
                       if (widget.isRead) ...[
                         const SizedBox(width: 8),
                         const Icon(
                           Icons.check_circle,
-                          color: Color(0xFF1E40AF),
+                          color: AppTheme.emerald,
                           size: 24,
+                        ),
+                      ] else if (widget.onMarkAsRead != null) ...[
+                        IconButton(
+                          tooltip: 'Okundu olarak işaretle',
+                          onPressed: widget.onMarkAsRead,
+                          icon: const Icon(Icons.bookmark_border_rounded,
+                              color: AppTheme.navy),
                         ),
                       ],
                     ],
                   ),
-                  
+
                   const SizedBox(height: 24),
-                  
+
                   // Divider
                   Container(
                     height: 2,
@@ -141,17 +108,17 @@ class _ItemCardState extends State<ItemCard> {
                     decoration: BoxDecoration(
                       gradient: LinearGradient(
                         colors: [
-                          const Color(0xFF1E40AF).withValues(alpha: 0.3),
-                          const Color(0xFF1E40AF),
-                          const Color(0xFF1E40AF).withValues(alpha: 0.3),
+                          AppTheme.navy.withValues(alpha: 0.12),
+                          AppTheme.navy,
+                          AppTheme.navy.withValues(alpha: 0.12),
                         ],
                       ),
                       borderRadius: BorderRadius.circular(2),
                     ),
                   ),
-                  
+
                   const SizedBox(height: 24),
-                  
+
                   // Main text
                   Text(
                     widget.item.text,
@@ -159,57 +126,26 @@ class _ItemCardState extends State<ItemCard> {
                     style: const TextStyle(
                       fontSize: 18,
                       height: 1.8,
-                      color: Color(0xFF2C3E50),
+                      color: AppTheme.text,
                       letterSpacing: 0.5,
                     ),
                   ),
-                  
+
                   const SizedBox(height: 24),
-                  
+
                   // Source
-                  Container(
-                    padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-                    decoration: BoxDecoration(
-                      color: const Color(0xFFEFF6FF).withValues(alpha: 0.5),
-                      borderRadius: BorderRadius.circular(12),
-                    ),
-                    child: Text(
-                      '— ${widget.item.source}',
-                      textAlign: TextAlign.center,
-                      style: const TextStyle(
-                        fontSize: 14,
-                        fontStyle: FontStyle.italic,
-                        color: Color(0xFF1E40AF),
-                        fontWeight: FontWeight.w500,
-                      ),
+                  Text(
+                    '— ${widget.item.source}',
+                    textAlign: TextAlign.center,
+                    style: const TextStyle(
+                      fontSize: 14,
+                      color: AppTheme.textMuted,
+                      fontWeight: FontWeight.w500,
                     ),
                   ),
-                  
+
                   const SizedBox(height: 24),
-                  
-                  // Mark as read button (if not read yet)
-                  if (!widget.isRead && widget.onMarkAsRead != null)
-                    Padding(
-                      padding: const EdgeInsets.only(bottom: 12),
-                      child: SizedBox(
-                        width: double.infinity,
-                        child: ElevatedButton.icon(
-                          onPressed: widget.onMarkAsRead,
-                          icon: const Icon(Icons.check_circle_outline, size: 20),
-                          label: const Text('Okudum olarak işaretle'),
-                          style: ElevatedButton.styleFrom(
-                            backgroundColor: const Color(0xFFF59E0B),
-                            foregroundColor: Colors.white,
-                            padding: const EdgeInsets.symmetric(vertical: 14),
-                            shape: RoundedRectangleBorder(
-                              borderRadius: BorderRadius.circular(12),
-                            ),
-                            elevation: 2,
-                          ),
-                        ),
-                      ),
-                    ),
-                  
+
                   // Action buttons
                   Row(
                     children: [
@@ -224,26 +160,28 @@ class _ItemCardState extends State<ItemCard> {
                                   height: 20,
                                   child: CircularProgressIndicator(
                                     strokeWidth: 2,
-                                    valueColor: AlwaysStoppedAnimation<Color>(Colors.white),
+                                    valueColor: AlwaysStoppedAnimation<Color>(
+                                        Colors.white),
                                   ),
                                 )
                               : const Icon(Icons.share, size: 20),
-                          label: Text(widget.isSharing ? 'Oluşturuluyor...' : 'Paylaş'),
+                          label: Text(
+                              widget.isSharing ? 'Oluşturuluyor...' : 'Paylaş'),
                           style: ElevatedButton.styleFrom(
-                            backgroundColor: const Color(0xFF1E40AF),
-                            foregroundColor: Colors.white,
-                            disabledBackgroundColor: const Color(0xFF1E40AF).withValues(alpha: 0.6),
+                            backgroundColor: AppTheme.surfaceLow,
+                            foregroundColor: AppTheme.navy,
+                            disabledBackgroundColor: AppTheme.surfaceLow,
                             padding: const EdgeInsets.symmetric(vertical: 14),
                             shape: RoundedRectangleBorder(
                               borderRadius: BorderRadius.circular(12),
                             ),
-                            elevation: 2,
+                            elevation: 0,
                           ),
                         ),
                       ),
-                      
+
                       const SizedBox(width: 12),
-                      
+
                       // Next button (amber accent)
                       Expanded(
                         child: ElevatedButton.icon(
@@ -251,13 +189,11 @@ class _ItemCardState extends State<ItemCard> {
                           icon: const Icon(Icons.refresh, size: 20),
                           label: const Text('Sonraki'),
                           style: ElevatedButton.styleFrom(
-                            backgroundColor: const Color(0xFFF59E0B),
+                            backgroundColor: AppTheme.navy,
                             foregroundColor: Colors.white,
                             padding: const EdgeInsets.symmetric(vertical: 14),
-                            shape: RoundedRectangleBorder(
-                              borderRadius: BorderRadius.circular(12),
-                            ),
-                            elevation: 2,
+                            shape: const StadiumBorder(),
+                            elevation: 0,
                           ),
                         ),
                       ),
@@ -271,6 +207,28 @@ class _ItemCardState extends State<ItemCard> {
       ),
     );
   }
+}
+
+class _DiamondPatternPainter extends CustomPainter {
+  @override
+  void paint(Canvas canvas, Size size) {
+    final paint = Paint()..color = AppTheme.navy.withValues(alpha: .025);
+    const cell = 44.0;
+    for (double y = -cell; y < size.height + cell; y += cell) {
+      for (double x = -cell; x < size.width + cell; x += cell) {
+        final path = Path()
+          ..moveTo(x + cell / 2, y)
+          ..lineTo(x + cell, y + cell / 2)
+          ..lineTo(x + cell / 2, y + cell)
+          ..lineTo(x, y + cell / 2)
+          ..close();
+        canvas.drawPath(path, paint);
+      }
+    }
+  }
+
+  @override
+  bool shouldRepaint(covariant CustomPainter oldDelegate) => false;
 }
 
 /// Loading widget
@@ -312,4 +270,3 @@ class LoadingCard extends StatelessWidget {
     );
   }
 }
-

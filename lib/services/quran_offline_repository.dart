@@ -116,6 +116,31 @@ class QuranOfflineRepository {
         )
         .toList();
   }
+
+  Future<List<QuranOfflineVerse>> getVersesBetween({
+    required int startSurah,
+    required int startAyah,
+    int? endSurah,
+    int? endAyah,
+  }) async {
+    await ensureLoaded();
+    final list = _verses ?? const <QuranOfflineVerse>[];
+    final startIndex = list.indexWhere(
+      (verse) => verse.surah == startSurah && verse.ayahInSurah == startAyah,
+    );
+    if (startIndex < 0) return const [];
+
+    var endIndex = list.length;
+    if (endSurah != null && endAyah != null) {
+      final found = list.indexWhere(
+        (verse) => verse.surah == endSurah && verse.ayahInSurah == endAyah,
+        startIndex + 1,
+      );
+      if (found >= 0) endIndex = found;
+    }
+    return List<QuranOfflineVerse>.unmodifiable(
+        list.sublist(startIndex, endIndex));
+  }
 }
 
 @pragma('vm:entry-point')

@@ -2,12 +2,12 @@
 /// Used in Ramadan prayer times feature
 class PrayerTimes {
   final DateTime date;
-  final String imsak;   // Sahur (Fajr start time)
-  final String gunes;   // Sunrise
-  final String ogle;    // Dhuhr (Noon)
-  final String ikindi;  // Asr (Afternoon)
-  final String aksam;   // Maghrib (Iftar/Evening)
-  final String yatsi;   // Isha (Night)
+  final String imsak; // Sahur (Fajr start time)
+  final String gunes; // Sunrise
+  final String ogle; // Dhuhr (Noon)
+  final String ikindi; // Asr (Afternoon)
+  final String aksam; // Maghrib (Iftar/Evening)
+  final String yatsi; // Isha (Night)
 
   PrayerTimes({
     required this.date,
@@ -53,8 +53,8 @@ class PrayerTimes {
   bool get isToday {
     final now = DateTime.now();
     return date.year == now.year &&
-           date.month == now.month &&
-           date.day == now.day;
+        date.month == now.month &&
+        date.day == now.day;
   }
 
   /// Format date as "1 Gün" or "15 Gün"
@@ -66,8 +66,19 @@ class PrayerTimes {
   /// Format date as "19 Şubat" or "1 Mart"
   String get dateLabel {
     final months = [
-      '', 'Ocak', 'Şubat', 'Mart', 'Nisan', 'Mayıs', 'Haziran',
-      'Temmuz', 'Ağustos', 'Eylül', 'Ekim', 'Kasım', 'Aralık'
+      '',
+      'Ocak',
+      'Şubat',
+      'Mart',
+      'Nisan',
+      'Mayıs',
+      'Haziran',
+      'Temmuz',
+      'Ağustos',
+      'Eylül',
+      'Ekim',
+      'Kasım',
+      'Aralık'
     ];
     return '${date.day} ${months[date.month]}';
   }
@@ -75,10 +86,29 @@ class PrayerTimes {
   /// Full date with day of week: "19 Şubat 2026 Perşembe"
   String get fullDateLabel {
     final months = [
-      '', 'Ocak', 'Şubat', 'Mart', 'Nisan', 'Mayıs', 'Haziran',
-      'Temmuz', 'Ağustos', 'Eylül', 'Ekim', 'Kasım', 'Aralık'
+      '',
+      'Ocak',
+      'Şubat',
+      'Mart',
+      'Nisan',
+      'Mayıs',
+      'Haziran',
+      'Temmuz',
+      'Ağustos',
+      'Eylül',
+      'Ekim',
+      'Kasım',
+      'Aralık'
     ];
-    const days = ['Pazar', 'Pazartesi', 'Salı', 'Çarşamba', 'Perşembe', 'Cuma', 'Cumartesi'];
+    const days = [
+      'Pazar',
+      'Pazartesi',
+      'Salı',
+      'Çarşamba',
+      'Perşembe',
+      'Cuma',
+      'Cumartesi'
+    ];
     return '${date.day} ${months[date.month]} ${date.year} ${days[date.weekday % 7]}';
   }
 

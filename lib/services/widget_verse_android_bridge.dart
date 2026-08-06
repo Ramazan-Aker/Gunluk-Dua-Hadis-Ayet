@@ -15,7 +15,8 @@ class WidgetVerseAndroidBridge {
   static Future<void> consumeAndDispatchToFlutter() async {
     if (kIsWeb || !Platform.isAndroid) return;
     try {
-      final raw = await _channel.invokeMethod<dynamic>('consumePendingVerseListIndex');
+      final raw =
+          await _channel.invokeMethod<dynamic>('consumePendingVerseListIndex');
       final idx = _parseIndex(raw);
       if (idx == null || idx < 0) return;
       pendingWidgetVerseListIndex.value = null;

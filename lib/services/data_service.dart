@@ -13,11 +13,11 @@ class DataService {
   DataService._internal();
 
   final QuranApiService _quranApiService = QuranApiService();
-  
+
   List<DailyItem> _items = [];
   DailyItem? _currentItem;
   final Random _random = Random();
-  
+
   // Flag to determine if we should use Quran API for ayahs
   final bool _useQuranApi = true;
 
@@ -63,7 +63,7 @@ class DataService {
     try {
       final String jsonString = await rootBundle.loadString('assets/data.json');
       final List<dynamic> jsonList = json.decode(jsonString);
-      
+
       // Filter out ayahs if we're using Quran API
       if (_useQuranApi) {
         _items = jsonList
@@ -73,7 +73,7 @@ class DataService {
       } else {
         _items = jsonList.map((json) => DailyItem.fromJson(json)).toList();
       }
-      
+
       await SharedPreferences.getInstance().then((prefs) {
         prefs.setBool(_keyUseApi, false);
       });
@@ -88,13 +88,13 @@ class DataService {
       final prefs = await SharedPreferences.getInstance();
       final String? cachedJson = prefs.getString(_keyCachedItems);
       final String? cacheDate = prefs.getString(_keyCacheDate);
-      
+
       if (cachedJson != null && cacheDate != null) {
         // Check if cache is less than 24 hours old
         final DateTime cacheTime = DateTime.parse(cacheDate);
         final DateTime now = DateTime.now();
         final Duration difference = now.difference(cacheTime);
-        
+
         if (difference.inHours < 24) {
           final List<dynamic> jsonList = json.decode(cachedJson);
           return jsonList.map((json) => DailyItem.fromJson(json)).toList();
@@ -121,7 +121,7 @@ class DataService {
       // New day - select a random type (dua, hadith, or ayah)
       final types = ['dua', 'hadith', 'ayah'];
       final selectedType = types[_random.nextInt(types.length)];
-      
+
       // If ayah and Quran API enabled, fetch from API
       if (selectedType == 'ayah' && _useQuranApi) {
         try {
@@ -146,12 +146,13 @@ class DataService {
       }
 
       // Filter by selected type
-      final filteredItems = _items.where((item) => item.type == selectedType).toList();
+      final filteredItems =
+          _items.where((item) => item.type == selectedType).toList();
       final itemsToUse = filteredItems.isNotEmpty ? filteredItems : _items;
-      
+
       final int newIndex = _random.nextInt(itemsToUse.length);
       _currentItem = itemsToUse[newIndex];
-      
+
       // Save to preferences
       await prefs.setString(_keyLastDate, today);
       await prefs.setString('last_type', selectedType);
@@ -162,18 +163,18 @@ class DataService {
       // Same day - load saved item
       final String? lastItemApi = prefs.getString('last_item_api');
       final bool fromApi = lastItemApi == 'true';
-      
+
       if (fromApi && lastType == 'ayah' && _useQuranApi) {
         // If yesterday's item was from API, we should reload it
         // For simplicity, we'll reload from API or use saved cache
         // For now, just use local items
       }
-      
+
       final int? savedIndex = prefs.getInt(_keyLastItemIndex);
       if (_items.isEmpty) {
         await loadData();
       }
-      
+
       if (savedIndex != null && savedIndex < _items.length) {
         _currentItem = _items[savedIndex];
       } else if (_items.isNotEmpty) {
@@ -189,8 +190,9 @@ class DataService {
   /// If type is 'ayah' and Quran API is enabled, fetches from API
   Future<DailyItem?> getRandomItem({String? preferredType}) async {
     // If no preferred type, randomly select one (33% chance for each type)
-    final actualType = preferredType ?? ['dua', 'hadith', 'ayah'][_random.nextInt(3)];
-    
+    final actualType =
+        preferredType ?? ['dua', 'hadith', 'ayah'][_random.nextInt(3)];
+
     // If type is 'ayah' and Quran API is enabled, fetch from API
     if (actualType == 'ayah' && _useQuranApi) {
       try {
@@ -212,14 +214,16 @@ class DataService {
     }
 
     // Filter items by actual type
-    List<DailyItem> availableItems = _items.where((item) => item.type == actualType).toList();
+    List<DailyItem> availableItems =
+        _items.where((item) => item.type == actualType).toList();
     if (availableItems.isEmpty) {
       availableItems = _items; // Fallback to all items
     }
 
     final prefs = await SharedPreferences.getInstance();
     final List<String>? shownItemsStr = prefs.getStringList(_keyShownItems);
-    final List<int> shownItems = shownItemsStr?.map((s) => int.parse(s)).toList() ?? [];
+    final List<int> shownItems =
+        shownItemsStr?.map((s) => int.parse(s)).toList() ?? [];
 
     // Find available indices
     List<int> availableIndices = [];
@@ -230,18 +234,21 @@ class DataService {
     }
 
     // If all items shown, reset
-    if (availableIndices.isEmpty || shownItems.length >= availableItems.length) {
+    if (availableIndices.isEmpty ||
+        shownItems.length >= availableItems.length) {
       shownItems.clear();
       availableIndices = List.generate(availableItems.length, (index) => index);
     }
 
     // Select random item
-    final int randomIndex = availableIndices[_random.nextInt(availableIndices.length)];
+    final int randomIndex =
+        availableIndices[_random.nextInt(availableIndices.length)];
     _currentItem = availableItems[randomIndex];
 
     // Add to shown items
     shownItems.add(randomIndex);
-    await prefs.setStringList(_keyShownItems, shownItems.map((i) => i.toString()).toList());
+    await prefs.setStringList(
+        _keyShownItems, shownItems.map((i) => i.toString()).toList());
 
     return _currentItem;
   }

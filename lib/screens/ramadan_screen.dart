@@ -1,4 +1,5 @@
 import 'dart:async';
+import 'dart:convert';
 import 'package:flutter/material.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import '../models/turkish_city.dart';
@@ -6,7 +7,10 @@ import '../models/prayer_times.dart';
 import '../services/ramadan_api_service.dart';
 import '../services/firebase_service.dart'
     show FirebaseService, AnalyticsEvents, AnalyticsParams;
+import '../services/notification_service.dart';
+import '../services/prayer_notification_service.dart';
 import '../services/ad_service.dart';
+import '../theme/app_theme.dart';
 
 /// Namaz vakitleri / İmsakiye ekranı — geri sayım, günlük vakitler ve liste
 class RamadanScreen extends StatefulWidget {
@@ -22,17 +26,26 @@ class _RamadanScreenState extends State<RamadanScreen> {
       ScrollController(); // İmsakiye listesi için iç scroll
 
   TurkishCity? _selectedCity;
+  final List<TurkishCity> _savedCities = [];
+  int _activeCityIndex = 0;
   List<PrayerTimes> _prayerTimesList = [];
   PrayerTimes? _todaysPrayerTimes;
   bool _isShowingRamadan = false;
   int? _displayRamadanYear;
+  bool _showCalendar = false;
 
   bool _isLoading = true;
   String? _errorMessage;
+  final PrayerNotificationService _prayerNotifications =
+      PrayerNotificationService();
+  bool _prayerNotificationsEnabled = false;
+  int _notificationLeadMinutes = 10;
 
   // SharedPreferences keys
   static const String _keySelectedCityId = 'ramadan_selected_city_id';
   static const String _keySelectedCityName = 'ramadan_selected_city_name';
+  static const String _keySavedCities = 'ramadan_saved_cities_v2';
+  static const String _keyActiveCityIndex = 'ramadan_active_city_index_v2';
 
   /// Valid ezanvakti state ID range (500-580)
   static bool _isValidStateId(String id) {
@@ -44,10 +57,22 @@ class _RamadanScreenState extends State<RamadanScreen> {
   void initState() {
     super.initState();
     _loadSavedCity();
+    _loadNotificationPreference();
 
     // Log screen view
     FirebaseService.logScreenView(screenName: AnalyticsEvents.screenRamadan);
     FirebaseService.logEvent(name: AnalyticsEvents.ramadanScreenViewed);
+  }
+
+  Future<void> _loadNotificationPreference() async {
+    final enabled = await _prayerNotifications.isEnabled();
+    final lead = await _prayerNotifications.leadMinutes();
+    if (mounted) {
+      setState(() {
+        _prayerNotificationsEnabled = enabled;
+        _notificationLeadMinutes = lead;
+      });
+    }
   }
 
   @override
@@ -60,32 +85,35 @@ class _RamadanScreenState extends State<RamadanScreen> {
   Future<void> _loadSavedCity() async {
     try {
       final prefs = await SharedPreferences.getInstance();
-      String? cityId = prefs.getString(_keySelectedCityId);
-      final String? cityName = prefs.getString(_keySelectedCityName);
-
-      // Migrate: old abdus IDs are invalid for ezanvakti - re-prompt city selection
-      if (cityId != null && !_isValidStateId(cityId)) {
-        await prefs.remove(_keySelectedCityId);
-        await prefs.remove(_keySelectedCityName);
-        await _apiService.clearCache();
-        cityId = null;
+      final savedJson = prefs.getString(_keySavedCities);
+      if (savedJson != null) {
+        final decoded = jsonDecode(savedJson) as List<dynamic>;
+        _savedCities.addAll(
+          decoded
+              .map((item) => TurkishCity.fromJson(item as Map<String, dynamic>))
+              .where((city) => _isValidStateId(city.id))
+              .take(3),
+        );
       }
 
-      final id = cityId;
-      if (id != null && cityName != null) {
-        setState(() {
-          _selectedCity = TurkishCity(
-            id: id,
-            name: cityName,
-            country: 'Türkiye',
-          );
-        });
+      // Tek şehir kullanan eski sürümden geçiş.
+      if (_savedCities.isEmpty) {
+        final cityId = prefs.getString(_keySelectedCityId);
+        final cityName = prefs.getString(_keySelectedCityName);
+        if (cityId != null && cityName != null && _isValidStateId(cityId)) {
+          _savedCities
+              .add(TurkishCity(id: cityId, name: cityName, country: 'Türkiye'));
+        }
+      }
+
+      if (_savedCities.isNotEmpty) {
+        _activeCityIndex = (prefs.getInt(_keyActiveCityIndex) ?? 0)
+            .clamp(0, _savedCities.length - 1);
+        setState(() => _selectedCity = _savedCities[_activeCityIndex]);
+        await _persistCities();
         await _loadPrayerTimes();
       } else {
-        // No saved city, show selection dialog
-        setState(() {
-          _isLoading = false;
-        });
+        setState(() => _isLoading = false);
         WidgetsBinding.instance.addPostFrameCallback((_) {
           _showCitySelectionDialog();
         });
@@ -101,9 +129,7 @@ class _RamadanScreenState extends State<RamadanScreen> {
   /// Save selected city to SharedPreferences
   Future<void> _saveSelectedCity(TurkishCity city) async {
     try {
-      final prefs = await SharedPreferences.getInstance();
-      await prefs.setString(_keySelectedCityId, city.id);
-      await prefs.setString(_keySelectedCityName, city.name);
+      await _persistCities();
 
       // Log city selection
       FirebaseService.logEvent(
@@ -111,6 +137,22 @@ class _RamadanScreenState extends State<RamadanScreen> {
         parameters: {AnalyticsParams.cityName: city.name},
       );
     } catch (e) {}
+  }
+
+  Future<void> _persistCities() async {
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setString(
+      _keySavedCities,
+      jsonEncode(_savedCities.map((city) => city.toJson()).toList()),
+    );
+    await prefs.setInt(_keyActiveCityIndex, _activeCityIndex);
+    if (_selectedCity != null) {
+      await prefs.setString(_keySelectedCityId, _selectedCity!.id);
+      await prefs.setString(_keySelectedCityName, _selectedCity!.name);
+    } else {
+      await prefs.remove(_keySelectedCityId);
+      await prefs.remove(_keySelectedCityName);
+    }
   }
 
   /// Load prayer times for selected city
@@ -173,6 +215,10 @@ class _RamadanScreenState extends State<RamadanScreen> {
         _isLoading = false;
       });
 
+      if (_prayerNotificationsEnabled) {
+        unawaited(_reschedulePrayerNotifications());
+      }
+
       // Scroll to today's row in table after build
       WidgetsBinding.instance.addPostFrameCallback((_) {
         _scrollToTodayRow();
@@ -213,75 +259,276 @@ class _RamadanScreenState extends State<RamadanScreen> {
 
   /// Show city selection dialog with search - 81 cities
   /// Fetches correct location ID from API for accurate Diyanet prayer times
+  String _normalizeCitySearch(String value) => value
+      .toLowerCase()
+      .replaceAll('ı', 'i')
+      .replaceAll('ş', 's')
+      .replaceAll('ğ', 'g')
+      .replaceAll('ü', 'u')
+      .replaceAll('ö', 'o')
+      .replaceAll('ç', 'c');
+
   Future<void> _showCitySelectionDialog() async {
     final allCities = _apiService.getAllTurkishCities();
     String searchQuery = '';
 
     await showDialog(
       context: context,
-      barrierDismissible: false,
+      barrierDismissible: _savedCities.isNotEmpty,
       builder: (dialogContext) => StatefulBuilder(
         builder: (context, setDialogState) {
+          final normalizedQuery = _normalizeCitySearch(searchQuery);
           final filteredCities = searchQuery.isEmpty
               ? allCities
               : allCities
-                  .where((c) => c['name']!
-                      .toLowerCase()
-                      .contains(searchQuery.toLowerCase()))
+                  .where((city) => _normalizeCitySearch(city['name']!)
+                      .contains(normalizedQuery))
                   .toList();
 
-          return AlertDialog(
-            title: const Text(
-              'Şehir Seçin (81 İl)',
-              style: TextStyle(
-                fontWeight: FontWeight.bold,
-                color: Color(0xFF1E3A8A),
-              ),
+          return Dialog(
+            backgroundColor: AppTheme.ivory,
+            insetPadding: const EdgeInsets.symmetric(horizontal: 20),
+            shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(24),
             ),
-            content: SizedBox(
-              width: double.maxFinite,
-              height: 400,
+            clipBehavior: Clip.antiAlias,
+            child: ConstrainedBox(
+              constraints: BoxConstraints(
+                maxWidth: 520,
+                maxHeight: MediaQuery.sizeOf(context).height * .82,
+              ),
               child: Column(
-                mainAxisSize: MainAxisSize.min,
                 children: [
-                  TextField(
-                    decoration: InputDecoration(
-                      hintText: 'Şehir ara...',
-                      prefixIcon:
-                          const Icon(Icons.search, color: Color(0xFF1E40AF)),
-                      border: OutlineInputBorder(
-                        borderRadius: BorderRadius.circular(12),
-                      ),
-                      contentPadding: const EdgeInsets.symmetric(
-                        horizontal: 16,
-                        vertical: 12,
-                      ),
+                  Container(
+                    width: double.infinity,
+                    padding: const EdgeInsets.fromLTRB(20, 18, 12, 18),
+                    color: AppTheme.navy,
+                    child: Row(
+                      children: [
+                        Container(
+                          width: 46,
+                          height: 46,
+                          decoration: BoxDecoration(
+                            color: AppTheme.mint.withValues(alpha: .16),
+                            shape: BoxShape.circle,
+                          ),
+                          child: const Icon(
+                            Icons.location_on_rounded,
+                            color: AppTheme.mint,
+                            size: 25,
+                          ),
+                        ),
+                        const SizedBox(width: 13),
+                        Expanded(
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              const Text(
+                                'Şehir Seçin',
+                                style: TextStyle(
+                                  color: Colors.white,
+                                  fontSize: 21,
+                                  fontWeight: FontWeight.w700,
+                                ),
+                              ),
+                              const SizedBox(height: 3),
+                              Text(
+                                _savedCities.length < 3
+                                    ? 'En fazla 3 şehir ekleyebilirsiniz'
+                                    : 'Yeni seçim aktif şehrin yerini alır',
+                                style: const TextStyle(
+                                  color: Color(0xFFD6E3EA),
+                                  fontSize: 12,
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                        if (_savedCities.isNotEmpty)
+                          IconButton(
+                            onPressed: () => Navigator.pop(dialogContext),
+                            tooltip: 'Kapat',
+                            icon: const Icon(
+                              Icons.close_rounded,
+                              color: Colors.white,
+                            ),
+                          ),
+                      ],
                     ),
-                    onChanged: (value) {
-                      setDialogState(() => searchQuery = value);
-                    },
                   ),
-                  const SizedBox(height: 12),
-                  Expanded(
-                    child: ListView.builder(
-                      shrinkWrap: true,
-                      itemCount: filteredCities.length,
-                      itemBuilder: (context, index) {
-                        final city = filteredCities[index];
-                        return ListTile(
-                          leading: const Icon(
-                            Icons.location_city,
-                            color: Color(0xFF1E40AF),
+                  Padding(
+                    padding: const EdgeInsets.fromLTRB(18, 18, 18, 10),
+                    child: TextField(
+                      autofocus: true,
+                      decoration: InputDecoration(
+                        hintText: 'Şehir ara...',
+                        prefixIcon: const Icon(
+                          Icons.search_rounded,
+                          color: AppTheme.emerald,
+                        ),
+                        filled: true,
+                        fillColor: Colors.white,
+                        border: OutlineInputBorder(
+                          borderRadius: BorderRadius.circular(16),
+                          borderSide: BorderSide.none,
+                        ),
+                        enabledBorder: OutlineInputBorder(
+                          borderRadius: BorderRadius.circular(16),
+                          borderSide: BorderSide(
+                            color: AppTheme.outline.withValues(alpha: .45),
                           ),
-                          title: Text(city['name']!),
-                          onTap: () => _onCitySelected(
-                            dialogContext,
-                            city['name']!,
-                            city['id']!,
+                        ),
+                        focusedBorder: OutlineInputBorder(
+                          borderRadius: BorderRadius.circular(16),
+                          borderSide: const BorderSide(
+                            color: AppTheme.emerald,
+                            width: 1.5,
                           ),
-                        );
-                      },
+                        ),
+                      ),
+                      onChanged: (value) =>
+                          setDialogState(() => searchQuery = value),
                     ),
+                  ),
+                  Padding(
+                    padding: const EdgeInsets.fromLTRB(20, 0, 20, 10),
+                    child: Row(
+                      children: [
+                        Text(
+                          '${filteredCities.length} şehir',
+                          style: const TextStyle(
+                            color: AppTheme.textMuted,
+                            fontSize: 12,
+                            fontWeight: FontWeight.w600,
+                          ),
+                        ),
+                        const Spacer(),
+                        Text(
+                          '${_savedCities.length}/3 kayıtlı',
+                          style: const TextStyle(
+                            color: AppTheme.emerald,
+                            fontSize: 12,
+                            fontWeight: FontWeight.w700,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                  Expanded(
+                    child: filteredCities.isEmpty
+                        ? const Center(
+                            child: Column(
+                              mainAxisSize: MainAxisSize.min,
+                              children: [
+                                Icon(Icons.location_off_outlined,
+                                    color: AppTheme.gold, size: 42),
+                                SizedBox(height: 10),
+                                Text('Şehir bulunamadı',
+                                    style: TextStyle(
+                                        color: AppTheme.textMuted,
+                                        fontWeight: FontWeight.w600)),
+                              ],
+                            ),
+                          )
+                        : ListView.separated(
+                            padding: const EdgeInsets.fromLTRB(14, 0, 14, 18),
+                            itemCount: filteredCities.length,
+                            separatorBuilder: (_, __) =>
+                                const SizedBox(height: 7),
+                            itemBuilder: (context, index) {
+                              final city = filteredCities[index];
+                              final saved = _savedCities
+                                  .any((item) => item.id == city['id']);
+                              final active = _selectedCity?.id == city['id'];
+                              return Material(
+                                color: active ? AppTheme.mint : Colors.white,
+                                borderRadius: BorderRadius.circular(15),
+                                child: InkWell(
+                                  onTap: () => _onCitySelected(
+                                    dialogContext,
+                                    city['name']!,
+                                    city['id']!,
+                                  ),
+                                  borderRadius: BorderRadius.circular(15),
+                                  child: Container(
+                                    padding: const EdgeInsets.symmetric(
+                                      horizontal: 14,
+                                      vertical: 12,
+                                    ),
+                                    decoration: BoxDecoration(
+                                      borderRadius: BorderRadius.circular(15),
+                                      border: Border.all(
+                                        color: active
+                                            ? AppTheme.emerald
+                                            : AppTheme.outline
+                                                .withValues(alpha: .34),
+                                      ),
+                                    ),
+                                    child: Row(
+                                      children: [
+                                        Container(
+                                          width: 40,
+                                          height: 40,
+                                          decoration: BoxDecoration(
+                                            color: active
+                                                ? Colors.white
+                                                    .withValues(alpha: .72)
+                                                : AppTheme.mint
+                                                    .withValues(alpha: .56),
+                                            shape: BoxShape.circle,
+                                          ),
+                                          child: const Icon(
+                                            Icons.location_city_rounded,
+                                            color: AppTheme.emerald,
+                                            size: 21,
+                                          ),
+                                        ),
+                                        const SizedBox(width: 13),
+                                        Expanded(
+                                          child: Column(
+                                            crossAxisAlignment:
+                                                CrossAxisAlignment.start,
+                                            children: [
+                                              Text(
+                                                city['name']!,
+                                                style: const TextStyle(
+                                                  color: AppTheme.navy,
+                                                  fontSize: 15,
+                                                  fontWeight: FontWeight.w700,
+                                                ),
+                                              ),
+                                              const Text(
+                                                'Türkiye',
+                                                style: TextStyle(
+                                                  color: AppTheme.textMuted,
+                                                  fontSize: 11,
+                                                ),
+                                              ),
+                                            ],
+                                          ),
+                                        ),
+                                        if (saved)
+                                          Icon(
+                                            active
+                                                ? Icons.check_circle_rounded
+                                                : Icons.bookmark_rounded,
+                                            color: active
+                                                ? AppTheme.emerald
+                                                : AppTheme.gold,
+                                            size: 22,
+                                          )
+                                        else
+                                          const Icon(
+                                            Icons.chevron_right_rounded,
+                                            color: AppTheme.textMuted,
+                                          ),
+                                      ],
+                                    ),
+                                  ),
+                                ),
+                              );
+                            },
+                          ),
                   ),
                 ],
               ),
@@ -307,8 +554,17 @@ class _RamadanScreenState extends State<RamadanScreen> {
       country: 'Türkiye',
     );
 
+    final existingIndex = _savedCities.indexWhere((city) => city.id == stateId);
     setState(() {
-      _selectedCity = cityToUse;
+      if (existingIndex >= 0) {
+        _activeCityIndex = existingIndex;
+      } else if (_savedCities.length < 3) {
+        _savedCities.add(cityToUse);
+        _activeCityIndex = _savedCities.length - 1;
+      } else {
+        _savedCities[_activeCityIndex] = cityToUse;
+      }
+      _selectedCity = _savedCities[_activeCityIndex];
     });
 
     await _saveSelectedCity(cityToUse);
@@ -344,9 +600,78 @@ class _RamadanScreenState extends State<RamadanScreen> {
     }
   }
 
-  /// Change selected city
-  void _changeCity() {
-    _showCitySelectionDialog();
+  Future<void> _selectCity(int index) async {
+    if (index < 0 ||
+        index >= _savedCities.length ||
+        index == _activeCityIndex) {
+      return;
+    }
+    setState(() {
+      _activeCityIndex = index;
+      _selectedCity = _savedCities[index];
+    });
+    await _persistCities();
+    await _loadPrayerTimes();
+  }
+
+  Future<void> _removeCity(int index) async {
+    if (index < 0 || index >= _savedCities.length) {
+      return;
+    }
+    final selectedCityId = _selectedCity?.id;
+    setState(() {
+      _savedCities.removeAt(index);
+      if (_savedCities.isEmpty) {
+        _activeCityIndex = 0;
+        _selectedCity = null;
+        _prayerTimesList = [];
+        _todaysPrayerTimes = null;
+        _isLoading = false;
+      } else {
+        final retainedIndex = _savedCities
+            .indexWhere((savedCity) => savedCity.id == selectedCityId);
+        _activeCityIndex = retainedIndex >= 0
+            ? retainedIndex
+            : index.clamp(0, _savedCities.length - 1);
+        _selectedCity = _savedCities[_activeCityIndex];
+      }
+    });
+    await _persistCities();
+    if (_selectedCity == null) {
+      if (_prayerNotificationsEnabled) {
+        await _prayerNotifications.disable();
+        if (mounted) setState(() => _prayerNotificationsEnabled = false);
+      }
+      if (mounted) {
+        WidgetsBinding.instance
+            .addPostFrameCallback((_) => _showCitySelectionDialog());
+      }
+    } else {
+      await _loadPrayerTimes();
+    }
+  }
+
+  Future<void> _confirmRemoveCity(int index) async {
+    if (index < 0 || index >= _savedCities.length) return;
+    final city = _savedCities[index];
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text('Şehri kaldır'),
+        content: Text('${city.name} kayıtlı şehirlerden kaldırılsın mı?'),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context, false),
+            child: const Text('Vazgeç'),
+          ),
+          FilledButton(
+            onPressed: () => Navigator.pop(context, true),
+            child: const Text('Kaldır'),
+          ),
+        ],
+      ),
+    );
+    if (confirmed == true) await _removeCity(index);
   }
 
   /// Refresh prayer times
@@ -366,52 +691,189 @@ class _RamadanScreenState extends State<RamadanScreen> {
     FirebaseService.logEvent(name: AnalyticsEvents.ramadanTimesRefreshed);
   }
 
+  Future<void> _reschedulePrayerNotifications() async {
+    final city = _selectedCity;
+    if (!_prayerNotificationsEnabled ||
+        city == null ||
+        _prayerTimesList.isEmpty) {
+      return;
+    }
+    await _prayerNotifications.schedule(
+      city: city,
+      prayerTimes: _prayerTimesList,
+      leadMinutes: _notificationLeadMinutes,
+    );
+  }
+
+  Future<void> _configurePrayerNotifications() async {
+    if (_prayerNotificationsEnabled) {
+      await _prayerNotifications.disable();
+      if (mounted) setState(() => _prayerNotificationsEnabled = false);
+      return;
+    }
+
+    var selectedLead = _notificationLeadMinutes;
+    final lead = await showModalBottomSheet<int>(
+      context: context,
+      showDragHandle: true,
+      builder: (context) => SafeArea(
+        child: Padding(
+          padding: const EdgeInsets.fromLTRB(20, 4, 20, 24),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              const Text('Namaz vakti bildirimi',
+                  style: TextStyle(
+                      color: AppTheme.navy,
+                      fontSize: 21,
+                      fontWeight: FontWeight.w700)),
+              const SizedBox(height: 6),
+              Text('${_selectedCity?.name ?? ''} için ne zaman haber verilsin?',
+                  style: const TextStyle(color: AppTheme.textMuted)),
+              const SizedBox(height: 12),
+              StatefulBuilder(
+                builder: (context, setSheetState) => Column(
+                  children: [0, 10, 15, 30].map((minutes) {
+                    return RadioListTile<int>(
+                      value: minutes,
+                      groupValue: selectedLead,
+                      activeColor: AppTheme.emerald,
+                      title: Text(minutes == 0
+                          ? 'Namaz vakti geldiğinde'
+                          : '$minutes dakika önce'),
+                      onChanged: (value) =>
+                          setSheetState(() => selectedLead = value ?? 10),
+                    );
+                  }).toList(),
+                ),
+              ),
+              const SizedBox(height: 8),
+              SizedBox(
+                width: double.infinity,
+                child: ElevatedButton(
+                  onPressed: () => Navigator.pop(context, selectedLead),
+                  child: const Text('Bildirimleri Aç'),
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+    if (lead == null || _selectedCity == null) return;
+    final permission = await NotificationService().requestPermission();
+    if (!permission || !mounted) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(content: Text('Bildirim izni verilmedi.')));
+      }
+      return;
+    }
+    await _prayerNotifications.enableAndSchedule(
+      city: _selectedCity!,
+      prayerTimes: _prayerTimesList,
+      leadMinutes: lead,
+    );
+    if (!mounted) return;
+    setState(() {
+      _prayerNotificationsEnabled = true;
+      _notificationLeadMinutes = lead;
+    });
+    ScaffoldMessenger.of(context).showSnackBar(
+      const SnackBar(content: Text('Namaz bildirimleri açıldı.')),
+    );
+  }
+
+  Widget _buildCityTabs() {
+    if (_savedCities.isEmpty) return const SizedBox.shrink();
+    return Container(
+      color: AppTheme.surface,
+      padding: const EdgeInsets.fromLTRB(16, 8, 16, 12),
+      child: SingleChildScrollView(
+        scrollDirection: Axis.horizontal,
+        child: Row(
+          children: [
+            ..._savedCities.asMap().entries.map((entry) {
+              final selected = entry.key == _activeCityIndex;
+              return Padding(
+                padding: const EdgeInsets.only(right: 8),
+                child: InputChip(
+                  selected: selected,
+                  onSelected: (_) => _selectCity(entry.key),
+                  onDeleted: () => _confirmRemoveCity(entry.key),
+                  deleteButtonTooltipMessage:
+                      '${entry.value.name} şehrini kaldır',
+                  deleteIcon: Icon(
+                    Icons.close_rounded,
+                    size: 15,
+                    color: selected ? Colors.white70 : AppTheme.textMuted,
+                  ),
+                  avatar: Icon(Icons.location_on_outlined,
+                      size: 18,
+                      color: selected ? Colors.white : AppTheme.emerald),
+                  label: Text(entry.value.name),
+                  selectedColor: AppTheme.navy,
+                  backgroundColor: Colors.white,
+                  labelStyle: TextStyle(
+                      color: selected ? Colors.white : AppTheme.navy,
+                      fontWeight: FontWeight.w600),
+                  side: BorderSide(
+                      color: selected
+                          ? AppTheme.navy
+                          : AppTheme.outline.withValues(alpha: .45)),
+                  shape: const StadiumBorder(),
+                ),
+              );
+            }),
+            if (_savedCities.length < 3)
+              ActionChip(
+                avatar: const Icon(Icons.add_rounded, size: 18),
+                label: const Text('Şehir ekle'),
+                onPressed: _showCitySelectionDialog,
+              ),
+          ],
+        ),
+      ),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        title: Text(
-          _scheduleTitle,
-          style: const TextStyle(
-            fontWeight: FontWeight.bold,
-            fontSize: 20,
-          ),
-        ),
+        leading: const Icon(Icons.menu_rounded),
+        title: const Text('Her Gün İslam', style: TextStyle(fontSize: 24)),
         centerTitle: true,
-        elevation: 0,
-        flexibleSpace: Container(
-          decoration: const BoxDecoration(
-            gradient: LinearGradient(
-              colors: [Color(0xFF1E40AF), Color(0xFF3B82F6)],
-              begin: Alignment.topLeft,
-              end: Alignment.bottomRight,
-            ),
-          ),
-        ),
         actions: [
+          IconButton(
+            icon: Icon(
+              _prayerNotificationsEnabled
+                  ? Icons.notifications_active_rounded
+                  : Icons.notifications_none_rounded,
+              color: _prayerNotificationsEnabled
+                  ? AppTheme.emerald
+                  : AppTheme.navy,
+            ),
+            onPressed:
+                _selectedCity == null ? null : _configurePrayerNotifications,
+            tooltip: _prayerNotificationsEnabled
+                ? 'Namaz bildirimlerini kapat'
+                : 'Namaz bildirimlerini aç',
+          ),
           if (_selectedCity != null)
             IconButton(
-              icon: const Icon(Icons.refresh),
+              icon: const Icon(Icons.refresh_rounded),
               onPressed: _refreshPrayerTimes,
               tooltip: 'Yenile',
             ),
-          IconButton(
-            icon: const Icon(Icons.location_city),
-            onPressed: _changeCity,
-            tooltip: 'Şehir Değiştir',
-          ),
         ],
       ),
       body: Container(
-        decoration: const BoxDecoration(
-          gradient: LinearGradient(
-            colors: [Color(0xFFEFF6FF), Color(0xFFDBEAFE)],
-            begin: Alignment.topCenter,
-            end: Alignment.bottomCenter,
-          ),
-        ),
+        color: AppTheme.ivory,
         child: Column(
           children: [
+            _buildCityTabs(),
             Expanded(
               child: _isLoading
                   ? const Center(child: CircularProgressIndicator())
@@ -460,9 +922,64 @@ class _RamadanScreenState extends State<RamadanScreen> {
           const SizedBox(height: 8),
           if (_todaysPrayerTimes != null) _buildTodaysPrayerTimesCard(),
           const SizedBox(height: 8),
-          _buildImsakiyeCalendar(),
+          _buildCalendarLauncher(),
         ],
       ),
+    );
+  }
+
+  Widget _buildCalendarLauncher() {
+    return Column(
+      children: [
+        Material(
+          color: Colors.white,
+          borderRadius: BorderRadius.circular(16),
+          child: InkWell(
+            borderRadius: BorderRadius.circular(16),
+            onTap: () => setState(() => _showCalendar = !_showCalendar),
+            child: Container(
+              width: double.infinity,
+              padding: const EdgeInsets.all(18),
+              decoration: BoxDecoration(
+                borderRadius: BorderRadius.circular(16),
+                boxShadow: AppTheme.ambientShadow,
+              ),
+              child: Row(
+                children: [
+                  const Icon(Icons.calendar_month_outlined,
+                      color: AppTheme.navy, size: 28),
+                  const SizedBox(width: 14),
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        const Text('Aylık İmsakiye',
+                            style: TextStyle(
+                                color: AppTheme.navy,
+                                fontSize: 18,
+                                fontWeight: FontWeight.w700)),
+                        const SizedBox(height: 4),
+                        Text(_scheduleTitle,
+                            style: const TextStyle(
+                                color: AppTheme.textMuted, fontSize: 13)),
+                      ],
+                    ),
+                  ),
+                  AnimatedRotation(
+                    turns: _showCalendar ? .25 : 0,
+                    duration: const Duration(milliseconds: 200),
+                    child: const Icon(Icons.arrow_forward_rounded),
+                  ),
+                ],
+              ),
+            ),
+          ),
+        ),
+        if (_showCalendar) ...[
+          const SizedBox(height: 12),
+          _buildImsakiyeCalendar(),
+        ],
+      ],
     );
   }
 
@@ -656,37 +1173,20 @@ class _RamadanScreenState extends State<RamadanScreen> {
     final screenWidth = mediaQuery.size.width;
     final isSmallScreen = screenWidth < 360 || mediaQuery.size.height < 600;
 
-    final cardPadding = isSmallScreen ? 8.0 : 12.0;
-    final titleFontSize = isSmallScreen ? 15.0 : 17.0;
-    final spacing = isSmallScreen ? 8.0 : 12.0;
+    final cardPadding = isSmallScreen ? 10.0 : 14.0;
+    final activePrayer = _nextPrayerLabelFor(pt);
 
     return Container(
-      margin: EdgeInsets.symmetric(horizontal: isSmallScreen ? 8 : 12),
+      margin: EdgeInsets.zero,
       padding: EdgeInsets.all(cardPadding),
       decoration: BoxDecoration(
         color: Colors.white,
-        borderRadius: BorderRadius.circular(20),
-        boxShadow: [
-          BoxShadow(
-            color: Colors.black.withValues(alpha: 0.1),
-            blurRadius: 10,
-            offset: const Offset(0, 5),
-          ),
-        ],
+        borderRadius: BorderRadius.circular(18),
+        boxShadow: AppTheme.ambientShadow,
       ),
       child: Column(
         mainAxisSize: MainAxisSize.min,
         children: [
-          Text(
-            'Bugünkü Vakitler - ${pt.dateLabel}',
-            style: TextStyle(
-              fontSize: titleFontSize,
-              fontWeight: FontWeight.bold,
-              color: const Color(0xFF1E3A8A),
-            ),
-          ),
-          SizedBox(height: spacing),
-          // Column+Row - overflow önlemek için GridView yerine (sabit aspect ratio sorun çıkarıyordu)
           Column(
             mainAxisSize: MainAxisSize.min,
             children: [
@@ -695,11 +1195,12 @@ class _RamadanScreenState extends State<RamadanScreen> {
                   Expanded(
                       child: _buildPrayerTimeItem(
                           context, 'İmsak', pt.imsak, Icons.bedtime,
-                          isSpecial: true)),
+                          isActive: activePrayer == 'İmsak')),
                   SizedBox(width: isSmallScreen ? 8 : 10),
                   Expanded(
                       child: _buildPrayerTimeItem(
-                          context, 'Güneş', pt.gunes, Icons.wb_sunny)),
+                          context, 'Güneş', pt.gunes, Icons.wb_sunny,
+                          isActive: activePrayer == 'Güneş')),
                 ],
               ),
               SizedBox(height: isSmallScreen ? 8 : 10),
@@ -707,11 +1208,13 @@ class _RamadanScreenState extends State<RamadanScreen> {
                 children: [
                   Expanded(
                       child: _buildPrayerTimeItem(
-                          context, 'Öğle', pt.ogle, Icons.light_mode)),
+                          context, 'Öğle', pt.ogle, Icons.light_mode,
+                          isActive: activePrayer == 'Öğle')),
                   SizedBox(width: isSmallScreen ? 8 : 10),
                   Expanded(
                       child: _buildPrayerTimeItem(
-                          context, 'İkindi', pt.ikindi, Icons.brightness_6)),
+                          context, 'İkindi', pt.ikindi, Icons.brightness_6,
+                          isActive: activePrayer == 'İkindi')),
                 ],
               ),
               SizedBox(height: isSmallScreen ? 8 : 10),
@@ -720,11 +1223,12 @@ class _RamadanScreenState extends State<RamadanScreen> {
                   Expanded(
                       child: _buildPrayerTimeItem(
                           context, 'Akşam', pt.aksam, Icons.nightlight,
-                          isIftar: true)),
+                          isActive: activePrayer == 'Akşam')),
                   SizedBox(width: isSmallScreen ? 8 : 10),
                   Expanded(
                       child: _buildPrayerTimeItem(
-                          context, 'Yatsı', pt.yatsi, Icons.dark_mode)),
+                          context, 'Yatsı', pt.yatsi, Icons.dark_mode,
+                          isActive: activePrayer == 'Yatsı')),
                 ],
               ),
             ],
@@ -734,10 +1238,31 @@ class _RamadanScreenState extends State<RamadanScreen> {
     );
   }
 
-  /// Build individual prayer time item - responsive, overflow-safe
+  String _nextPrayerLabelFor(PrayerTimes pt) {
+    final now = DateTime.now();
+    final entries = <(String, String)>[
+      ('İmsak', pt.imsak),
+      ('Güneş', pt.gunes),
+      ('Öğle', pt.ogle),
+      ('İkindi', pt.ikindi),
+      ('Akşam', pt.aksam),
+      ('Yatsı', pt.yatsi),
+    ];
+    for (final entry in entries) {
+      final parts = entry.$2.split(':');
+      if (parts.length != 2) continue;
+      final hour = int.tryParse(parts[0]);
+      final minute = int.tryParse(parts[1]);
+      if (hour == null || minute == null) continue;
+      final at = DateTime(now.year, now.month, now.day, hour, minute);
+      if (now.isBefore(at)) return entry.$1;
+    }
+    return 'İmsak';
+  }
+
   Widget _buildPrayerTimeItem(
       BuildContext context, String name, String time, IconData icon,
-      {bool isSpecial = false, bool isIftar = false}) {
+      {bool isActive = false}) {
     final isSmallScreen = MediaQuery.of(context).size.width < 360;
     final iconSize = isSmallScreen ? 16.0 : 18.0;
     final nameFontSize = isSmallScreen ? 10.0 : 11.0;
@@ -745,22 +1270,14 @@ class _RamadanScreenState extends State<RamadanScreen> {
     final padding = isSmallScreen ? 4.0 : 6.0;
 
     return Container(
+      constraints: const BoxConstraints(minHeight: 58),
       padding: EdgeInsets.symmetric(horizontal: 10, vertical: padding),
       decoration: BoxDecoration(
-        color: isSpecial
-            ? const Color(0xFFDBEAFE)
-            : isIftar
-                ? const Color(0xFFFFF3E0)
-                : const Color(0xFFF5F5F5),
-        borderRadius: BorderRadius.circular(10),
-        border: Border.all(
-          color: isSpecial
-              ? const Color(0xFF1E40AF)
-              : isIftar
-                  ? const Color(0xFFFF9800)
-                  : Colors.transparent,
-          width: 2,
-        ),
+        color: isActive ? AppTheme.mint : AppTheme.surfaceLow,
+        borderRadius: BorderRadius.circular(12),
+        border: isActive
+            ? const Border(left: BorderSide(color: AppTheme.emerald, width: 4))
+            : null,
       ),
       child: FittedBox(
         fit: BoxFit.scaleDown,
@@ -771,35 +1288,22 @@ class _RamadanScreenState extends State<RamadanScreen> {
             Icon(
               icon,
               size: iconSize,
-              color: isSpecial
-                  ? const Color(0xFF1E40AF)
-                  : isIftar
-                      ? const Color(0xFFFF9800)
-                      : const Color(0xFF757575),
+              color: isActive ? AppTheme.emerald : AppTheme.textMuted,
             ),
             const SizedBox(width: 6),
-            Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              mainAxisSize: MainAxisSize.min,
-              mainAxisAlignment: MainAxisAlignment.center,
-              children: [
-                Text(
-                  name,
-                  style: TextStyle(
+            Text(name,
+                style: TextStyle(
                     fontSize: nameFontSize,
                     fontWeight: FontWeight.w600,
-                    color: const Color(0xFF2C3E50),
-                  ),
-                ),
-                Text(
-                  time,
-                  style: TextStyle(
-                    fontSize: timeFontSize,
-                    fontWeight: FontWeight.bold,
-                    color: const Color(0xFF1E3A8A),
-                  ),
-                ),
-              ],
+                    color: isActive ? AppTheme.emerald : AppTheme.text)),
+            const SizedBox(width: 6),
+            Text(
+              time,
+              style: TextStyle(
+                fontSize: timeFontSize,
+                fontWeight: FontWeight.w700,
+                color: AppTheme.navy,
+              ),
             ),
           ],
         ),
@@ -936,6 +1440,7 @@ class _ImsakiyeCountdownCardState extends State<ImsakiyeCountdownCard> {
   String _nextPrayerName = '';
   Duration _timeUntilNext = Duration.zero;
   bool _hasCountdown = false;
+  String _nextPrayerClock = '';
 
   static final List<(String label, String Function(PrayerTimes pt) timeOf)>
       _vakitSirasi = [
@@ -963,6 +1468,7 @@ class _ImsakiyeCountdownCardState extends State<ImsakiyeCountdownCard> {
     var name = '';
     var until = Duration.zero;
     var has = false;
+    var clock = '';
 
     final todayPt = widget.todaysPrayerTimes;
     if (todayPt != null) {
@@ -972,6 +1478,7 @@ class _ImsakiyeCountdownCardState extends State<ImsakiyeCountdownCard> {
         final t = _timeOnCalendarDay(entry.$2(todayPt), cal);
         if (t != null && now.isBefore(t)) {
           name = entry.$1;
+          clock = entry.$2(todayPt);
           until = t.difference(now);
           has = true;
           break;
@@ -991,6 +1498,7 @@ class _ImsakiyeCountdownCardState extends State<ImsakiyeCountdownCard> {
           final t = _timeOnCalendarDay(pt.imsak, tomorrow);
           if (t != null) {
             name = 'İmsak';
+            clock = pt.imsak;
             until = t.difference(now);
             has = true;
           }
@@ -1003,6 +1511,7 @@ class _ImsakiyeCountdownCardState extends State<ImsakiyeCountdownCard> {
       final t = _timeOnCalendarDay(todayPt.imsak, tomorrow);
       if (t != null && now.isBefore(t)) {
         name = 'İmsak';
+        clock = todayPt.imsak;
         until = t.difference(now);
         has = true;
       }
@@ -1012,6 +1521,7 @@ class _ImsakiyeCountdownCardState extends State<ImsakiyeCountdownCard> {
       _nextPrayerName = name;
       _timeUntilNext = until;
       _hasCountdown = has;
+      _nextPrayerClock = clock;
     });
   }
 
@@ -1055,23 +1565,13 @@ class _ImsakiyeCountdownCardState extends State<ImsakiyeCountdownCard> {
       margin: const EdgeInsets.all(16),
       padding: const EdgeInsets.all(24),
       decoration: BoxDecoration(
-        gradient: const LinearGradient(
-          colors: [Color(0xFF1E40AF), Color(0xFF3B82F6)],
-          begin: Alignment.topLeft,
-          end: Alignment.bottomRight,
-        ),
-        borderRadius: BorderRadius.circular(20),
-        boxShadow: [
-          BoxShadow(
-            color: Colors.black.withValues(alpha: 0.2),
-            blurRadius: 10,
-            offset: const Offset(0, 5),
-          ),
-        ],
+        color: AppTheme.navy,
+        borderRadius: BorderRadius.circular(18),
+        boxShadow: AppTheme.ambientShadow,
       ),
       child: Column(
         children: [
-          const Icon(Icons.schedule_rounded, color: Colors.white, size: 40),
+          const Icon(Icons.nightlight_round, color: AppTheme.mint, size: 32),
           const SizedBox(height: 12),
           Text(
             subtitle,
@@ -1087,11 +1587,25 @@ class _ImsakiyeCountdownCardState extends State<ImsakiyeCountdownCard> {
             displayText,
             style: const TextStyle(
               color: Colors.white,
-              fontSize: 48,
+              fontSize: 46,
               fontWeight: FontWeight.bold,
               fontFamily: 'monospace',
             ),
           ),
+          if (_hasCountdown && _nextPrayerClock.isNotEmpty) ...[
+            const SizedBox(height: 16),
+            Container(
+              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+              decoration: BoxDecoration(
+                color: Colors.white.withValues(alpha: .10),
+                borderRadius: BorderRadius.circular(999),
+              ),
+              child: Text(
+                'Sıradaki: $_nextPrayerName ($_nextPrayerClock)',
+                style: const TextStyle(color: Colors.white, fontSize: 13),
+              ),
+            ),
+          ],
         ],
       ),
     );

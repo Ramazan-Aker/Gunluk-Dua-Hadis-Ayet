@@ -18,12 +18,13 @@ class WordTiming {
     if (segment.isEmpty) {
       throw ArgumentError('Segment array is empty');
     }
-    
+
     // Some segments might be single values (like verse markers) - skip them
     if (segment.length < 3) {
-      throw ArgumentError('Segment must have at least 3 elements: [word_index, start_ms, end_ms]');
+      throw ArgumentError(
+          'Segment must have at least 3 elements: [word_index, start_ms, end_ms]');
     }
-    
+
     return WordTiming(
       wordIndex: (segment[0] as num).toInt(),
       startMs: (segment[1] as num).toInt(),
@@ -73,7 +74,7 @@ class VerseTiming {
   factory VerseTiming.fromJson(Map<String, dynamic> json) {
     final segmentsList = json['segments'] as List<dynamic>? ?? [];
     final segments = <WordTiming>[];
-    
+
     // Parse segments, skip invalid ones
     for (final seg in segmentsList) {
       try {
@@ -142,6 +143,7 @@ class ChapterTimingCache {
   final int reciterId;
   final List<VerseTiming> timings;
   final DateTime cachedAt;
+
   /// Quran.com audio URL (same file as [timings]); optional for legacy cache entries.
   final String? audioUrl;
 

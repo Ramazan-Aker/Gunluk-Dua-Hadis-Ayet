@@ -372,9 +372,9 @@ class RamadanApiService {
       final jsonList = prayerTimes.map((pt) => pt.toJson()).toList();
       final jsonString = json.encode(jsonList);
 
-      await prefs.setString(_keyCachedPrayerTimes, jsonString);
-      await prefs.setString(_keyCacheDate, DateTime.now().toIso8601String());
-      await prefs.setString(_keyCachedCityId, locationId);
+      await prefs.setString('${_keyCachedPrayerTimes}_$locationId', jsonString);
+      await prefs.setString(
+          '${_keyCacheDate}_$locationId', DateTime.now().toIso8601String());
     } catch (e) {}
   }
 
@@ -382,13 +382,11 @@ class RamadanApiService {
   Future<List<PrayerTimes>?> _loadCachedPrayerTimes(String locationId) async {
     try {
       final prefs = await SharedPreferences.getInstance();
-      final cachedJson = prefs.getString(_keyCachedPrayerTimes);
-      final cacheDate = prefs.getString(_keyCacheDate);
-      final cachedCityId = prefs.getString(_keyCachedCityId);
+      final cachedJson =
+          prefs.getString('${_keyCachedPrayerTimes}_$locationId');
+      final cacheDate = prefs.getString('${_keyCacheDate}_$locationId');
 
-      if (cachedJson != null &&
-          cacheDate != null &&
-          cachedCityId == locationId) {
+      if (cachedJson != null && cacheDate != null) {
         // Check if cache is less than 24 hours old
         final cacheTime = DateTime.parse(cacheDate);
         final now = DateTime.now();
@@ -402,7 +400,7 @@ class RamadanApiService {
           }).toList();
         } else {
           // Cache expired
-          await clearCache();
+          await clearCache(locationId);
         }
       }
     } catch (e) {}
@@ -410,12 +408,25 @@ class RamadanApiService {
   }
 
   /// Clear cached prayer times
-  Future<void> clearCache() async {
+  Future<void> clearCache([String? locationId]) async {
     try {
       final prefs = await SharedPreferences.getInstance();
-      await prefs.remove(_keyCachedPrayerTimes);
-      await prefs.remove(_keyCacheDate);
-      await prefs.remove(_keyCachedCityId);
+      if (locationId != null) {
+        await prefs.remove('${_keyCachedPrayerTimes}_$locationId');
+        await prefs.remove('${_keyCacheDate}_$locationId');
+      } else {
+        final keys = prefs.getKeys().where(
+              (key) =>
+                  key == _keyCachedPrayerTimes ||
+                  key == _keyCacheDate ||
+                  key == _keyCachedCityId ||
+                  key.startsWith('${_keyCachedPrayerTimes}_') ||
+                  key.startsWith('${_keyCacheDate}_'),
+            );
+        for (final key in keys.toList()) {
+          await prefs.remove(key);
+        }
+      }
     } catch (e) {}
   }
 

@@ -1,10 +1,11 @@
 import 'package:flutter/material.dart';
-import '../models/religious_day.dart';
-import '../services/religious_days_service.dart';
-import '../services/firebase_service.dart' show FirebaseService;
-import '../services/ad_service.dart';
 
-/// Dini günler ekranı - Tüm kandiller ve bayramlara kalan süre
+import '../models/religious_day.dart';
+import '../services/firebase_service.dart' show FirebaseService;
+import '../services/religious_days_service.dart';
+import '../services/ad_service.dart';
+import '../theme/app_theme.dart';
+
 class ReligiousDaysScreen extends StatefulWidget {
   const ReligiousDaysScreen({super.key});
 
@@ -13,8 +14,8 @@ class ReligiousDaysScreen extends StatefulWidget {
 }
 
 class _ReligiousDaysScreenState extends State<ReligiousDaysScreen> {
-  final ReligiousDaysService _service = ReligiousDaysService();
-  bool _showPassedOnly = false; // false = tümü, true = sadece geçenler
+  final _service = ReligiousDaysService();
+  bool _showPast = false;
 
   @override
   void initState() {
@@ -22,206 +23,246 @@ class _ReligiousDaysScreenState extends State<ReligiousDaysScreen> {
     FirebaseService.logScreenView(screenName: 'screen_religious_days');
   }
 
-  List<ReligiousDay> _getFilteredDays() {
-    final all = _service.getAllDays();
-    if (_showPassedOnly) {
-      return all.where((d) => d.daysFromNow < 0).toList()
-        ..sort((a, b) => b.date.compareTo(a.date));
-    }
-    return all;
-  }
+  @override
+  Widget build(BuildContext context) {
+    final days =
+        _showPast ? _service.getPassedDays() : _service.getUpcomingDays();
+    final featured = days.isEmpty ? null : days.first;
 
-  IconData _getIcon(IconType type) {
-    switch (type) {
-      case IconType.moon:
-        return Icons.nightlight_round;
-      case IconType.mosque:
-        return Icons.mosque;
-      case IconType.star:
-        return Icons.star;
-      case IconType.calendar:
-        return Icons.calendar_today;
+    return Scaffold(
+      backgroundColor: AppTheme.ivory,
+      appBar: AppBar(
+        leading: IconButton(
+          icon: const Icon(Icons.arrow_back_rounded, size: 30),
+          onPressed: () => Navigator.maybePop(context),
+        ),
+        title: Text(_showPast ? 'Geçmiş Dini Günler' : 'Dini Günler'),
+        actions: [
+          IconButton(
+            tooltip: _showPast ? 'Yaklaşan günler' : 'Geçmiş günler',
+            icon: Icon(
+                _showPast ? Icons.upcoming_outlined : Icons.history_rounded,
+                size: 30),
+            onPressed: () => setState(() => _showPast = !_showPast),
+          ),
+          const SizedBox(width: 8),
+        ],
+      ),
+      body: Column(
+        children: [
+          Expanded(
+            child: days.isEmpty
+                ? const Center(child: Text('Gösterilecek dini gün bulunamadı.'))
+                : ListView(
+                    padding: const EdgeInsets.fromLTRB(20, 20, 20, 32),
+                    children: [
+                      if (!_showPast && featured != null)
+                        _FeaturedDay(day: featured),
+                      if (!_showPast) const SizedBox(height: 20),
+                      ...days.skip(_showPast ? 0 : 1).map(
+                            (day) => Padding(
+                              padding: const EdgeInsets.only(bottom: 12),
+                              child: _DayTile(day: day),
+                            ),
+                          ),
+                    ],
+                  ),
+          ),
+          const AdBannerWidget(),
+        ],
+      ),
+    );
+  }
+}
+
+class _FeaturedDay extends StatelessWidget {
+  final ReligiousDay day;
+  const _FeaturedDay({required this.day});
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 26),
+      decoration: BoxDecoration(
+        color: AppTheme.navy,
+        borderRadius: BorderRadius.circular(18),
+        boxShadow: [
+          BoxShadow(
+            color: AppTheme.navy.withValues(alpha: .18),
+            blurRadius: 24,
+            offset: const Offset(0, 10),
+          ),
+        ],
+      ),
+      child: Stack(
+        alignment: Alignment.center,
+        children: [
+          Positioned.fill(
+            child: CustomPaint(painter: _CheckerPainter()),
+          ),
+          Column(
+            children: [
+              Icon(_iconFor(day.iconType),
+                  color: const Color(0xFFFFC95C), size: 46),
+              const SizedBox(height: 14),
+              Text(
+                day.name,
+                textAlign: TextAlign.center,
+                style: const TextStyle(
+                    color: Colors.white,
+                    fontSize: 26,
+                    fontWeight: FontWeight.w600),
+              ),
+              const SizedBox(height: 8),
+              Text(
+                _fullDate(day.date),
+                style: const TextStyle(color: Color(0xFFD6DCE3), fontSize: 16),
+              ),
+              const SizedBox(height: 14),
+              Container(
+                padding:
+                    const EdgeInsets.symmetric(horizontal: 24, vertical: 10),
+                decoration: BoxDecoration(
+                  color: Colors.white.withValues(alpha: .18),
+                  borderRadius: BorderRadius.circular(999),
+                ),
+                child: Text(
+                  day.countdownText,
+                  style: const TextStyle(
+                      color: Colors.white,
+                      fontSize: 17,
+                      fontWeight: FontWeight.w500),
+                ),
+              ),
+            ],
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _DayTile extends StatelessWidget {
+  final ReligiousDay day;
+  const _DayTile({required this.day});
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(16),
+        boxShadow: AppTheme.ambientShadow,
+      ),
+      child: Row(
+        children: [
+          Container(
+            width: 52,
+            height: 52,
+            decoration: BoxDecoration(
+              color: AppTheme.mint,
+              borderRadius: BorderRadius.circular(12),
+            ),
+            child:
+                Icon(_iconFor(day.iconType), color: AppTheme.emerald, size: 28),
+          ),
+          const SizedBox(width: 16),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(day.name,
+                    style: const TextStyle(
+                        color: AppTheme.navy,
+                        fontSize: 16,
+                        fontWeight: FontWeight.w600)),
+                const SizedBox(height: 3),
+                Text(_fullDate(day.date),
+                    style: const TextStyle(color: AppTheme.text, fontSize: 14)),
+                if (day.hijriDay != null && day.hijriMonth != null)
+                  Text('${day.hijriDay} ${day.hijriMonth}',
+                      style: const TextStyle(
+                          color: Color(0xFF777980), fontSize: 13)),
+              ],
+            ),
+          ),
+          const SizedBox(width: 8),
+          Container(
+            constraints: const BoxConstraints(maxWidth: 92),
+            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+            decoration: BoxDecoration(
+              color: day.daysFromNow >= 0
+                  ? const Color(0xFFFFDEA3).withValues(alpha: .55)
+                  : AppTheme.surfaceLow,
+              borderRadius: BorderRadius.circular(999),
+            ),
+            child: Text(
+              day.countdownText,
+              textAlign: TextAlign.center,
+              style: TextStyle(
+                color: day.daysFromNow >= 0
+                    ? const Color(0xFF8A6308)
+                    : AppTheme.textMuted,
+                fontSize: 12,
+                height: 1.25,
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+IconData _iconFor(IconType type) => switch (type) {
+      IconType.moon => Icons.nightlight_round,
+      IconType.mosque => Icons.mosque_rounded,
+      IconType.star => Icons.water_drop_outlined,
+      IconType.calendar => Icons.calendar_month_outlined,
+    };
+
+String _fullDate(DateTime date) {
+  const months = [
+    'Ocak',
+    'Şubat',
+    'Mart',
+    'Nisan',
+    'Mayıs',
+    'Haziran',
+    'Temmuz',
+    'Ağustos',
+    'Eylül',
+    'Ekim',
+    'Kasım',
+    'Aralık'
+  ];
+  const weekdays = [
+    'Pazartesi',
+    'Salı',
+    'Çarşamba',
+    'Perşembe',
+    'Cuma',
+    'Cumartesi',
+    'Pazar'
+  ];
+  return '${date.day} ${months[date.month - 1]} ${date.year} ${weekdays[date.weekday - 1]}';
+}
+
+class _CheckerPainter extends CustomPainter {
+  @override
+  void paint(Canvas canvas, Size size) {
+    final paint = Paint();
+    const cell = 18.0;
+    for (double y = 0; y < size.height; y += cell) {
+      for (double x = 0; x < size.width; x += cell) {
+        final even = ((x / cell).floor() + (y / cell).floor()).isEven;
+        paint.color = Colors.white.withValues(alpha: even ? .06 : .015);
+        canvas.drawRect(Rect.fromLTWH(x, y, cell, cell), paint);
+      }
     }
   }
 
   @override
-  Widget build(BuildContext context) {
-    final days = _getFilteredDays();
-
-    return Scaffold(
-      appBar: AppBar(
-        title: const Text(
-          'Dini Günler',
-          style: TextStyle(
-            fontWeight: FontWeight.bold,
-            fontSize: 20,
-          ),
-        ),
-        centerTitle: true,
-        elevation: 0,
-        flexibleSpace: Container(
-          decoration: const BoxDecoration(
-            gradient: LinearGradient(
-              colors: [Color(0xFF1E40AF), Color(0xFF3B82F6)],
-              begin: Alignment.topLeft,
-              end: Alignment.bottomRight,
-            ),
-          ),
-        ),
-        actions: [
-          IconButton(
-            icon: Icon(
-              _showPassedOnly ? Icons.event_available : Icons.history,
-            ),
-            tooltip: _showPassedOnly ? 'Tümünü göster' : 'Geçen günleri göster',
-            onPressed: () {
-              setState(() => _showPassedOnly = !_showPassedOnly);
-            },
-          ),
-        ],
-      ),
-      body: Container(
-        decoration: const BoxDecoration(
-          gradient: LinearGradient(
-            colors: [Color(0xFFEFF6FF), Color(0xFFDBEAFE)],
-            begin: Alignment.topCenter,
-            end: Alignment.bottomCenter,
-          ),
-        ),
-        child: Column(
-          children: [
-            Expanded(
-              child: days.isEmpty
-                  ? Center(
-                      child: Padding(
-                        padding: const EdgeInsets.all(24),
-                        child: Text(
-                          _showPassedOnly
-                              ? 'Henüz geçmiş dini gün yok'
-                              : 'Dini gün verisi yüklenemedi',
-                          style: const TextStyle(
-                            fontSize: 16,
-                            color: Color(0xFF1E3A8A),
-                          ),
-                          textAlign: TextAlign.center,
-                        ),
-                      ),
-                    )
-                  : ListView.builder(
-                padding: const EdgeInsets.all(16),
-                itemCount: days.length,
-                itemBuilder: (context, index) {
-                  final day = days[index];
-                  final daysLeft = day.daysFromNow;
-                  final isToday = daysLeft == 0;
-                  final isPassed = daysLeft < 0;
-
-                  return Container(
-                    margin: const EdgeInsets.only(bottom: 12),
-                    decoration: BoxDecoration(
-                      color: Colors.white,
-                      borderRadius: BorderRadius.circular(16),
-                      boxShadow: [
-                        BoxShadow(
-                          color: Colors.black.withValues(alpha: 0.08),
-                          blurRadius: 10,
-                          offset: const Offset(0, 4),
-                        ),
-                      ],
-                    ),
-                    child: Material(
-                      color: Colors.transparent,
-                      child: InkWell(
-                        borderRadius: BorderRadius.circular(16),
-                        onTap: () {},
-                        child: Padding(
-                          padding: const EdgeInsets.all(16),
-                          child: Row(
-                            children: [
-                              Container(
-                                width: 48,
-                                height: 48,
-                                decoration: BoxDecoration(
-                                  color: isToday
-                                      ? const Color(0xFF1E40AF)
-                                      : isPassed
-                                          ? Colors.grey.shade300
-                                          : const Color(0xFF1E40AF).withValues(alpha: 0.15),
-                                  borderRadius: BorderRadius.circular(12),
-                                ),
-                                child: Icon(
-                                  _getIcon(day.iconType),
-                                  color: isToday || isPassed
-                                      ? (isToday ? Colors.white : Colors.grey.shade600)
-                                      : const Color(0xFF1E40AF),
-                                  size: 26,
-                                ),
-                              ),
-                              const SizedBox(width: 16),
-                              Expanded(
-                                child: Column(
-                                  crossAxisAlignment: CrossAxisAlignment.start,
-                                  children: [
-                                    Text(
-                                      day.name,
-                                      style: TextStyle(
-                                        fontSize: 16,
-                                        fontWeight: FontWeight.w600,
-                                        color: isPassed
-                                            ? Colors.grey.shade600
-                                            : const Color(0xFF1E3A8A),
-                                      ),
-                                    ),
-                                    const SizedBox(height: 4),
-                                    Text(
-                                      day.formattedDate,
-                                      style: TextStyle(
-                                        fontSize: 13,
-                                        color: Colors.grey.shade600,
-                                      ),
-                                    ),
-                                  ],
-                                ),
-                              ),
-                              Container(
-                                padding: const EdgeInsets.symmetric(
-                                  horizontal: 12,
-                                  vertical: 6,
-                                ),
-                                decoration: BoxDecoration(
-                                  color: isToday
-                                      ? const Color(0xFF1E40AF)
-                                      : isPassed
-                                          ? Colors.grey.shade200
-                                          : const Color(0xFFF59E0B).withValues(alpha: 0.2),
-                                  borderRadius: BorderRadius.circular(10),
-                                ),
-                                child: Text(
-                                  day.countdownText,
-                                  style: TextStyle(
-                                    fontSize: 13,
-                                    fontWeight: FontWeight.w600,
-                                    color: isToday
-                                        ? Colors.white
-                                        : isPassed
-                                            ? Colors.grey.shade600
-                                            : const Color(0xFFB45309),
-                                  ),
-                                ),
-                              ),
-                            ],
-                          ),
-                        ),
-                      ),
-                    ),
-                  );
-                },
-              ),
-            ),
-            const AdBannerWidget(),
-          ],
-        ),
-      ),
-    );
-  }
+  bool shouldRepaint(covariant CustomPainter oldDelegate) => false;
 }
