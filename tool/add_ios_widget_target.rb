@@ -27,6 +27,7 @@ widget ||= project.new_target(
 
 widget_group = project.main_group.find_subpath(target_name, true)
 widget_group.set_source_tree('<group>')
+widget_group.path = target_name
 
 def find_or_add_file(group, path)
   group.files.find { |file| file.path == path } || group.new_file(path)
