@@ -11,7 +11,7 @@ project = Xcodeproj::Project.open(project_path)
 
 target_name = 'DailyVerseWidget'
 bundle_id = 'com.tahram.gunlukduahadis.DailyVerseWidget'
-deployment_target = '14.0'
+deployment_target = '15.0'
 team_id = ENV.fetch('APPLE_TEAM_ID', 'F7TL9YHWSA')
 
 runner = project.targets.find { |target| target.name == 'Runner' }
