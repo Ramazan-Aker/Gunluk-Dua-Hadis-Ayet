@@ -30,7 +30,9 @@ dependencies:
   widgets_to_image: ^2.0.1
   
   # Ads
-  google_mobile_ads: ^9.0.0
+  # 9.1.0, Xcode 26'da GoogleMobileAds_Beta private header'ini public
+  # framework modulu icinden dahil ettigi icin iOS archive'i bozuyor.
+  google_mobile_ads: 9.0.0
   app_tracking_transparency: ^2.0.6
   
   # Utilities
