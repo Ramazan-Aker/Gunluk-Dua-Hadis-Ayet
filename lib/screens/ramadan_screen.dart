@@ -4,13 +4,21 @@ import 'package:flutter/material.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import '../models/turkish_city.dart';
 import '../models/prayer_times.dart';
+import '../models/prayer_tracking.dart';
 import '../services/ramadan_api_service.dart';
 import '../services/firebase_service.dart'
     show FirebaseService, AnalyticsEvents, AnalyticsParams;
 import '../services/notification_service.dart';
 import '../services/prayer_notification_service.dart';
+import '../services/prayer_tracking_service.dart';
+import '../services/prayer_home_widget_service.dart';
+import '../services/smart_goal_reminder_service.dart';
+import '../services/achievement_service.dart';
 import '../services/ad_service.dart';
 import '../theme/app_theme.dart';
+import '../widgets/prayer_tracking_card.dart';
+import 'qibla_screen.dart';
+import 'kaza_prayer_screen.dart';
 
 /// Namaz vakitleri / İmsakiye ekranı — geri sayım, günlük vakitler ve liste
 class RamadanScreen extends StatefulWidget {
@@ -40,6 +48,9 @@ class _RamadanScreenState extends State<RamadanScreen> {
       PrayerNotificationService();
   bool _prayerNotificationsEnabled = false;
   int _notificationLeadMinutes = 10;
+  final PrayerTrackingService _prayerTrackingService = PrayerTrackingService();
+  PrayerTrackingSummary? _prayerTrackingSummary;
+  bool _isPrayerTrackingBusy = false;
 
   // SharedPreferences keys
   static const String _keySelectedCityId = 'ramadan_selected_city_id';
@@ -58,6 +69,7 @@ class _RamadanScreenState extends State<RamadanScreen> {
     super.initState();
     _loadSavedCity();
     _loadNotificationPreference();
+    _loadPrayerTracking();
 
     // Log screen view
     FirebaseService.logScreenView(screenName: AnalyticsEvents.screenRamadan);
@@ -72,6 +84,75 @@ class _RamadanScreenState extends State<RamadanScreen> {
         _prayerNotificationsEnabled = enabled;
         _notificationLeadMinutes = lead;
       });
+    }
+  }
+
+  Future<void> _loadPrayerTracking() async {
+    final summary = await _prayerTrackingService.loadSummary();
+    if (mounted) setState(() => _prayerTrackingSummary = summary);
+  }
+
+  Future<void> _toggleTrackedPrayer(TrackedPrayer prayer) async {
+    if (_isPrayerTrackingBusy) return;
+    final previous = _prayerTrackingSummary;
+    setState(() => _isPrayerTrackingBusy = true);
+    try {
+      final summary = await _prayerTrackingService.togglePrayer(prayer);
+      if (!mounted) return;
+      setState(() => _prayerTrackingSummary = summary);
+      unawaited(SmartGoalReminderService().refreshSchedule());
+      unawaited(AchievementService().evaluateAndUnlock(notify: true));
+
+      if ((previous?.today.completedCount ?? 0) == 0 &&
+          summary.today.completedCount == 1) {
+        FirebaseService.logEvent(name: AnalyticsEvents.prayerTrackingStarted);
+      }
+      if (previous?.today.goalMet != true && summary.today.goalMet) {
+        FirebaseService.logEvent(
+          name: AnalyticsEvents.prayerGoalCompleted,
+          parameters: {
+            AnalyticsParams.dailyGoal: summary.today.goal,
+            AnalyticsParams.streakLength: summary.currentStreak,
+          },
+        );
+      }
+    } finally {
+      if (mounted) setState(() => _isPrayerTrackingBusy = false);
+    }
+  }
+
+  Future<void> _changePrayerGoal(int goal) async {
+    if (_isPrayerTrackingBusy) return;
+    setState(() => _isPrayerTrackingBusy = true);
+    try {
+      final summary = await _prayerTrackingService.setDefaultGoal(goal);
+      if (!mounted) return;
+      setState(() => _prayerTrackingSummary = summary);
+      unawaited(SmartGoalReminderService().refreshSchedule());
+      FirebaseService.logEvent(
+        name: AnalyticsEvents.prayerGoalChanged,
+        parameters: {AnalyticsParams.dailyGoal: goal},
+      );
+    } finally {
+      if (mounted) setState(() => _isPrayerTrackingBusy = false);
+    }
+  }
+
+  Future<void> _setPrayerTrackingPaused(bool paused) async {
+    if (_isPrayerTrackingBusy) return;
+    setState(() => _isPrayerTrackingBusy = true);
+    try {
+      final summary = await _prayerTrackingService.setTodayPaused(paused);
+      if (!mounted) return;
+      setState(() => _prayerTrackingSummary = summary);
+      unawaited(SmartGoalReminderService().refreshSchedule());
+      FirebaseService.logEvent(
+        name: paused
+            ? AnalyticsEvents.prayerTrackingPaused
+            : AnalyticsEvents.prayerTrackingResumed,
+      );
+    } finally {
+      if (mounted) setState(() => _isPrayerTrackingBusy = false);
     }
   }
 
@@ -218,6 +299,12 @@ class _RamadanScreenState extends State<RamadanScreen> {
       if (_prayerNotificationsEnabled) {
         unawaited(_reschedulePrayerNotifications());
       }
+      unawaited(
+        PrayerHomeWidgetService.syncForWidget(
+          cityName: _selectedCity!.name,
+          prayerTimes: prayerTimes,
+        ),
+      );
 
       // Scroll to today's row in table after build
       WidgetsBinding.instance.addPostFrameCallback((_) {
@@ -905,6 +992,12 @@ class _RamadanScreenState extends State<RamadanScreen> {
             const SizedBox(height: 8),
             if (_todaysPrayerTimes != null) _buildTodaysPrayerTimesCard(),
             const SizedBox(height: 8),
+            _buildQiblaLauncher(),
+            const SizedBox(height: 8),
+            _buildPrayerTrackingCard(),
+            const SizedBox(height: 8),
+            _buildKazaPrayerLauncher(),
+            const SizedBox(height: 8),
             _buildEmptyImsakiyeCard(),
           ],
         ),
@@ -922,8 +1015,150 @@ class _RamadanScreenState extends State<RamadanScreen> {
           const SizedBox(height: 8),
           if (_todaysPrayerTimes != null) _buildTodaysPrayerTimesCard(),
           const SizedBox(height: 8),
+          _buildQiblaLauncher(),
+          const SizedBox(height: 8),
+          _buildPrayerTrackingCard(),
+          const SizedBox(height: 8),
+          _buildKazaPrayerLauncher(),
+          const SizedBox(height: 8),
           _buildCalendarLauncher(),
         ],
+      ),
+    );
+  }
+
+  Widget _buildQiblaLauncher() {
+    return Material(
+      color: AppTheme.navyContainer,
+      borderRadius: BorderRadius.circular(18),
+      child: InkWell(
+        borderRadius: BorderRadius.circular(18),
+        onTap: () {
+          Navigator.of(context).push<void>(
+            MaterialPageRoute(
+              builder: (_) => QiblaScreen(
+                fallbackCityName: _selectedCity?.name,
+              ),
+            ),
+          );
+        },
+        child: Container(
+          width: double.infinity,
+          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+          decoration: BoxDecoration(
+            borderRadius: BorderRadius.circular(18),
+            boxShadow: AppTheme.ambientShadow,
+          ),
+          child: const Row(
+            children: [
+              CircleAvatar(
+                radius: 23,
+                backgroundColor: AppTheme.mint,
+                child: Icon(Icons.explore_rounded,
+                    color: AppTheme.emerald, size: 27),
+              ),
+              SizedBox(width: 13),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text('Kıbleyi Bul',
+                        style: TextStyle(
+                            color: Colors.white,
+                            fontSize: 17,
+                            fontWeight: FontWeight.w800)),
+                    SizedBox(height: 3),
+                    Text('Konumuna göre Kâbe yönünü göster',
+                        style:
+                            TextStyle(color: Color(0xFFD0E4FF), fontSize: 12)),
+                  ],
+                ),
+              ),
+              Icon(Icons.arrow_forward_rounded, color: AppTheme.gold),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
+  Widget _buildPrayerTrackingCard() {
+    final summary = _prayerTrackingSummary;
+    if (summary == null) {
+      return Container(
+        height: 88,
+        width: double.infinity,
+        alignment: Alignment.center,
+        decoration: BoxDecoration(
+          color: Colors.white,
+          borderRadius: BorderRadius.circular(18),
+          boxShadow: AppTheme.ambientShadow,
+        ),
+        child: const SizedBox(
+          width: 22,
+          height: 22,
+          child: CircularProgressIndicator(strokeWidth: 2),
+        ),
+      );
+    }
+    return PrayerTrackingCard(
+      summary: summary,
+      isBusy: _isPrayerTrackingBusy,
+      onPrayerToggled: _toggleTrackedPrayer,
+      onGoalChanged: _changePrayerGoal,
+      onPauseChanged: _setPrayerTrackingPaused,
+    );
+  }
+
+  Widget _buildKazaPrayerLauncher() {
+    return Material(
+      color: Colors.white,
+      borderRadius: BorderRadius.circular(18),
+      child: InkWell(
+        borderRadius: BorderRadius.circular(18),
+        onTap: () => Navigator.of(context).push<void>(
+          MaterialPageRoute<void>(builder: (_) => const KazaPrayerScreen()),
+        ),
+        child: Container(
+          width: double.infinity,
+          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+          decoration: BoxDecoration(
+            borderRadius: BorderRadius.circular(18),
+            boxShadow: AppTheme.ambientShadow,
+          ),
+          child: const Row(
+            children: [
+              CircleAvatar(
+                radius: 23,
+                backgroundColor: AppTheme.mint,
+                foregroundColor: AppTheme.emerald,
+                child: Icon(Icons.history_toggle_off_rounded, size: 26),
+              ),
+              SizedBox(width: 13),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      'Kaza Namazı Takibi',
+                      style: TextStyle(
+                        color: AppTheme.navy,
+                        fontSize: 16,
+                        fontWeight: FontWeight.w800,
+                      ),
+                    ),
+                    SizedBox(height: 3),
+                    Text(
+                      'Borçlarını ekle, kıldıkça azalt',
+                      style: TextStyle(color: AppTheme.outline, fontSize: 12),
+                    ),
+                  ],
+                ),
+              ),
+              Icon(Icons.arrow_forward_rounded, color: AppTheme.emerald),
+            ],
+          ),
+        ),
       ),
     );
   }

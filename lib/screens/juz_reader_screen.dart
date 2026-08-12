@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:google_fonts/google_fonts.dart';
@@ -8,6 +10,8 @@ import '../models/quran_offline_verse.dart';
 import '../services/quran_audio_service.dart';
 import '../services/quran_offline_repository.dart';
 import '../services/quran_progress_service.dart';
+import '../services/smart_goal_reminder_service.dart';
+import '../services/achievement_service.dart';
 import '../theme/app_theme.dart';
 
 class JuzReaderScreen extends StatefulWidget {
@@ -44,6 +48,8 @@ class _JuzReaderScreenState extends State<JuzReaderScreen> {
   Future<void> _toggleCompleted() async {
     final values =
         await _progress.setJuzCompleted(widget.juz.number, !_completed);
+    unawaited(SmartGoalReminderService().refreshSchedule());
+    unawaited(AchievementService().evaluateAndUnlock(notify: true));
     if (!mounted) return;
     setState(() => _completed = values.contains(widget.juz.number));
     ScaffoldMessenger.of(context).showSnackBar(

@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:shared_preferences/shared_preferences.dart';
@@ -6,6 +7,7 @@ import 'package:share_plus/share_plus.dart';
 import 'package:path_provider/path_provider.dart';
 import 'dart:io';
 import '../models/daily_item.dart';
+import '../models/daily_spiritual_plan.dart';
 import '../services/data_service.dart';
 import '../services/ad_service.dart';
 import '../services/daily_reminder_service.dart';
@@ -18,14 +20,21 @@ import '../theme/app_theme.dart';
 import '../models/religious_day.dart';
 import '../services/religious_days_service.dart';
 import '../services/quran_audio_service.dart';
-import 'quran_screen.dart';
-import 'ramadan_screen.dart';
-import 'religious_days_screen.dart';
+import '../services/daily_spiritual_plan_service.dart';
+import '../services/smart_goal_reminder_service.dart';
+import '../services/achievement_service.dart';
+import '../services/app_review_service.dart';
+import 'daily_spiritual_plan_screen.dart';
 import '../widgets/widget_shortcut_helper.dart';
 
 /// Main home screen displaying the daily item
 class HomeScreen extends StatefulWidget {
-  const HomeScreen({super.key});
+  const HomeScreen({
+    super.key,
+    required this.onNavigateTab,
+  });
+
+  final ValueChanged<int> onNavigateTab;
 
   @override
   State<HomeScreen> createState() => _HomeScreenState();
@@ -158,10 +167,80 @@ class _HomeWideCard extends StatelessWidget {
   }
 }
 
+class _WidgetPromoOption extends StatelessWidget {
+  const _WidgetPromoOption({
+    required this.icon,
+    required this.title,
+    required this.subtitle,
+    this.emphasized = false,
+  });
+
+  final IconData icon;
+  final String title;
+  final String subtitle;
+  final bool emphasized;
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      height: 78,
+      padding: const EdgeInsets.all(10),
+      decoration: BoxDecoration(
+        color: emphasized
+            ? AppTheme.emerald.withValues(alpha: .38)
+            : Colors.white.withValues(alpha: .08),
+        borderRadius: BorderRadius.circular(14),
+        border: Border.all(
+          color: emphasized
+              ? AppTheme.gold.withValues(alpha: .62)
+              : Colors.white.withValues(alpha: .14),
+        ),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              Icon(icon, color: AppTheme.gold, size: 18),
+              const SizedBox(width: 6),
+              Expanded(
+                child: Text(
+                  title,
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: const TextStyle(
+                    color: AppTheme.ivory,
+                    fontSize: 11,
+                    fontWeight: FontWeight.w800,
+                  ),
+                ),
+              ),
+            ],
+          ),
+          const Spacer(),
+          Text(
+            subtitle,
+            maxLines: 2,
+            overflow: TextOverflow.ellipsis,
+            style: const TextStyle(
+              color: AppTheme.mint,
+              fontSize: 9,
+              height: 1.2,
+              fontWeight: FontWeight.w500,
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
 class _HomeScreenState extends State<HomeScreen> {
   final DataService _dataService = DataService();
   final DailyReminderService _reminderService = DailyReminderService();
   final AdService _adService = AdService();
+  final DailySpiritualPlanService _dailyPlanService =
+      DailySpiritualPlanService();
   // iOS share sheet için paylaş butonunun konumunu takip eden key
   final GlobalKey _shareButtonKey = GlobalKey();
   DailyItem? _currentItem;
@@ -175,6 +254,7 @@ class _HomeScreenState extends State<HomeScreen> {
   String _homeCityName = 'Şehir seçin';
   int? _homeLastReadSurah;
   ReligiousDay? _upcomingReligiousDay;
+  DailySpiritualPlanSummary? _dailyPlan;
 
   @override
   void initState() {
@@ -204,11 +284,13 @@ class _HomeScreenState extends State<HomeScreen> {
     final city = prefs.getString('ramadan_selected_city_name');
     final lastRead = prefs.getInt('quran_last_read_surah');
     final upcoming = ReligiousDaysService().getUpcomingDays();
+    final dailyPlan = await _dailyPlanService.loadSummary();
     if (!mounted) return;
     setState(() {
       _homeCityName = city ?? 'Şehir seçin';
       _homeLastReadSurah = lastRead;
       _upcomingReligiousDay = upcoming.isEmpty ? null : upcoming.first;
+      _dailyPlan = dailyPlan;
     });
   }
 
@@ -417,6 +499,9 @@ class _HomeScreenState extends State<HomeScreen> {
   Future<void> _markAsRead() async {
     await _reminderService.markAsRead();
     await _checkReadingStatus();
+    await _reloadDailyPlan();
+    unawaited(SmartGoalReminderService().refreshSchedule());
+    unawaited(AchievementService().evaluateAndUnlock(notify: true));
 
     // Log reading event to Analytics
     if (_currentItem != null) {
@@ -448,6 +533,11 @@ class _HomeScreenState extends State<HomeScreen> {
           backgroundColor: const Color(0xFFF59E0B),
           duration: const Duration(seconds: 3),
         ),
+      );
+      unawaited(
+        Future<void>.delayed(const Duration(seconds: 2), () async {
+          await AppReviewService().registerMeaningfulActionAndMaybeRequest();
+        }),
       );
     }
   }
@@ -861,6 +951,7 @@ Her Gün İslam uygulamasından paylaşıldı
                                     isRead: _isRead,
                                     shareButtonKey: _shareButtonKey,
                                   ),
+                                  _buildDailyPlanShortcut(),
                                   _buildHomeShortcuts(),
                                   if (!kIsWeb &&
                                       (Platform.isAndroid || Platform.isIOS))
@@ -924,8 +1015,7 @@ Her Gün İslam uygulamasından paylaşıldı
                   subtitle: _homeCityName,
                   icon: Icons.mosque_outlined,
                   accent: AppTheme.emerald,
-                  onTap: () => Navigator.push<void>(context,
-                      MaterialPageRoute(builder: (_) => const RamadanScreen())),
+                  onTap: () => widget.onNavigateTab(2),
                 ),
               ),
               const SizedBox(width: 12),
@@ -938,8 +1028,7 @@ Her Gün İslam uygulamasından paylaşıldı
                       : 'Okumaya devam et',
                   icon: Icons.auto_stories_outlined,
                   accent: AppTheme.navy,
-                  onTap: () => Navigator.push<void>(context,
-                      MaterialPageRoute(builder: (_) => const QuranScreen())),
+                  onTap: () => widget.onNavigateTab(1),
                 ),
               ),
             ],
@@ -951,12 +1040,115 @@ Her Gün İslam uygulamasından paylaşıldı
               title: 'Yaklaşan Gün',
               value: _upcomingReligiousDay!.name,
               badge: _upcomingReligiousDay!.countdownText,
-              onTap: () => Navigator.push<void>(
-                  context,
-                  MaterialPageRoute(
-                      builder: (_) => const ReligiousDaysScreen())),
+              onTap: () => widget.onNavigateTab(4),
             ),
         ],
+      ),
+    );
+  }
+
+  Future<void> _reloadDailyPlan() async {
+    final summary = await _dailyPlanService.loadSummary();
+    if (mounted) setState(() => _dailyPlan = summary);
+  }
+
+  Future<void> _openDailyPlan() async {
+    await Navigator.push<void>(
+      context,
+      MaterialPageRoute<void>(
+        builder: (_) => const DailySpiritualPlanScreen(),
+      ),
+    );
+    await _reloadDailyPlan();
+  }
+
+  Widget _buildDailyPlanShortcut() {
+    final summary = _dailyPlan;
+    final progress = summary?.progress ?? 0;
+    final completed = summary?.completedCount ?? 0;
+    final total = summary?.tasks.length ?? 0;
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(20, 4, 20, 12),
+      child: Material(
+        color: AppTheme.navy,
+        borderRadius: BorderRadius.circular(18),
+        child: InkWell(
+          borderRadius: BorderRadius.circular(18),
+          onTap: _openDailyPlan,
+          child: Padding(
+            padding: const EdgeInsets.all(16),
+            child: Row(
+              children: [
+                SizedBox.square(
+                  dimension: 50,
+                  child: Stack(
+                    alignment: Alignment.center,
+                    children: [
+                      SizedBox.square(
+                        dimension: 46,
+                        child: CircularProgressIndicator(
+                          value: progress,
+                          strokeWidth: 5,
+                          backgroundColor: Colors.white.withValues(alpha: .16),
+                          color: AppTheme.gold,
+                        ),
+                      ),
+                      const Icon(Icons.checklist_rounded,
+                          color: Colors.white, size: 21),
+                    ],
+                  ),
+                ),
+                const SizedBox(width: 13),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      const Text(
+                        'Günlük Manevi Plan',
+                        style: TextStyle(
+                          color: Colors.white,
+                          fontSize: 16,
+                          fontWeight: FontWeight.w800,
+                        ),
+                      ),
+                      const SizedBox(height: 3),
+                      Text(
+                        summary == null
+                            ? 'Plan hazırlanıyor...'
+                            : summary.completed
+                                ? 'Bugünkü plan tamamlandı ✨'
+                                : '$completed/$total hedef tamamlandı',
+                        style: const TextStyle(
+                          color: Color(0xFFD0E4FF),
+                          fontSize: 12,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+                if (summary != null && summary.currentStreak > 0)
+                  Container(
+                    padding:
+                        const EdgeInsets.symmetric(horizontal: 9, vertical: 6),
+                    decoration: BoxDecoration(
+                      color: AppTheme.emerald.withValues(alpha: .42),
+                      borderRadius: BorderRadius.circular(99),
+                    ),
+                    child: Text(
+                      '🔥 ${summary.currentStreak}',
+                      style: const TextStyle(
+                        color: Colors.white,
+                        fontSize: 11,
+                        fontWeight: FontWeight.w700,
+                      ),
+                    ),
+                  )
+                else
+                  const Icon(Icons.arrow_forward_rounded, color: AppTheme.gold),
+              ],
+            ),
+          ),
+        ),
       ),
     );
   }
@@ -980,54 +1172,79 @@ Her Gün İslam uygulamasından paylaşıldı
             onTap: () => WidgetShortcutHelper.offerPinWidget(context),
             child: Padding(
               padding: const EdgeInsets.all(16),
-              child: Row(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  Container(
-                    width: 46,
-                    height: 46,
-                    decoration: BoxDecoration(
-                      color: AppTheme.emerald.withValues(alpha: .34),
-                      shape: BoxShape.circle,
-                      border: Border.all(
-                        color: AppTheme.gold.withValues(alpha: .72),
+                  Row(
+                    children: [
+                      Container(
+                        width: 44,
+                        height: 44,
+                        decoration: BoxDecoration(
+                          color: AppTheme.emerald.withValues(alpha: .34),
+                          shape: BoxShape.circle,
+                          border: Border.all(
+                            color: AppTheme.gold.withValues(alpha: .72),
+                          ),
+                        ),
+                        child: const Icon(
+                          Icons.widgets_rounded,
+                          color: AppTheme.gold,
+                          size: 23,
+                        ),
                       ),
-                    ),
-                    child: const Icon(
-                      Icons.widgets_rounded,
-                      color: AppTheme.gold,
-                      size: 24,
-                    ),
-                  ),
-                  const SizedBox(width: 14),
-                  const Expanded(
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Text(
-                          'Günün ayeti ana ekranında',
-                          style: TextStyle(
-                            color: AppTheme.ivory,
-                            fontSize: 15,
-                            fontWeight: FontWeight.w800,
-                          ),
+                      const SizedBox(width: 13),
+                      const Expanded(
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Text(
+                              'Ana ekran widget’ları',
+                              style: TextStyle(
+                                color: AppTheme.ivory,
+                                fontSize: 16,
+                                fontWeight: FontWeight.w800,
+                              ),
+                            ),
+                            SizedBox(height: 3),
+                            Text(
+                              'Ana ekranında görmek istediğini seç',
+                              style: TextStyle(
+                                color: AppTheme.mint,
+                                fontSize: 11,
+                                fontWeight: FontWeight.w500,
+                              ),
+                            ),
+                          ],
                         ),
-                        SizedBox(height: 5),
-                        Text(
-                          'Widget’ı ekle, ayete dokun ve okumaya devam et.',
-                          style: TextStyle(
-                            color: AppTheme.mint,
-                            fontSize: 12,
-                            height: 1.35,
-                            fontWeight: FontWeight.w500,
-                          ),
-                        ),
-                      ],
-                    ),
+                      ),
+                      const Icon(
+                        Icons.add_circle_outline_rounded,
+                        color: AppTheme.gold,
+                        size: 24,
+                      ),
+                    ],
                   ),
-                  const SizedBox(width: 8),
-                  const Icon(
-                    Icons.arrow_forward_rounded,
-                    color: AppTheme.gold,
+                  const SizedBox(height: 13),
+                  const Row(
+                    children: [
+                      Expanded(
+                        child: _WidgetPromoOption(
+                          icon: Icons.mosque_rounded,
+                          title: 'Namaz Vakitleri',
+                          subtitle: 'Sıradaki vakit ve geri sayım',
+                          emphasized: true,
+                        ),
+                      ),
+                      SizedBox(width: 10),
+                      Expanded(
+                        child: _WidgetPromoOption(
+                          icon: Icons.auto_stories_rounded,
+                          title: 'Günün Ayeti',
+                          subtitle: 'Gün içinde yenilenen ayet',
+                        ),
+                      ),
+                    ],
                   ),
                 ],
               ),

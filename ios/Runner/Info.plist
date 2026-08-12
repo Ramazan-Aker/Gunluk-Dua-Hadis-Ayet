@@ -74,6 +74,8 @@
 		<!-- Notification permissions for daily reminders -->
 		<key>NSUserNotificationsUsageDescription</key>
 		<string>Günlük dua, hadis ve ayet hatırlatmaları için bildirim izni gereklidir.</string>
+		<key>NSLocationWhenInUseUsageDescription</key>
+		<string>Bulunduğunuz konuma göre kıble yönünü doğru gösterebilmek için konum izni gereklidir.</string>
 		<!-- App Tracking Transparency permission -->
 		<key>NSUserTrackingUsageDescription</key>
 		<string>Size daha uygun ve kişiselleştirilmiş reklamlar gösterebilmemiz için reklam takibi izni gereklidir.</string>

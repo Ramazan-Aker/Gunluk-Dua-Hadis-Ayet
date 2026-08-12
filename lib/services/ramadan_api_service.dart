@@ -5,7 +5,8 @@ import '../models/turkish_city.dart';
 import '../models/prayer_times.dart';
 
 /// Service for fetching Ramadan prayer times
-/// Uses ezanvakti.imsakiyem.com API (Diyanet) - supports full Ramadan range including past days
+/// Uses the ezanvakti.imsakiyem.com third-party mirror of Diyanet data.
+/// Supports full Ramadan ranges including past days.
 class RamadanApiService {
   static const String _abdusBaseUrl =
       'https://prayertimes.api.abdus.dev/api/diyanet';
@@ -16,8 +17,9 @@ class RamadanApiService {
   final Map<String, String> _districtIdCache = {};
 
   // Cache keys for SharedPreferences
-  static const String _keyCachedPrayerTimes = 'cached_prayer_times';
-  static const String _keyCacheDate = 'prayer_times_cache_date';
+  // v2 invalidates dates cached by the old UTC-to-local conversion logic.
+  static const String _keyCachedPrayerTimes = 'cached_prayer_times_v2';
+  static const String _keyCacheDate = 'prayer_times_cache_date_v2';
   static const String _keyCachedCityId = 'cached_city_id';
 
   /// Search for Turkish cities
@@ -95,13 +97,14 @@ class RamadanApiService {
             final row = Map<String, dynamic>.from(item);
             final dateStr = row['date'] as String?;
             if (dateStr == null) continue;
-            final date = DateTime.parse(dateStr).toLocal();
-            final dayOnly = DateTime(date.year, date.month, date.day);
+            final dayOnly = parseApiCalendarDate(dateStr);
+            if (dayOnly == null) continue;
             if (!_isDateInRange(dayOnly, startDate, endDate)) continue;
             final rawTimes = row['times'];
             final Map<String, dynamic> timesMap =
                 rawTimes is Map ? Map<String, dynamic>.from(rawTimes) : row;
-            prayerTimesList.add(PrayerTimes.fromJson(timesMap, dayOnly));
+            final prayerTimes = PrayerTimes.tryFromJson(timesMap, dayOnly);
+            if (prayerTimes != null) prayerTimesList.add(prayerTimes);
           }
         }
 
@@ -163,6 +166,22 @@ class RamadanApiService {
 
   static String _normalizeName(String s) =>
       _toAsciiSearchQuery(s).toUpperCase();
+
+  /// API dates describe a Turkish calendar day. Parsing the UTC suffix with
+  /// `toLocal()` would move that day backwards on devices west of UTC.
+  static DateTime? parseApiCalendarDate(String value) {
+    final match = RegExp(r'^(\d{4})-(\d{2})-(\d{2})').firstMatch(value);
+    if (match == null) return null;
+    final year = int.tryParse(match.group(1)!);
+    final month = int.tryParse(match.group(2)!);
+    final day = int.tryParse(match.group(3)!);
+    if (year == null || month == null || day == null) return null;
+    final parsed = DateTime(year, month, day);
+    if (parsed.year != year || parsed.month != month || parsed.day != day) {
+      return null;
+    }
+    return parsed;
+  }
 
   static const Map<String, String> _stateIdToName = {
     '500': 'ADANA',
@@ -394,10 +413,17 @@ class RamadanApiService {
 
         if (difference.inHours < 24) {
           final List<dynamic> jsonList = json.decode(cachedJson);
-          return jsonList.map((json) {
-            final date = DateTime.parse(json['date']);
-            return PrayerTimes.fromJson(json, date);
-          }).toList();
+          return jsonList
+              .whereType<Map<String, dynamic>>()
+              .map((json) {
+                final rawDate = json['date'];
+                if (rawDate is! String) return null;
+                final date = parseApiCalendarDate(rawDate);
+                if (date == null) return null;
+                return PrayerTimes.tryFromJson(json, date);
+              })
+              .whereType<PrayerTimes>()
+              .toList();
         } else {
           // Cache expired
           await clearCache(locationId);

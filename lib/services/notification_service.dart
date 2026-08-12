@@ -254,6 +254,7 @@ class NotificationService {
   Future<void> showNotification({
     String title = 'Her Gün İslam',
     String body = 'Bugünkü içeriği okumayı unutma!',
+    int notificationId = 999,
   }) async {
     if (!_isInitialized) {
       await initialize();
@@ -261,7 +262,7 @@ class NotificationService {
 
     try {
       await _notifications.show(
-        999, // Unique ID for immediate notifications
+        notificationId,
         title,
         body,
         const NotificationDetails(
@@ -400,6 +401,56 @@ class NotificationService {
             presentBadge: true,
             presentSound: true,
             interruptionLevel: InterruptionLevel.timeSensitive,
+          ),
+        ),
+        androidScheduleMode: mode,
+        uiLocalNotificationDateInterpretation:
+            UILocalNotificationDateInterpretation.absoluteTime,
+      );
+      return true;
+    } catch (_) {
+      return false;
+    }
+  }
+
+  Future<bool> scheduleSmartGoalNotification({
+    required int id,
+    required String title,
+    required String body,
+    required DateTime scheduledAt,
+  }) async {
+    if (!_isInitialized) await initialize();
+    if (scheduledAt.isBefore(DateTime.now())) return false;
+    if (!await areNotificationsEnabled()) return false;
+
+    var mode = AndroidScheduleMode.exactAllowWhileIdle;
+    if (Platform.isAndroid &&
+        !await checkAndRequestExactAlarmPermission(null)) {
+      mode = AndroidScheduleMode.inexactAllowWhileIdle;
+    }
+    try {
+      await _notifications.zonedSchedule(
+        id,
+        title,
+        body,
+        tz.TZDateTime.from(scheduledAt, tz.local),
+        const NotificationDetails(
+          android: AndroidNotificationDetails(
+            'smart_goals',
+            'Akıllı Hedef Hatırlatmaları',
+            channelDescription:
+                'Namaz, zikir, hatim ve günlük plan hedefleri için hatırlatmalar',
+            importance: Importance.high,
+            priority: Priority.high,
+            icon: '@mipmap/ic_launcher',
+            enableVibration: true,
+            playSound: true,
+          ),
+          iOS: DarwinNotificationDetails(
+            presentAlert: true,
+            presentBadge: true,
+            presentSound: true,
+            interruptionLevel: InterruptionLevel.active,
           ),
         ),
         androidScheduleMode: mode,

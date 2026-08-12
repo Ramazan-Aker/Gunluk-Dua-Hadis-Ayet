@@ -6,6 +6,10 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_native_splash/flutter_native_splash.dart';
 import 'services/home_screen_widget_service.dart';
+import 'services/prayer_home_widget_service.dart';
+import 'services/smart_goal_reminder_service.dart';
+import 'services/achievement_service.dart';
+import 'services/app_review_service.dart';
 import 'services/ad_service.dart';
 import 'services/notification_service.dart';
 import 'services/daily_reminder_service.dart';
@@ -19,6 +23,7 @@ import 'screens/onboarding_screen.dart';
 import 'services/widget_verse_android_bridge.dart';
 import 'widget_verse_launch_handler.dart';
 import 'widget_verse_pending.dart';
+import 'widget_prayer_pending.dart';
 import 'theme/app_theme.dart';
 
 /// Main entry point of the Daily Dua & Hadith app
@@ -82,6 +87,7 @@ class _DailyDuaAppState extends State<DailyDuaApp> with WidgetsBindingObserver {
   Future<void> _widgetVersePipeline() async {
     if (kIsWeb || !(Platform.isAndroid || Platform.isIOS)) return;
     await HomeScreenWidgetService.syncRandomVerseForWidget();
+    await PrayerHomeWidgetService.refreshWidget();
     if (Platform.isAndroid) {
       await WidgetVerseAndroidBridge.consumeAndDispatchToFlutter();
     }
@@ -112,7 +118,10 @@ class _DailyDuaAppState extends State<DailyDuaApp> with WidgetsBindingObserver {
     WidgetsBinding.instance.addPostFrameCallback((_) async {
       FlutterNativeSplash.remove();
       if (!kIsWeb && (Platform.isAndroid || Platform.isIOS)) {
+        unawaited(AppReviewService().registerLaunch());
         await _widgetVersePipeline();
+        unawaited(SmartGoalReminderService().refreshSchedule());
+        unawaited(AchievementService().evaluateAndUnlock(notify: true));
         if (Platform.isAndroid) _scheduleAndroidWidgetVersePulls();
       }
     });
@@ -129,12 +138,18 @@ class _DailyDuaAppState extends State<DailyDuaApp> with WidgetsBindingObserver {
   void didChangeAppLifecycleState(AppLifecycleState state) {
     if (state == AppLifecycleState.resumed && !kIsWeb && Platform.isAndroid) {
       unawaited(HomeScreenWidgetService.syncRandomVerseForWidget());
+      unawaited(PrayerHomeWidgetService.refreshWidget());
+      unawaited(SmartGoalReminderService().refreshSchedule());
+      unawaited(AchievementService().evaluateAndUnlock(notify: true));
       WidgetVerseAndroidBridge.consumeAndDispatchToFlutter();
       _scheduleAndroidWidgetVersePulls();
     } else if (state == AppLifecycleState.resumed &&
         !kIsWeb &&
         Platform.isIOS) {
       unawaited(HomeScreenWidgetService.syncRandomVerseForWidget());
+      unawaited(PrayerHomeWidgetService.refreshWidget());
+      unawaited(SmartGoalReminderService().refreshSchedule());
+      unawaited(AchievementService().evaluateAndUnlock(notify: true));
     }
   }
 
@@ -165,17 +180,32 @@ class MainNavigationScreen extends StatefulWidget {
 class _MainNavigationScreenState extends State<MainNavigationScreen> {
   /// Orta sekme: Ana Sayfa
   int _selectedIndex = 0;
+  late final List<Widget> _screens;
 
   @override
   void initState() {
     super.initState();
-    if (pendingWidgetVerseListIndex.value != null) _selectedIndex = 1;
+    _screens = [
+      HomeScreen(onNavigateTab: _onItemTapped),
+      const QuranScreen(),
+      const RamadanScreen(),
+      const MessagesScreen(),
+      const ReligiousDaysScreen(),
+    ];
+    if (pendingPrayerWidgetOpen.value) {
+      pendingPrayerWidgetOpen.value = false;
+      _selectedIndex = 2;
+    } else if (pendingWidgetVerseListIndex.value != null) {
+      _selectedIndex = 1;
+    }
     pendingWidgetVerseListIndex.addListener(_onPendingWidgetVerseForNav);
+    pendingPrayerWidgetOpen.addListener(_onPendingPrayerWidgetForNav);
   }
 
   @override
   void dispose() {
     pendingWidgetVerseListIndex.removeListener(_onPendingWidgetVerseForNav);
+    pendingPrayerWidgetOpen.removeListener(_onPendingPrayerWidgetForNav);
     super.dispose();
   }
 
@@ -185,14 +215,12 @@ class _MainNavigationScreenState extends State<MainNavigationScreen> {
     }
   }
 
-  // Sıra: İmsakiye, Kur'an, Ana Sayfa, Mesajlar, Dini Günler
-  final List<Widget> _screens = [
-    const HomeScreen(),
-    const QuranScreen(),
-    const RamadanScreen(),
-    const MessagesScreen(),
-    const ReligiousDaysScreen(),
-  ];
+  void _onPendingPrayerWidgetForNav() {
+    if (pendingPrayerWidgetOpen.value) {
+      pendingPrayerWidgetOpen.value = false;
+      setState(() => _selectedIndex = 2);
+    }
+  }
 
   void _onItemTapped(int index) {
     setState(() {

@@ -130,6 +130,7 @@ class AnalyticsEvents {
   static const String screenSettings = 'screen_settings';
   static const String screenRamadan = 'screen_ramadan';
   static const String screenQuran = 'screen_quran';
+  static const String screenQibla = 'screen_qibla';
 
   // User actions
   static const String dailyItemViewed = 'daily_item_viewed';
@@ -139,6 +140,13 @@ class AnalyticsEvents {
   static const String reminderEnabled = 'reminder_enabled';
   static const String reminderDisabled = 'reminder_disabled';
   static const String reminderShown = 'reminder_shown';
+  static const String prayerTrackingStarted = 'prayer_tracking_started';
+  static const String prayerGoalChanged = 'prayer_goal_changed';
+  static const String prayerGoalCompleted = 'prayer_goal_completed';
+  static const String prayerTrackingPaused = 'prayer_tracking_paused';
+  static const String prayerTrackingResumed = 'prayer_tracking_resumed';
+  static const String qiblaScreenViewed = 'qibla_screen_viewed';
+  static const String qiblaReady = 'qibla_ready';
 
   // Ramadan feature events
   static const String ramadanScreenViewed = 'ramadan_screen_viewed';
@@ -162,6 +170,9 @@ class AnalyticsParams {
   static const String itemType = 'item_type';
   static const String itemSource = 'item_source';
   static const String readingStreak = 'reading_streak';
+  static const String dailyGoal = 'daily_goal';
+  static const String streakLength = 'streak_length';
+  static const String qiblaSource = 'qibla_source';
   static const String reminderTime = 'reminder_time';
   static const String cityName = 'city_name';
   static const String year = 'year';

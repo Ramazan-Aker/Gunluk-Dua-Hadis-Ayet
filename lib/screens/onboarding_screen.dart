@@ -62,28 +62,37 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
       eyebrow: 'HER GÜNE GÜZEL BİR BAŞLANGIÇ',
       title: 'Maneviyatın her gün yanında',
       description:
-          'Günün ayetini, duasını ve hadisini sade bir ekranda oku; okuma serini koru ve sevdiklerinle paylaş.',
+          'Günün ayetini, duasını ve hadisini oku; namaz, Kur’an ve zikir hedeflerini Günlük Manevi Plan’da bir arada takip et.',
       icon: Icons.auto_awesome_rounded,
       accent: AppTheme.gold,
-      highlights: ['Günlük ayet', 'Dua ve hadis', 'Okuma serisi'],
+      highlights: ['Günlük plan', 'Dua ve hadis', 'Hedef serisi'],
     ),
     _OnboardingPageData(
       eyebrow: 'KUR’AN-I KERİM',
       title: 'Oku, dinle ve ilerlemeni takip et',
       description:
-          'Surelere veya 30 cüze göre oku. Bitirdiğin cüzleri “Okundu” olarak işaretle, kaldığın yere kolayca dön.',
+          'Surelere veya 30 cüze göre oku. Hatim bitiş tarihini belirle, günlük hedefini takip et ve kaldığın yere kolayca dön.',
       icon: Icons.menu_book_rounded,
       accent: AppTheme.emerald,
-      highlights: ['30 cüz', 'Sesli dinleme', 'Kaldığın yer'],
+      highlights: ['Hatim planı', '30 cüz', 'Sesli dinleme'],
+    ),
+    _OnboardingPageData(
+      eyebrow: 'HEDEFLER VE ÖĞRENME',
+      title: 'Küçük adımları alışkanlığa çevir',
+      description:
+          'Akıllı hatırlatmalarını ayarla, hedef serilerini ve rozetlerini takip et. Esmaül Hüsna’yı dinleyerek öğren, ilerlemeni haftalık ve aylık grafiklerde gör.',
+      icon: Icons.insights_rounded,
+      accent: Color(0xFF7A4DB3),
+      highlights: ['Akıllı hatırlatma', 'Rozetler', 'Manevi istatistikler'],
     ),
     _OnboardingPageData(
       eyebrow: 'NAMAZ VAKİTLERİ',
       title: 'Vakitleri şehir şehir takip et',
       description:
-          'En fazla üç şehir ekle, sekmelerden hızlıca geçiş yap. İstersen yaklaşan namaz vakitleri için bildirimleri aç.',
+          'En fazla üç şehir ekle, sekmelerden hızlıca geçiş yap. Yaklaşan vakit bildirimlerini aç; namaz hedeflerini ve kaza takibini tek yerden yönet.',
       icon: Icons.mosque_rounded,
       accent: Color(0xFF5A8F82),
-      highlights: ['3 şehir', 'Vakit sayacı', 'İsteğe bağlı bildirim'],
+      highlights: ['3 şehir', 'Namaz hedefi', 'Kaza takibi'],
     ),
     _OnboardingPageData(
       eyebrow: 'PAYLAŞ VE HATIRLA',

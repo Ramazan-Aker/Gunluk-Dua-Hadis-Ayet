@@ -1,10 +1,15 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 
 import '../models/quran_juz.dart';
 import '../services/quran_audio_service.dart';
 import '../services/quran_progress_service.dart';
+import '../services/smart_goal_reminder_service.dart';
+import '../services/achievement_service.dart';
 import '../theme/app_theme.dart';
 import 'juz_reader_screen.dart';
+import 'quran_reading_plan_screen.dart';
 
 class JuzListScreen extends StatefulWidget {
   const JuzListScreen({super.key});
@@ -30,6 +35,8 @@ class _JuzListScreenState extends State<JuzListScreen> {
 
   Future<void> _toggle(int number, bool value) async {
     final completed = await _progress.setJuzCompleted(number, value);
+    unawaited(SmartGoalReminderService().refreshSchedule());
+    unawaited(AchievementService().evaluateAndUnlock(notify: true));
     if (mounted) setState(() => _completed = completed);
   }
 
@@ -38,7 +45,27 @@ class _JuzListScreenState extends State<JuzListScreen> {
     final percent = (_completed.length / 30 * 100).round();
     return Scaffold(
       backgroundColor: AppTheme.ivory,
-      appBar: AppBar(title: const Text('Cüzler')),
+      appBar: AppBar(
+        title: const Text('Cüzler'),
+        actions: [
+          IconButton(
+            tooltip: 'Hatim planım',
+            icon: const Icon(Icons.flag_outlined),
+            onPressed: () async {
+              await Navigator.push<void>(
+                context,
+                MaterialPageRoute<void>(
+                  builder: (_) => const QuranReadingPlanScreen(
+                    allowOpenJuzList: false,
+                  ),
+                ),
+              );
+              _reload();
+            },
+          ),
+          const SizedBox(width: 6),
+        ],
+      ),
       body: ListView(
         padding: const EdgeInsets.fromLTRB(20, 16, 20, 32),
         children: [

@@ -1,0 +1,10 @@
+<?xml version="1.0" encoding="utf-8"?>
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    android:layout_width="0dp"
+    android:layout_height="wrap_content"
+    android:layout_weight="1"
+    android:gravity="center"
+    android:orientation="vertical">
+    <TextView android:layout_width="wrap_content" android:layout_height="wrap_content" android:includeFontPadding="false" android:text="Yatsı" android:textColor="@color/widget_mint" android:textSize="6sp" />
+    <TextView android:id="@+id/prayer_widget_yatsi" android:layout_width="wrap_content" android:layout_height="wrap_content" android:includeFontPadding="false" android:textColor="@color/widget_ivory" android:textSize="8sp" android:textStyle="bold" />
+</LinearLayout>

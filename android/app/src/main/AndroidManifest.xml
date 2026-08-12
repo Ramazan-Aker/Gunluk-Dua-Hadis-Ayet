@@ -1,9 +1,17 @@
 <manifest xmlns:android="http://schemas.android.com/apk/res/android">
-    
+    <queries>
+        <intent>
+            <action android:name="android.intent.action.TTS_SERVICE" />
+        </intent>
+    </queries>
+
     <!-- Internet permission for ads and potential API calls -->
     <uses-permission android:name="android.permission.INTERNET"/>
     <uses-permission android:name="android.permission.ACCESS_NETWORK_STATE"/>
-    
+    <!-- Foreground-only location access for the Qibla finder. -->
+    <uses-permission android:name="android.permission.ACCESS_COARSE_LOCATION"/>
+    <uses-permission android:name="android.permission.ACCESS_FINE_LOCATION"/>
+
     <!-- Notification permissions for daily reminders -->
     <!-- POST_NOTIFICATIONS: Required for showing notifications on Android 13+ -->
     <uses-permission android:name="android.permission.POST_NOTIFICATIONS"/>
@@ -18,18 +26,18 @@
     <uses-permission android:name="android.permission.REQUEST_IGNORE_BATTERY_OPTIMIZATIONS"/>
     <!-- VIBRATE: Required for notification vibration -->
     <uses-permission android:name="android.permission.VIBRATE"/>
-    
+
    <application
         android:label="Her Gün İslam"
         android:name="${applicationName}"
         android:icon="@mipmap/ic_launcher">
-        
+
         <!-- AdMob App ID (Production) -->
         <meta-data
             android:name="com.google.android.gms.ads.APPLICATION_ID"
             android:value="ca-app-pub-9132542494292379~4482777628"/>
         <!-- ✅ Using real AdMob App ID for production -->
-        
+
         <activity
             android:name=".MainActivity"
             android:exported="true"
@@ -38,7 +46,7 @@
             android:configChanges="orientation|keyboardHidden|keyboard|screenSize|smallestScreenSize|locale|layoutDirection|fontScale|screenLayout|density|uiMode"
             android:hardwareAccelerated="true"
             android:windowSoftInputMode="adjustResize">
-            
+
             <!-- Specifies an Android theme to apply to this Activity as soon as
                  the Android process has started. This theme is visible to the user
                  while the Flutter UI initializes. After that, this theme continues
@@ -47,7 +55,7 @@
               android:name="io.flutter.embedding.android.NormalTheme"
               android:resource="@style/NormalTheme"
               />
-            
+
             <intent-filter>
                 <action android:name="android.intent.action.MAIN"/>
                 <category android:name="android.intent.category.LAUNCHER"/>
@@ -71,6 +79,19 @@
         </receiver>
 
         <receiver
+            android:name=".PrayerTimesWidgetProvider"
+            android:exported="true"
+            android:label="@string/prayer_widget_name">
+            <intent-filter>
+                <action android:name="android.appwidget.action.APPWIDGET_UPDATE" />
+                <action android:name="com.tahram.gunlukduahadis.PRAYER_WIDGET_TRANSITION" />
+            </intent-filter>
+            <meta-data
+                android:name="android.appwidget.provider"
+                android:resource="@xml/prayer_times_widget_info" />
+        </receiver>
+
+        <receiver
             android:name="es.antonborri.home_widget.HomeWidgetBackgroundReceiver"
             android:exported="true">
             <intent-filter>
@@ -83,9 +104,9 @@
         <meta-data
             android:name="flutterEmbedding"
             android:value="2" />
-        
+
         <!-- Broadcast receiver for rescheduling notifications after device reboot -->
-        <receiver 
+        <receiver
             android:name=".BootReceiver"
             android:enabled="true"
             android:exported="true"
@@ -97,12 +118,12 @@
                 <action android:name="android.intent.action.LOCKED_BOOT_COMPLETED"/>
             </intent-filter>
         </receiver>
-        
+
         <!-- Notification Broadcast Receiver for flutter_local_notifications -->
-        <receiver 
+        <receiver
             android:name="com.dexterous.flutterlocalnotifications.ScheduledNotificationReceiver"
             android:exported="false" />
-        <receiver 
+        <receiver
             android:name="com.dexterous.flutterlocalnotifications.ScheduledNotificationBootReceiver"
             android:exported="false">
             <intent-filter>

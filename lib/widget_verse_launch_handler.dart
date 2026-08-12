@@ -6,6 +6,7 @@ import 'package:flutter/widgets.dart';
 import 'package:home_widget/home_widget.dart';
 
 import 'widget_verse_pending.dart';
+import 'widget_prayer_pending.dart';
 
 /// Widget’tan `hergunislam://widgetVerse?i=N` ile Kur’an sekmesinde ilgili sure/ayet ekranına gider.
 class WidgetVerseLaunchHandler {
@@ -14,6 +15,7 @@ class WidgetVerseLaunchHandler {
   static const String _host = 'widgetVerse';
   static const String _param = 'i';
   static const String _hatimKey = 'widget_hatim_index';
+  static const String _prayerHost = 'prayer';
 
   static bool _isWidgetVerseUri(Uri uri) =>
       uri.scheme == 'hergunislam' && uri.host == _host;
@@ -36,6 +38,11 @@ class WidgetVerseLaunchHandler {
 
   static void handleUri(Uri? uri) {
     if (uri == null) return;
+    if (uri.scheme == 'hergunislam' && uri.host == _prayerHost) {
+      pendingPrayerWidgetOpen.value = false;
+      pendingPrayerWidgetOpen.value = true;
+      return;
+    }
     if (!_isWidgetVerseUri(uri)) return;
     final raw = uri.queryParameters[_param] ?? uri.queryParameters['listIndex'];
     final idx = int.tryParse(raw ?? '');

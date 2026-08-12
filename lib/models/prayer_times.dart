@@ -19,16 +19,70 @@ class PrayerTimes {
     required this.yatsi,
   });
 
+  static final RegExp _clockPattern = RegExp(r'^(?:[01]\d|2[0-3]):[0-5]\d$');
+
   factory PrayerTimes.fromJson(Map<String, dynamic> json, DateTime date) {
-    return PrayerTimes(
-      date: date,
-      imsak: json['fajr'] ?? json['imsak'] ?? '00:00',
-      gunes: json['sun'] ?? json['sunrise'] ?? json['gunes'] ?? '00:00',
-      ogle: json['dhuhr'] ?? json['ogle'] ?? '00:00',
-      ikindi: json['asr'] ?? json['ikindi'] ?? '00:00',
-      aksam: json['maghrib'] ?? json['aksam'] ?? '00:00',
-      yatsi: json['isha'] ?? json['yatsi'] ?? '00:00',
+    final parsed = tryFromJson(json, date);
+    if (parsed == null) {
+      throw const FormatException('Eksik veya geçersiz namaz vakti verisi.');
+    }
+    return parsed;
+  }
+
+  /// Parses a complete row. A missing or malformed clock value rejects the
+  /// row instead of silently displaying a misleading `00:00` value.
+  static PrayerTimes? tryFromJson(
+    Map<String, dynamic> json,
+    DateTime date,
+  ) {
+    final imsak = _readClock(json, const ['fajr', 'imsak']);
+    final gunes = _readClock(json, const ['sun', 'sunrise', 'gunes']);
+    final ogle = _readClock(json, const ['dhuhr', 'ogle']);
+    final ikindi = _readClock(json, const ['asr', 'ikindi']);
+    final aksam = _readClock(json, const ['maghrib', 'aksam']);
+    final yatsi = _readClock(json, const ['isha', 'yatsi']);
+    if ([imsak, gunes, ogle, ikindi, aksam, yatsi].contains(null)) {
+      return null;
+    }
+
+    final result = PrayerTimes(
+      date: DateTime(date.year, date.month, date.day),
+      imsak: imsak!,
+      gunes: gunes!,
+      ogle: ogle!,
+      ikindi: ikindi!,
+      aksam: aksam!,
+      yatsi: yatsi!,
     );
+    return result.hasChronologicalOrder ? result : null;
+  }
+
+  static String? _readClock(
+    Map<String, dynamic> json,
+    List<String> keys,
+  ) {
+    for (final key in keys) {
+      final value = json[key];
+      if (value is! String) continue;
+      final normalized = value.trim();
+      if (_clockPattern.hasMatch(normalized)) return normalized;
+    }
+    return null;
+  }
+
+  bool get hasChronologicalOrder {
+    final values = [imsak, gunes, ogle, ikindi, aksam, yatsi]
+        .map(_minutesSinceMidnight)
+        .toList();
+    for (var index = 1; index < values.length; index++) {
+      if (values[index] <= values[index - 1]) return false;
+    }
+    return true;
+  }
+
+  static int _minutesSinceMidnight(String value) {
+    final parts = value.split(':');
+    return int.parse(parts[0]) * 60 + int.parse(parts[1]);
   }
 
   Map<String, dynamic> toJson() {

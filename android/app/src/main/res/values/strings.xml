@@ -8,4 +8,10 @@
     <string name="widget_placeholder_turkish">Ayetin hazırlanması için uygulamayı bir kez açın.</string>
     <string name="widget_placeholder_footer">FÂTİHA SURESİ, 1. AYET</string>
     <string name="widget_fallback_message">Widget hazırlanamadı. Uygulamayı bir kez açıp yeniden deneyin.</string>
+    <string name="prayer_widget_name">Her Gün İslam • Namaz Vakitleri</string>
+    <string name="prayer_widget_description">Sıradaki namazı, kalan süreyi ve günlük vakitleri gösterir.</string>
+    <string name="prayer_widget_city_placeholder">Şehir seçilmedi</string>
+    <string name="prayer_widget_open_app">Vakitleri hazırla</string>
+    <string name="prayer_widget_remaining">Kalan süre</string>
+    <string name="prayer_widget_refresh">Uygulamayı aç</string>
 </resources>

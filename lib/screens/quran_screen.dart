@@ -9,6 +9,7 @@ import '../widgets/widget_shortcut_helper.dart';
 import '../widget_verse_pending.dart';
 import 'surah_detail_screen.dart';
 import 'juz_list_screen.dart';
+import 'quran_reading_plan_screen.dart';
 import '../theme/app_theme.dart';
 
 /// Quran screen - Sesli Kur'an-ı Kerim okuma
@@ -387,6 +388,8 @@ class _QuranScreenState extends State<QuranScreen> {
                 ),
               ],
             ),
+            const SizedBox(height: 12),
+            _QuranPlanShortcut(onTap: _openReadingPlan),
             const SizedBox(height: 20),
             const Align(
                 alignment: Alignment.centerLeft,
@@ -399,6 +402,21 @@ class _QuranScreenState extends State<QuranScreen> {
         ],
       ),
     );
+  }
+
+  Future<void> _openReadingPlan() async {
+    final openJuz = await Navigator.push<bool>(
+      context,
+      MaterialPageRoute<bool>(
+        builder: (_) => const QuranReadingPlanScreen(),
+      ),
+    );
+    if (openJuz == true && mounted) {
+      await Navigator.push<void>(
+        context,
+        MaterialPageRoute<void>(builder: (_) => const JuzListScreen()),
+      );
+    }
   }
 
   void _openFullQuranPlayer() {
@@ -427,6 +445,58 @@ class _QuranScreenState extends State<QuranScreen> {
             child: const Text('Başlat'),
           ),
         ],
+      ),
+    );
+  }
+}
+
+class _QuranPlanShortcut extends StatelessWidget {
+  const _QuranPlanShortcut({required this.onTap});
+
+  final VoidCallback onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    return Material(
+      color: AppTheme.emerald,
+      borderRadius: BorderRadius.circular(16),
+      child: InkWell(
+        onTap: onTap,
+        borderRadius: BorderRadius.circular(16),
+        child: const Padding(
+          padding: EdgeInsets.symmetric(horizontal: 17, vertical: 14),
+          child: Row(
+            children: [
+              CircleAvatar(
+                backgroundColor: AppTheme.mint,
+                foregroundColor: AppTheme.emerald,
+                child: Icon(Icons.flag_rounded),
+              ),
+              SizedBox(width: 13),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      'Hatim Planım',
+                      style: TextStyle(
+                        color: Colors.white,
+                        fontSize: 16,
+                        fontWeight: FontWeight.w800,
+                      ),
+                    ),
+                    SizedBox(height: 2),
+                    Text(
+                      'Bitiş tarihi belirle, günlük hedefini takip et',
+                      style: TextStyle(color: Color(0xFFD8F5EC), fontSize: 12),
+                    ),
+                  ],
+                ),
+              ),
+              Icon(Icons.arrow_forward_rounded, color: AppTheme.gold),
+            ],
+          ),
+        ),
       ),
     );
   }
