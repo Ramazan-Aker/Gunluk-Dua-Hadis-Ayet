@@ -1,4 +1,5 @@
 import 'dart:async';
+
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:shared_preferences/shared_preferences.dart';
@@ -727,16 +728,24 @@ class _HomeScreenState extends State<HomeScreen> {
       );
       overlay.insert(overlayEntry);
 
-      // Paralel: görsel oluşturma (reklam sırasında arka planda hazırlanır)
-      final imageFuture = Future.delayed(const Duration(milliseconds: 500))
-          .then((_) => controller.capture());
+      // Paralel: görsel oluşturma (reklam sırasında arka planda hazırlanır).
+      // Overlay'in ilk karesi çizilmeden yakalama yapılırsa iOS'ta widget
+      // context'i null kalabildiği için önce render tamamlanmasını bekleriz.
+      final imageFuture = () async {
+        await WidgetsBinding.instance.endOfFrame;
+        return controller.capture();
+      }();
 
       // Paralel: reklam göster (kullanıcı izler)
       final adFuture = _adService.showInterstitialAd().catchError((e) => false);
 
       await adFuture;
-      final bytes = await imageFuture;
-      if (mounted) overlayEntry.remove();
+      Uint8List? bytes;
+      try {
+        bytes = await imageFuture;
+      } finally {
+        if (overlayEntry.mounted) overlayEntry.remove();
+      }
 
       if (bytes != null && bytes.isNotEmpty) {
         // Save image to temporary directory
@@ -744,7 +753,7 @@ class _HomeScreenState extends State<HomeScreen> {
         final imagePath =
             '${directory.path}/share_card_${format.name}_${DateTime.now().millisecondsSinceEpoch}.png';
         final imageFile = File(imagePath);
-        await imageFile.writeAsBytes(bytes);
+        await imageFile.writeAsBytes(bytes, flush: true);
 
         // Share the image
         // iOS'ta share sheet'in konumunu belirtmek zorunlu (iPad + iPhone uyumu)
@@ -759,7 +768,7 @@ class _HomeScreenState extends State<HomeScreen> {
               );
 
         await Share.shareXFiles(
-          [XFile(imagePath)],
+          [XFile(imagePath, mimeType: 'image/png')],
           text:
               '${item.getIcon()} ${item.getTitle()}\n\nHer Gün İslam uygulamasından paylaşıldı',
           subject: '${item.getIcon()} ${item.getTitle()}',

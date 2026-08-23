@@ -96,9 +96,9 @@ class DailySpiritualPlanService {
     }
     if (enabled.contains(quranId) && quran != null) {
       final target = quran.todayTarget;
-      final completedToday = quran.completedToday;
+      final completedToday = quran.completedTodayForPlan;
       final complete =
-          quran.isComplete || (target > 0 && completedToday >= target);
+          quran.isComplete || target == 0 || completedToday >= target;
       tasks.add(
         DailyPlanTaskStatus(
           id: quranId,
@@ -106,11 +106,13 @@ class DailySpiritualPlanService {
           title: 'Hatim planı',
           subtitle: quran.isComplete
               ? 'Hatim planı tamamlandı'
-              : '$completedToday/$target cüz bugün okundu',
+              : target == 0
+                  ? 'Bugün için yeni cüz hedefi yok'
+                  : '$completedToday/$target cüz bugün okundu',
           progress: quran.isComplete
               ? 1
               : target == 0
-                  ? 0
+                  ? 1
                   : (completedToday / target).clamp(0, 1),
           completed: complete,
         ),

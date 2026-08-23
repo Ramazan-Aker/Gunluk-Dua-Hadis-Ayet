@@ -1,9 +1,11 @@
+import 'dart:ui' as ui;
+
 import 'package:flutter/material.dart';
-import 'package:widgets_to_image/widgets_to_image.dart';
+import 'package:flutter/rendering.dart';
+import 'package:flutter/services.dart';
 import 'package:share_plus/share_plus.dart';
 import 'package:path_provider/path_provider.dart';
 import 'dart:io';
-import 'dart:typed_data';
 import '../models/greeting_message.dart';
 import '../services/greeting_service.dart';
 import '../services/greeting_preferences_service.dart';
@@ -23,12 +25,18 @@ class MessagesScreen extends StatefulWidget {
 }
 
 class _MessagesScreenState extends State<MessagesScreen> {
+  static const _mediaChannel = MethodChannel(
+    'com.tahram.gunlukduahadis/media',
+  );
   final GreetingService _greetingService = GreetingService();
   final GreetingPreferencesService _preferencesService =
       GreetingPreferencesService();
   final AdService _adService = AdService();
   // iOS share sheet konumu için paylaş butonuna atanan key
   final GlobalKey _shareButtonKey = GlobalKey();
+  // Ekranda gösterilen kartı doğrudan görsele dönüştürmek için kullanılır.
+  // Ekran dışındaki Overlay yakalama yöntemi iOS'ta boş görsel üretebiliyordu.
+  final GlobalKey _greetingCardKey = GlobalKey();
 
   bool _isLoading = true;
   bool _isSharing = false;
@@ -256,7 +264,7 @@ class _MessagesScreenState extends State<MessagesScreen> {
         final imagePath =
             '${directory.path}/greeting_${_shareFormat.name}_${DateTime.now().millisecondsSinceEpoch}.png';
         final imageFile = File(imagePath);
-        await imageFile.writeAsBytes(bytes);
+        await imageFile.writeAsBytes(bytes, flush: true);
 
         // iOS'ta share sheet konumu zorunlu
         final box =
@@ -270,7 +278,7 @@ class _MessagesScreenState extends State<MessagesScreen> {
               );
 
         await Share.shareXFiles(
-          [XFile(imagePath)],
+          [XFile(imagePath, mimeType: 'image/png')],
           text: 'Her Gün İslam uygulamasından paylaşıldı',
           sharePositionOrigin: origin,
         );
@@ -325,54 +333,45 @@ class _MessagesScreenState extends State<MessagesScreen> {
     }
 
     final categoryId = _selectedCategoryId!;
-    final imageUrl = await (_imageFuture ??
-        _greetingService.fetchImageForMessage(
-          categoryId,
-          messageId: _selectedMessageId,
-        ));
+    String? imageUrl;
+    try {
+      imageUrl = await (_imageFuture ??
+          _greetingService.fetchImageForMessage(
+            categoryId,
+            messageId: _selectedMessageId,
+          ));
+    } catch (_) {
+      // Ağdaki arka plan görseli alınamasa da varsayılan kart tasarımı
+      // paylaşılmaya devam edebilir.
+    }
     if (imageUrl != null && imageUrl.isNotEmpty && mounted) {
-      await precacheImage(NetworkImage(imageUrl), context);
+      // Arka plan resmi yüklenemezse kartın renkli varsayılan tasarımı yine
+      // paylaşılabilsin. CachedNetworkImage ekranda da aynı davranışı gösterir.
+      try {
+        await precacheImage(NetworkImage(imageUrl), context);
+      } catch (_) {}
     }
     if (!mounted) return null;
 
-    final controller = WidgetsToImageController();
-    final overlay = Overlay.of(context);
-    late final OverlayEntry overlayEntry;
-    overlayEntry = OverlayEntry(
-      builder: (context) => Stack(
-        children: [
-          Positioned(
-            left: -10000,
-            top: -10000,
-            child: WidgetsToImage(
-              controller: controller,
-              child: Material(
-                child: Directionality(
-                  textDirection: TextDirection.ltr,
-                  child: GreetingShareableCard(
-                    categoryId: categoryId,
-                    messageText: _messageText,
-                    messageTitle: _messageTitle,
-                    signature: _signature,
-                    imageUrl: imageUrl,
-                    width: _shareFormat.width,
-                    height: _shareFormat.height,
-                  ),
-                ),
-              ),
-            ),
-          ),
-        ],
-      ),
-    );
+    // FutureBuilder'ın görseli ekleyebilmesi için kare sonunu bekleriz. Bu,
+    // paylaşım tuşuna yükleme biter bitmez basıldığında da çalışır.
+    RenderRepaintBoundary? boundary;
+    for (var frame = 0; frame < 3 && boundary == null; frame++) {
+      await WidgetsBinding.instance.endOfFrame;
+      if (!mounted) return null;
+      boundary = _greetingCardKey.currentContext?.findRenderObject()
+          as RenderRepaintBoundary?;
+    }
+    if (boundary == null || !boundary.hasSize) {
+      throw StateError('Paylaşım kartı henüz hazırlanmadı');
+    }
 
-    overlay.insert(overlayEntry);
+    final image = await boundary.toImage(pixelRatio: 1);
     try {
-      await Future.delayed(Duration(
-          milliseconds: imageUrl != null && imageUrl.isNotEmpty ? 800 : 500));
-      return await controller.capture();
+      final byteData = await image.toByteData(format: ui.ImageByteFormat.png);
+      return byteData?.buffer.asUint8List();
     } finally {
-      overlayEntry.remove();
+      image.dispose();
     }
   }
 
@@ -418,11 +417,33 @@ class _MessagesScreenState extends State<MessagesScreen> {
       if (bytes == null || bytes.isEmpty) {
         throw Exception('Görsel oluşturulamadı');
       }
+      if (Platform.isIOS) {
+        // iOS'ta uygulama kapsayıcısındaki Downloads klasörü her zaman mevcut
+        // değildir. Görseli kullanıcının Fotoğraflar arşivine kaydederiz.
+        final saved = await _mediaChannel.invokeMethod<bool>(
+          'saveImageToPhotoLibrary',
+          bytes,
+        );
+        if (saved != true) {
+          throw Exception('Görsel Fotoğraflar arşivine kaydedilemedi');
+        }
+
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(content: Text('Görsel Fotoğraflar\'a kaydedildi.')),
+          );
+        }
+        return;
+      }
+
       final directory = await getDownloadsDirectory() ??
           await getApplicationDocumentsDirectory();
+      // Bazı cihazlarda Downloads yolu döndürülse bile klasör henüz
+      // oluşturulmamış olabilir.
+      await directory.create(recursive: true);
       final imagePath =
           '${directory.path}/her_gun_islam_${_shareFormat.name}_${DateTime.now().millisecondsSinceEpoch}.png';
-      await File(imagePath).writeAsBytes(bytes);
+      await File(imagePath).writeAsBytes(bytes, flush: true);
 
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
@@ -1075,14 +1096,17 @@ class _MessagesScreenState extends State<MessagesScreen> {
                         : FittedBox(
                             fit: BoxFit.contain,
                             alignment: Alignment.center,
-                            child: GreetingShareableCard(
-                              categoryId: _selectedCategoryId!,
-                              messageText: _messageText,
-                              messageTitle: _messageTitle,
-                              signature: _signature,
-                              imageUrl: imageUrl,
-                              width: _shareFormat.width,
-                              height: _shareFormat.height,
+                            child: RepaintBoundary(
+                              key: _greetingCardKey,
+                              child: GreetingShareableCard(
+                                categoryId: _selectedCategoryId!,
+                                messageText: _messageText,
+                                messageTitle: _messageTitle,
+                                signature: _signature,
+                                imageUrl: imageUrl,
+                                width: _shareFormat.width,
+                                height: _shareFormat.height,
+                              ),
                             ),
                           ),
                   ),

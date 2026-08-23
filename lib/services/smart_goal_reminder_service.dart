@@ -76,8 +76,8 @@ class SmartGoalReminderService {
         SmartGoalType.dhikr => dhikr.count >= dhikr.target,
         SmartGoalType.quran => quran == null ||
             quran.isComplete ||
-            (quran.todayTarget > 0 &&
-                quran.completedToday >= quran.todayTarget),
+            quran.todayTarget == 0 ||
+            quran.completedTodayForPlan >= quran.todayTarget,
         SmartGoalType.dailyPlan => daily.completed,
       };
       final scheduledAt = nextReminderAt(
@@ -96,7 +96,7 @@ class SmartGoalReminderService {
               SmartGoalType.dhikr =>
                 '${dhikr.option.title} hedefinde ${dhikr.count}/${dhikr.target} tamamlandı.',
               SmartGoalType.quran =>
-                'Bugünkü hatim hedefinde ${quran!.completedToday}/${quran.todayTarget} cüz tamamlandı.',
+                'Bugünkü hatim hedefinde ${quran!.completedTodayForPlan}/${quran.todayTarget} cüz tamamlandı.',
               SmartGoalType.dailyPlan =>
                 'Günlük planında ${daily.tasks.length - daily.completedCount} hedef kaldı.',
             }

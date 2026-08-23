@@ -25,7 +25,7 @@ void main() {
     expect(summary.plan.startingCompletedCount, 8);
     expect(summary.totalToRead, 22);
     expect(summary.remainingJuz, 22);
-    expect(summary.plannedDailyJuz, 1);
+    expect(summary.plannedDailyJuz, closeTo(22 / 30, 0.0001));
     expect(summary.progress, closeTo(8 / 30, 0.0001));
     expect(summary.recommendedJuz.first, 9);
   });
@@ -43,6 +43,29 @@ void main() {
     expect(summary!.remainingDays, 5);
     expect(summary.todayTarget, 6);
     expect(summary.recommendedJuz, [1, 2, 3, 4, 5, 6]);
+  });
+
+  test('60 günlük plan cüz hedefini günlere dengeli dağıtır', () async {
+    final progress = QuranProgressService();
+    final service = QuranReadingPlanService(progressService: progress);
+    final start = DateTime(2026, 8, 1);
+    await service.createPlan(
+      targetDate: DateTime(2026, 9, 29),
+      now: start,
+    );
+
+    var summary = await service.loadSummary(now: start);
+    expect(summary!.plannedDailyJuz, 0.5);
+    expect(summary.todayTarget, 1);
+
+    await progress.setJuzCompleted(1, true, now: start);
+    summary = await service.loadSummary(now: start.add(const Duration(days: 1)));
+    expect(summary!.todayTarget, 0);
+    expect(summary.recommendedJuz, isEmpty);
+
+    summary = await service.loadSummary(now: start.add(const Duration(days: 2)));
+    expect(summary!.todayTarget, 1);
+    expect(summary.recommendedJuz, [2]);
   });
 
   test('cüz tamamlama tarihleri okuma serisini oluşturur', () async {

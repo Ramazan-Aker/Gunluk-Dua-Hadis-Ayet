@@ -197,7 +197,7 @@ class _QuranReadingPlanScreenState extends State<QuranReadingPlanScreen> {
 
   Widget _buildSetup() {
     final remaining = 30 - _completed.length;
-    final daily = remaining == 0 ? 0 : (remaining / _selectedDays).ceil();
+    final planJuz = remaining == 0 ? 30 : remaining;
     return ListView(
       padding: const EdgeInsets.fromLTRB(20, 18, 20, 34),
       children: [
@@ -293,8 +293,8 @@ class _QuranReadingPlanScreenState extends State<QuranReadingPlanScreen> {
               Expanded(
                 child: Text(
                   remaining == 0
-                      ? 'Yeni planda günlük yaklaşık ${30 / _selectedDays < 1 ? 1 : (30 / _selectedDays).ceil()} cüz okuyacaksın.'
-                      : 'Günde yaklaşık $daily cüz okuyarak ${_formatDate(_targetDate)} tarihinde tamamlayabilirsin.',
+                      ? 'Yeni planda ${_dailyPaceText(planJuz, _selectedDays)} okuyacaksın.'
+                      : '${_capitalize(_dailyPaceText(planJuz, _selectedDays))} okuyarak ${_formatDate(_targetDate)} tarihinde tamamlayabilirsin.',
                   style: const TextStyle(
                     color: AppTheme.emerald,
                     fontWeight: FontWeight.w700,
@@ -459,6 +459,8 @@ class _TodayReadingCard extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final recommended = summary.recommendedJuz;
+    final completedToday = summary.completedTodayForPlan;
+    final target = summary.todayTarget;
     return Container(
       padding: const EdgeInsets.all(18),
       decoration: BoxDecoration(
@@ -492,7 +494,11 @@ class _TodayReadingCard extends StatelessWidget {
                     Text(
                       summary.isComplete
                           ? 'Plan tamamlandı'
-                          : '${summary.todayTarget} cüz • Bugün ${summary.completedToday} tamamlandı',
+                          : target == 0
+                              ? 'Bugün yeni cüz hedefi yok • ${_capitalize(_dailyPaceText(summary.totalToRead, summary.totalDays))}'
+                              : completedToday >= target
+                                  ? '$completedToday/$target cüz • Bugünkü hedef tamamlandı'
+                                  : '$completedToday/$target cüz • Bugünkü hedef',
                       style: const TextStyle(
                           color: AppTheme.textMuted, fontSize: 12),
                     ),
@@ -523,6 +529,24 @@ class _TodayReadingCard extends StatelessWidget {
     );
   }
 }
+
+String _dailyPaceText(int juzCount, int dayCount) {
+  if (juzCount <= 0 || dayCount <= 0) return 'günlük hedef olmadan';
+  final dailyJuz = juzCount / dayCount;
+  if (dailyJuz >= 1) {
+    final value = dailyJuz == dailyJuz.roundToDouble()
+        ? dailyJuz.toStringAsFixed(0)
+        : dailyJuz.toStringAsFixed(1).replaceAll('.', ',');
+    return 'günde yaklaşık $value cüz';
+  }
+
+  // Standart Medine mushafında bir cüz yaklaşık 20 sayfadır.
+  final dailyPages = (juzCount * 20 / dayCount).ceil();
+  return 'günde yaklaşık $dailyPages sayfa';
+}
+
+String _capitalize(String value) =>
+    value.isEmpty ? value : '${value[0].toUpperCase()}${value.substring(1)}';
 
 class _PlanStat extends StatelessWidget {
   const _PlanStat({

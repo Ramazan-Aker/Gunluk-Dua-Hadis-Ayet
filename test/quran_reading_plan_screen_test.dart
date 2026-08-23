@@ -47,4 +47,18 @@ void main() {
     expect(find.textContaining('1 cüz'), findsWidgets);
     expect(tester.takeException(), isNull);
   });
+
+  testWidgets('60 günlük plan günlük hedefi sayfa olarak gösterir',
+      (tester) async {
+    await tester.pumpWidget(
+      const MaterialApp(home: QuranReadingPlanScreen()),
+    );
+    await tester.pumpAndSettle();
+
+    await tester.tap(find.text('60 gün'));
+    await tester.pump();
+
+    expect(find.textContaining('10 sayfa'), findsOneWidget);
+    expect(find.textContaining('Günde yaklaşık 1 cüz'), findsNothing);
+  });
 }

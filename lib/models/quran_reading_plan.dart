@@ -75,12 +75,32 @@ class QuranReadingPlanSummary {
   int get overdueDays =>
       isOverdue ? today.difference(plan.targetDate).inDays : 0;
 
-  int get plannedDailyJuz =>
-      totalToRead == 0 ? 0 : (totalToRead / totalDays).ceil();
+  double get plannedDailyJuz =>
+      totalToRead == 0 ? 0 : totalToRead / totalDays;
+
+  /// Plan başladıktan sonra bugün tamamlanan cüz sayısı.
+  /// Plan oluşturulmadan önce aynı gün okunmuş cüzler yeni hedefe sayılmaz.
+  int get completedTodayForPlan => math.min(completedSinceStart, completedToday);
+
   int get todayTarget {
     if (isComplete) return 0;
-    if (remainingDays <= 0) return remainingJuz;
-    return (remainingJuz / remainingDays).ceil();
+    if (remainingDays <= 0) return remainingJuz + completedTodayForPlan;
+
+    final elapsedDays = math.min(
+      totalDays,
+      math.max(1, today.difference(plan.startedAt).inDays + 1),
+    );
+    final expectedByToday = (totalToRead * elapsedDays / totalDays).ceil();
+    final completedBeforeToday =
+        math.max(0, completedSinceStart - completedTodayForPlan);
+    final dueBySchedule = math.max(0, expectedByToday - completedBeforeToday);
+    if (dueBySchedule == 0) return 0;
+
+    // Geride kalındığında bütün açığı tek güne yığmak yerine kalan günlere
+    // dengeli dağıt. Bugün okunanlar eklendiği için hedef gün içinde sabit kalır.
+    final remainingAtStartOfToday = remainingJuz + completedTodayForPlan;
+    final adaptiveTarget = (remainingAtStartOfToday / remainingDays).ceil();
+    return math.min(dueBySchedule, adaptiveTarget);
   }
 
   int get completedToday =>
@@ -89,11 +109,12 @@ class QuranReadingPlanSummary {
   double get progress => (completedJuz.length / 30).clamp(0, 1);
 
   List<int> get recommendedJuz {
-    if (todayTarget == 0) return const [];
+    final remainingToday = math.max(0, todayTarget - completedTodayForPlan);
+    if (remainingToday == 0) return const [];
     return [
       for (var number = 1; number <= 30; number++)
         if (!completedJuz.contains(number)) number,
-    ].take(todayTarget).toList();
+    ].take(remainingToday).toList();
   }
 
   bool get isOnTrack {
