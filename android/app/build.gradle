@@ -35,8 +35,9 @@ android {
         applicationId "com.tahram.gunlukduahadis"
         minSdkVersion flutter.minSdkVersion
         targetSdk 37
-        versionCode 31
-        versionName "2.0.0"
+        // Keep Android version metadata in sync with pubspec.yaml.
+        versionCode flutter.versionCode
+        versionName flutter.versionName
         multiDexEnabled true
     }
 
