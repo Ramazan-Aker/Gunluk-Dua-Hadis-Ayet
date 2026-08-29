@@ -27,6 +27,11 @@ linter:
     use_build_context_synchronously: false
 
 analyzer:
+  exclude:
+    - .media_deps/**
+    - build/**
+    - store_assets/**
+    - tool/qa/**
   errors:
     deprecated_member_use: ignore
 

@@ -96,12 +96,12 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
     ),
     _OnboardingPageData(
       eyebrow: 'PAYLAŞ VE HATIRLA',
-      title: 'Güzel sözleri sana özel paylaş',
+      title: 'Hazır mesajları tek dokunuşla paylaş',
       description:
-          'Mesajları favorilerine ekle, son kullandıklarına dön ve imzanı ekle. Hikâye, gönderi veya Reels için uygun görsel hazırla.',
+          'Özgün ve internetsiz kullanılabilen tasarımlar arasından seçimini yap. Beğendiğin mesajı favorilerine ekle, kaydet veya doğrudan paylaş.',
       icon: Icons.favorite_rounded,
       accent: Color(0xFFB76E79),
-      highlights: ['Favoriler', 'Kişisel imza', 'Farklı paylaşım boyutları'],
+      highlights: ['Hazır tasarımlar', 'Favoriler', 'Tek dokunuşla paylaş'],
     ),
   ];
 

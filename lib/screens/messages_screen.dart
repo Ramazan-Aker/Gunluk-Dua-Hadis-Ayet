@@ -1,22 +1,22 @@
+import 'dart:io';
 import 'dart:ui' as ui;
 
 import 'package:flutter/material.dart';
 import 'package:flutter/rendering.dart';
 import 'package:flutter/services.dart';
-import 'package:share_plus/share_plus.dart';
 import 'package:path_provider/path_provider.dart';
-import 'dart:io';
-import '../models/greeting_message.dart';
-import '../services/greeting_service.dart';
-import '../services/greeting_preferences_service.dart';
+import 'package:share_plus/share_plus.dart';
+import 'package:url_launcher/url_launcher.dart';
+
+import '../models/ready_message_design.dart';
+import '../models/share_format.dart';
 import '../services/ad_service.dart';
 import '../services/firebase_service.dart';
-import '../widgets/greeting_shareable_card.dart';
-import '../widgets/widget_shortcut_helper.dart';
-import '../models/share_format.dart';
+import '../services/ready_message_preferences_service.dart';
+import '../services/ready_message_service.dart';
 import '../theme/app_theme.dart';
+import '../widgets/widget_shortcut_helper.dart';
 
-/// Screen for sharing Cuma, Kandil, and Bayram greeting messages
 class MessagesScreen extends StatefulWidget {
   const MessagesScreen({super.key});
 
@@ -25,412 +25,512 @@ class MessagesScreen extends StatefulWidget {
 }
 
 class _MessagesScreenState extends State<MessagesScreen> {
-  static const _mediaChannel = MethodChannel(
-    'com.tahram.gunlukduahadis/media',
-  );
-  final GreetingService _greetingService = GreetingService();
-  final GreetingPreferencesService _preferencesService =
-      GreetingPreferencesService();
+  final ReadyMessageService _messageService = ReadyMessageService();
+  final ReadyMessagePreferencesService _preferencesService =
+      ReadyMessagePreferencesService();
   final AdService _adService = AdService();
-  // iOS share sheet konumu için paylaş butonuna atanan key
-  final GlobalKey _shareButtonKey = GlobalKey();
-  // Ekranda gösterilen kartı doğrudan görsele dönüştürmek için kullanılır.
-  // Ekran dışındaki Overlay yakalama yöntemi iOS'ta boş görsel üretebiliyordu.
-  final GlobalKey _greetingCardKey = GlobalKey();
 
+  List<ReadyMessageDesign> _designs = const [];
+  Set<String> _favoriteIds = const {};
+  String _selectedFilter = 'all';
   bool _isLoading = true;
-  bool _isSharing = false;
-  bool _isSaving = false;
-
-  // Step 0: null = main groups, 'kandil'/'bayram' = show sub-list
-  String? _mainGroup;
-  String? _selectedCategoryId;
-  String _messageText = '';
-  String _messageTitle = '';
-  bool _isCustomMessage = false;
-  String? _selectedMessageId;
-  Future<String?>? _imageFuture;
-  ShareFormat _shareFormat = ShareFormat.feed;
-  List<GreetingMessage> _favoriteMessages = [];
-  List<GreetingMessage> _recentMessages = [];
-  String _signature = '';
+  String? _loadError;
 
   @override
   void initState() {
     super.initState();
-    _loadMessages();
+    _loadCatalog();
     _adService.loadInterstitialAd();
-    FirebaseService.logScreenView(screenName: 'screen_messages');
+    FirebaseService.logScreenView(screenName: 'screen_ready_messages');
   }
 
-  Future<void> _loadMessages() async {
-    await _greetingService.loadMessages();
-    final favorites = await _preferencesService.loadFavorites();
-    final recents = await _preferencesService.loadRecents();
-    final signature = await _preferencesService.loadSignature();
-    if (mounted) {
+  Future<void> _loadCatalog() async {
+    try {
+      final results = await Future.wait([
+        _messageService.loadDesigns(),
+        _preferencesService.loadFavoriteIds(),
+      ]);
+      if (!mounted) return;
       setState(() {
-        _favoriteMessages = favorites;
-        _recentMessages = recents;
-        _signature = signature;
+        _designs = results[0] as List<ReadyMessageDesign>;
+        _favoriteIds = results[1] as Set<String>;
+        _isLoading = false;
+        _loadError = null;
+      });
+    } catch (error) {
+      if (!mounted) return;
+      setState(() {
+        _loadError = error.toString();
         _isLoading = false;
       });
     }
   }
 
-  void _selectMainGroup(String? group) {
-    setState(() {
-      _mainGroup = group;
-      _selectedCategoryId = null;
-      _messageText = '';
-      _messageTitle = '';
-      _isCustomMessage = false;
-      _selectedMessageId = null;
-      _imageFuture = null;
-
-      if (group == 'cuma') {
-        _selectedCategoryId = 'cuma';
-        _greetingService.prefetchImageForCategory('cuma');
-      } else if (group == 'günlük_dua') {
-        _selectedCategoryId = 'günlük_dua';
-        _greetingService.prefetchImageForCategory('günlük_dua');
-      }
-    });
-  }
-
-  void _selectCategory(String categoryId) {
-    setState(() {
-      _selectedCategoryId = categoryId;
-      _messageText = '';
-      _messageTitle = '';
-      _isCustomMessage = false;
-      _selectedMessageId = null;
-      _imageFuture = null;
-      _greetingService.prefetchImageForCategory(categoryId);
-    });
-  }
-
-  void _selectMessage(GreetingMessage msg) {
-    setState(() {
-      _selectedCategoryId = msg.category;
-      _messageText = msg.text;
-      _messageTitle = msg.title;
-      _isCustomMessage = false;
-      _selectedMessageId = msg.id;
-      _imageFuture = _greetingService.fetchImageForMessage(msg.category,
-          messageId: msg.id);
-    });
-    _preferencesService.addRecent(msg).then((recents) {
-      if (mounted) setState(() => _recentMessages = recents);
-    });
-  }
-
-  void _setCustomMessage(String text, String title) {
-    final messageId = 'custom_${DateTime.now().millisecondsSinceEpoch}';
-    setState(() {
-      _messageText = text;
-      _messageTitle = title;
-      _isCustomMessage = true;
-      _selectedMessageId = messageId;
-      if (_selectedCategoryId != null) {
-        _imageFuture = _greetingService
-            .fetchImageForMessage(_selectedCategoryId!, messageId: messageId);
-      }
-    });
-    if (_selectedCategoryId != null) {
-      final message = GreetingMessage(
-        id: messageId,
-        category: _selectedCategoryId!,
-        title: title,
-        text: text,
-      );
-      _preferencesService.addRecent(message).then((recents) {
-        if (mounted) setState(() => _recentMessages = recents);
-      });
+  List<ReadyMessageDesign> get _visibleDesigns {
+    if (_selectedFilter == 'all') return _designs;
+    if (_selectedFilter == 'favorites') {
+      return _designs
+          .where((design) => _favoriteIds.contains(design.id))
+          .toList(growable: false);
     }
-  }
-
-  GreetingMessage? _currentMessage() {
-    if (_selectedCategoryId == null ||
-        _selectedMessageId == null ||
-        _messageText.isEmpty) {
-      return null;
+    if (_selectedFilter == 'kandiller') {
+      return _designs
+          .where((design) => _kandilCategories.contains(design.category))
+          .toList(growable: false);
     }
-    return GreetingMessage(
-      id: _selectedMessageId!,
-      category: _selectedCategoryId!,
-      title: _messageTitle,
-      text: _messageText,
-    );
+    if (_selectedFilter == 'bayramlar') {
+      return _designs
+          .where((design) => _bayramCategories.contains(design.category))
+          .toList(growable: false);
+    }
+    return _designs
+        .where((design) => design.category == _selectedFilter)
+        .toList(growable: false);
   }
 
-  String _messageKey(GreetingMessage message) {
-    final identity =
-        message.id.trim().isEmpty ? message.text.trim() : message.id;
-    return '${message.category}::$identity';
+  Future<bool> _toggleFavorite(ReadyMessageDesign design) async {
+    final favoriteIds = await _preferencesService.toggleFavorite(design.id);
+    if (!mounted) return favoriteIds.contains(design.id);
+    setState(() => _favoriteIds = favoriteIds);
+    return favoriteIds.contains(design.id);
   }
 
-  bool _isFavorite(GreetingMessage message) => _favoriteMessages.any(
-        (favorite) => _messageKey(favorite) == _messageKey(message),
-      );
-
-  Future<void> _toggleFavorite(GreetingMessage message) async {
-    final wasFavorite = _isFavorite(message);
-    final favorites = await _preferencesService.toggleFavorite(message);
-    if (!mounted) return;
-    setState(() => _favoriteMessages = favorites);
-    ScaffoldMessenger.of(context).hideCurrentSnackBar();
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(
-        content: Text(
-          wasFavorite
-              ? 'Mesaj favorilerden kaldırıldı'
-              : 'Mesaj favorilere eklendi',
+  void _openDesign(ReadyMessageDesign design) {
+    Navigator.of(context).push(
+      MaterialPageRoute<void>(
+        builder: (_) => _ReadyMessagePreviewPage(
+          design: design,
+          adService: _adService,
+          initialIsFavorite: _favoriteIds.contains(design.id),
+          onToggleFavorite: () => _toggleFavorite(design),
         ),
-        duration: const Duration(seconds: 2),
       ),
     );
   }
 
-  Future<void> _showSignatureDialog() async {
-    final signature = await showDialog<String>(
-      context: context,
-      builder: (context) => _TextInputDialog(
-        title: 'Kişisel İmza',
-        hintText: 'Örn. Ramazan ve Ailesi',
-        initialValue: _signature,
-        submitLabel: 'Kaydet',
-        maxLength: 50,
-        minLines: 1,
-        maxLines: 2,
-        allowEmpty: true,
-        helperText: 'Boş bırakırsanız paylaşım kartında imza görünmez.',
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      backgroundColor: AppTheme.ivory,
+      appBar: AppBar(
+        title: const Text(
+          'Hazır Mesajlar',
+          style: TextStyle(fontSize: 22, fontWeight: FontWeight.w700),
+        ),
+        centerTitle: true,
+        elevation: 0,
+        leading: const Icon(Icons.auto_awesome_mosaic_rounded),
+        actions: [
+          ...WidgetShortcutHelper.appBarActions(context),
+          const SizedBox(width: 6),
+        ],
+      ),
+      body: Column(
+        children: [
+          Expanded(child: _buildBody()),
+          const AdBannerWidget(),
+        ],
       ),
     );
-    if (signature == null || !mounted) return;
-    final cleanSignature = signature.trim();
-    await _preferencesService.saveSignature(cleanSignature);
-    if (mounted) setState(() => _signature = cleanSignature);
   }
 
-  bool _canGoBack() {
-    return _mainGroup != null || _selectedCategoryId != null;
-  }
-
-  void _onBackPressed() {
-    if (_messageText.isNotEmpty) {
-      setState(() {
-        _messageText = '';
-        _messageTitle = '';
-        _selectedMessageId = null;
-        _imageFuture = null;
-      });
-      return;
+  Widget _buildBody() {
+    if (_isLoading) {
+      return const Center(child: CircularProgressIndicator());
     }
-    if (_selectedCategoryId != null) {
-      if (_mainGroup == 'kandil' || _mainGroup == 'bayram') {
-        setState(() => _selectedCategoryId = null);
-      } else {
-        _selectMainGroup(null);
-      }
-      return;
+    if (_loadError != null) {
+      return _MessageLoadError(onRetry: _loadCatalog);
     }
-    if (_mainGroup != null) {
-      _selectMainGroup(null);
-    }
-  }
 
-  Future<void> _shareGreeting() async {
-    if (_messageText.isEmpty || _selectedCategoryId == null) return;
-
-    setState(() => _isSharing = true);
-
-    try {
-      if (!mounted) return;
-      final categoryId = _selectedCategoryId!;
-      // Paralel: görsel oluşturma (reklam sırasında arka planda hazırlanır)
-      final imageFuture = _captureGreetingCard();
-
-      // Paralel: reklam göster (kullanıcı izler)
-      final adFuture = _adService.showInterstitialAd().catchError((e) {
-        return false;
-      });
-
-      await adFuture;
-      final bytes = await imageFuture;
-
-      if (bytes != null && bytes.isNotEmpty) {
-        final directory = await getTemporaryDirectory();
-        final imagePath =
-            '${directory.path}/greeting_${_shareFormat.name}_${DateTime.now().millisecondsSinceEpoch}.png';
-        final imageFile = File(imagePath);
-        await imageFile.writeAsBytes(bytes, flush: true);
-
-        // iOS'ta share sheet konumu zorunlu
-        final box =
-            _shareButtonKey.currentContext?.findRenderObject() as RenderBox?;
-        final origin = box != null
-            ? box.localToGlobal(Offset.zero) & box.size
-            : Rect.fromCenter(
-                center: MediaQuery.of(context).size.center(Offset.zero),
-                width: 1,
-                height: 1,
-              );
-
-        await Share.shareXFiles(
-          [XFile(imagePath, mimeType: 'image/png')],
-          text: 'Her Gün İslam uygulamasından paylaşıldı',
-          sharePositionOrigin: origin,
+    final visibleDesigns = _visibleDesigns;
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        final columnCount = constraints.maxWidth >= 900
+            ? 5
+            : constraints.maxWidth >= 620
+                ? 3
+                : 2;
+        return CustomScrollView(
+          slivers: [
+            SliverToBoxAdapter(child: _buildHeader()),
+            SliverToBoxAdapter(child: _buildFilters()),
+            if (visibleDesigns.isEmpty)
+              const SliverFillRemaining(
+                hasScrollBody: false,
+                child: _EmptyFavorites(),
+              )
+            else
+              SliverPadding(
+                padding: const EdgeInsets.fromLTRB(16, 8, 16, 24),
+                sliver: SliverGrid.builder(
+                  itemCount: visibleDesigns.length,
+                  gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
+                    crossAxisCount: columnCount,
+                    mainAxisSpacing: 12,
+                    crossAxisSpacing: 12,
+                    childAspectRatio: 9 / 16,
+                  ),
+                  itemBuilder: (context, index) {
+                    final design = visibleDesigns[index];
+                    return _ReadyMessageTile(
+                      design: design,
+                      isFavorite: _favoriteIds.contains(design.id),
+                      onTap: () => _openDesign(design),
+                      onFavorite: () => _toggleFavorite(design),
+                    );
+                  },
+                ),
+              ),
+          ],
         );
+      },
+    );
+  }
 
-        FirebaseService.logEvent(
-          name: AnalyticsEvents.greetingShared,
-          parameters: {
-            AnalyticsParams.category: categoryId,
-            AnalyticsParams.messageType:
-                _isCustomMessage ? 'custom' : 'predefined',
-          },
-        );
-
-        if (mounted) {
-          ScaffoldMessenger.of(context).hideCurrentSnackBar();
-          ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(
-              content: Text('✅ Kart görsel olarak paylaşıldı!'),
-              backgroundColor: Colors.green,
-              duration: Duration(seconds: 2),
-            ),
-          );
-        }
-
-        Future.delayed(const Duration(minutes: 5), () {
-          try {
-            if (imageFile.existsSync()) imageFile.deleteSync();
-          } catch (_) {}
-        });
-      } else {
-        _shareAsText();
-      }
-    } catch (e) {
-      if (mounted) {
-        ScaffoldMessenger.of(context).hideCurrentSnackBar();
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text('Görsel oluşturulamadı: $e'),
-            backgroundColor: Colors.orange,
+  Widget _buildHeader() {
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(18, 20, 18, 12),
+      child: Container(
+        padding: const EdgeInsets.all(18),
+        decoration: BoxDecoration(
+          gradient: const LinearGradient(
+            colors: [Color(0xFF002F46), Color(0xFF075B56)],
+            begin: Alignment.topLeft,
+            end: Alignment.bottomRight,
           ),
-        );
-      }
-      _shareAsText();
-    } finally {
-      if (mounted) setState(() => _isSharing = false);
-    }
+          borderRadius: BorderRadius.circular(22),
+          boxShadow: [
+            BoxShadow(
+              color: AppTheme.navy.withValues(alpha: .14),
+              blurRadius: 20,
+              offset: const Offset(0, 8),
+            ),
+          ],
+        ),
+        child: Row(
+          children: [
+            Container(
+              width: 48,
+              height: 48,
+              decoration: BoxDecoration(
+                color: Colors.white.withValues(alpha: .13),
+                shape: BoxShape.circle,
+              ),
+              child: const Icon(
+                Icons.auto_awesome_rounded,
+                color: AppTheme.gold,
+              ),
+            ),
+            const SizedBox(width: 14),
+            const Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    'Paylaşmaya hazır tasarımlar',
+                    style: TextStyle(
+                      color: Colors.white,
+                      fontSize: 17,
+                      fontWeight: FontWeight.w800,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
   }
 
-  Future<Uint8List?> _captureGreetingCard() async {
-    if (_messageText.isEmpty || _selectedCategoryId == null || !mounted) {
-      return null;
+  Widget _buildFilters() {
+    return SizedBox(
+      height: 58,
+      child: ListView.separated(
+        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 7),
+        scrollDirection: Axis.horizontal,
+        itemCount: _messageFilters.length,
+        separatorBuilder: (_, __) => const SizedBox(width: 8),
+        itemBuilder: (context, index) {
+          final filter = _messageFilters[index];
+          final selected = filter.id == _selectedFilter;
+          return FilterChip(
+            selected: selected,
+            showCheckmark: false,
+            avatar: Icon(
+              filter.icon,
+              size: 17,
+              color: selected ? Colors.white : AppTheme.emerald,
+            ),
+            label: Text(filter.label),
+            labelStyle: TextStyle(
+              color: selected ? Colors.white : AppTheme.navy,
+              fontWeight: FontWeight.w700,
+            ),
+            backgroundColor: Colors.white,
+            selectedColor: AppTheme.navy,
+            side: BorderSide(
+              color: selected
+                  ? AppTheme.navy
+                  : AppTheme.navy.withValues(alpha: .12),
+            ),
+            onSelected: (_) => setState(() => _selectedFilter = filter.id),
+          );
+        },
+      ),
+    );
+  }
+}
+
+class _ReadyMessageTile extends StatelessWidget {
+  final ReadyMessageDesign design;
+  final bool isFavorite;
+  final VoidCallback onTap;
+  final Future<bool> Function() onFavorite;
+
+  const _ReadyMessageTile({
+    required this.design,
+    required this.isFavorite,
+    required this.onTap,
+    required this.onFavorite,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return Material(
+      color: Colors.white,
+      elevation: 0,
+      borderRadius: BorderRadius.circular(18),
+      clipBehavior: Clip.antiAlias,
+      child: InkWell(
+        onTap: onTap,
+        child: Stack(
+          fit: StackFit.expand,
+          children: [
+            Hero(
+              tag: 'ready-message-${design.id}',
+              child: _EditableMessageCard(
+                design: design,
+                message: design.message,
+              ),
+            ),
+            const DecoratedBox(
+              decoration: BoxDecoration(
+                gradient: LinearGradient(
+                  colors: [Colors.transparent, Color(0x8C000000)],
+                  begin: Alignment.center,
+                  end: Alignment.bottomCenter,
+                ),
+              ),
+            ),
+            Positioned(
+              top: 5,
+              right: 4,
+              child: IconButton(
+                tooltip: isFavorite ? 'Favorilerden kaldır' : 'Favorilere ekle',
+                onPressed: onFavorite,
+                icon: Icon(
+                  isFavorite
+                      ? Icons.favorite_rounded
+                      : Icons.favorite_border_rounded,
+                  color: isFavorite ? const Color(0xFFFF6374) : Colors.white,
+                  shadows: const [Shadow(color: Colors.black54, blurRadius: 6)],
+                ),
+              ),
+            ),
+            Positioned(
+              left: 11,
+              right: 11,
+              bottom: 10,
+              child: Text(
+                design.title,
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+                style: const TextStyle(
+                  color: Colors.white,
+                  fontSize: 13,
+                  fontWeight: FontWeight.w700,
+                  shadows: [Shadow(color: Colors.black87, blurRadius: 7)],
+                ),
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+class _ReadyMessagePreviewPage extends StatefulWidget {
+  final ReadyMessageDesign design;
+  final AdService adService;
+  final bool initialIsFavorite;
+  final Future<bool> Function() onToggleFavorite;
+
+  const _ReadyMessagePreviewPage({
+    required this.design,
+    required this.adService,
+    required this.initialIsFavorite,
+    required this.onToggleFavorite,
+  });
+
+  @override
+  State<_ReadyMessagePreviewPage> createState() =>
+      _ReadyMessagePreviewPageState();
+}
+
+class _ReadyMessagePreviewPageState extends State<_ReadyMessagePreviewPage> {
+  static const _mediaChannel = MethodChannel(
+    'com.tahram.gunlukduahadis/media',
+  );
+
+  final GlobalKey _shareButtonKey = GlobalKey();
+  final GlobalKey _editableCardKey = GlobalKey();
+  late bool _isFavorite;
+  late String _messageText;
+  ShareFormat _shareFormat = ShareFormat.story;
+  bool _isSharing = false;
+  bool _isSaving = false;
+
+  bool get _isEdited => _messageText != widget.design.message;
+
+  @override
+  void initState() {
+    super.initState();
+    _isFavorite = widget.initialIsFavorite;
+    _messageText = widget.design.message;
+  }
+
+  Future<_ExportImage> _createExportImage() async {
+    await precacheImage(AssetImage(widget.design.backgroundAssetPath), context);
+    await WidgetsBinding.instance.endOfFrame;
+    final boundary = _editableCardKey.currentContext?.findRenderObject()
+        as RenderRepaintBoundary?;
+    if (boundary == null || boundary.size.isEmpty) {
+      throw StateError('Düzenlenen görsel henüz hazır değil');
     }
 
-    final categoryId = _selectedCategoryId!;
-    String? imageUrl;
+    final pixelRatio = _shareFormat.width / boundary.size.width;
+    final image = await boundary.toImage(pixelRatio: pixelRatio);
     try {
-      imageUrl = await (_imageFuture ??
-          _greetingService.fetchImageForMessage(
-            categoryId,
-            messageId: _selectedMessageId,
-          ));
-    } catch (_) {
-      // Ağdaki arka plan görseli alınamasa da varsayılan kart tasarımı
-      // paylaşılmaya devam edebilir.
-    }
-    if (imageUrl != null && imageUrl.isNotEmpty && mounted) {
-      // Arka plan resmi yüklenemezse kartın renkli varsayılan tasarımı yine
-      // paylaşılabilsin. CachedNetworkImage ekranda da aynı davranışı gösterir.
-      try {
-        await precacheImage(NetworkImage(imageUrl), context);
-      } catch (_) {}
-    }
-    if (!mounted) return null;
-
-    // FutureBuilder'ın görseli ekleyebilmesi için kare sonunu bekleriz. Bu,
-    // paylaşım tuşuna yükleme biter bitmez basıldığında da çalışır.
-    RenderRepaintBoundary? boundary;
-    for (var frame = 0; frame < 3 && boundary == null; frame++) {
-      await WidgetsBinding.instance.endOfFrame;
-      if (!mounted) return null;
-      boundary = _greetingCardKey.currentContext?.findRenderObject()
-          as RenderRepaintBoundary?;
-    }
-    if (boundary == null || !boundary.hasSize) {
-      throw StateError('Paylaşım kartı henüz hazırlanmadı');
-    }
-
-    final image = await boundary.toImage(pixelRatio: 1);
-    try {
-      final byteData = await image.toByteData(format: ui.ImageByteFormat.png);
-      return byteData?.buffer.asUint8List();
+      final data = await image.toByteData(format: ui.ImageByteFormat.png);
+      if (data == null) throw StateError('Görsel verisi oluşturulamadı');
+      return _ExportImage(
+        bytes: data.buffer.asUint8List(),
+        extension: 'png',
+        mimeType: 'image/png',
+      );
     } finally {
       image.dispose();
     }
   }
 
-  void _changePreviewImage() {
-    if (_selectedCategoryId == null) return;
-    setState(() {
-      _imageFuture = _greetingService.fetchImageForMessage(
-        _selectedCategoryId!,
-        messageId: _selectedMessageId,
-        forceRefresh: true,
-      );
-    });
+  Future<void> _editMessage() async {
+    final message = await showDialog<String>(
+      context: context,
+      builder: (context) => _EditMessageDialog(initialValue: _messageText),
+    );
+    if (message == null || !mounted) return;
+    setState(() => _messageText = message);
   }
 
-  Future<void> _showEditMessageDialog() async {
-    final editedText = await showDialog<String>(
-      context: context,
-      builder: (context) => _TextInputDialog(
-        title: 'Metni Düzenle',
-        hintText: 'Paylaşmak istediğiniz mesajı yazın',
-        initialValue: _messageText,
-        submitLabel: 'Uygula',
-        maxLength: 500,
-        minLines: 5,
-        maxLines: 9,
-      ),
-    );
+  void _restoreDefaultMessage() {
+    setState(() => _messageText = widget.design.message);
+  }
 
-    if (editedText != null && mounted) {
-      setState(() {
-        _messageText = editedText;
-        _isCustomMessage = true;
-      });
+  Future<void> _openSource() async {
+    final uri = Uri.tryParse(widget.design.sourceUrl ?? '');
+    if (uri == null ||
+        !await launchUrl(uri, mode: LaunchMode.externalApplication)) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Görsel kaynağı açılamadı.')),
+        );
+      }
     }
   }
 
-  Future<void> _saveGreetingToDevice() async {
-    if (_isSaving || _messageText.isEmpty) return;
+  Future<void> _toggleFavorite() async {
+    final isFavorite = await widget.onToggleFavorite();
+    if (mounted) setState(() => _isFavorite = isFavorite);
+  }
+
+  Future<void> _share() async {
+    if (_isSharing || _isSaving) return;
+    setState(() => _isSharing = true);
+
+    File? temporaryFile;
+    try {
+      final imageFuture = _createExportImage();
+      await widget.adService.showInterstitialAd().catchError((_) => false);
+      final export = await imageFuture;
+      final directory = await getTemporaryDirectory();
+      temporaryFile = File(
+        '${directory.path}/her_gun_islam_${widget.design.id}_${_shareFormat.name}_${DateTime.now().millisecondsSinceEpoch}.${export.extension}',
+      );
+      await temporaryFile.writeAsBytes(export.bytes, flush: true);
+
+      if (!mounted) return;
+      final box =
+          _shareButtonKey.currentContext?.findRenderObject() as RenderBox?;
+      final origin = box != null
+          ? box.localToGlobal(Offset.zero) & box.size
+          : Rect.fromCenter(
+              center: MediaQuery.of(context).size.center(Offset.zero),
+              width: 1,
+              height: 1,
+            );
+
+      await Share.shareXFiles(
+        [XFile(temporaryFile.path, mimeType: export.mimeType)],
+        text: 'Her Gün İslam uygulamasından paylaşıldı',
+        sharePositionOrigin: origin,
+      );
+
+      FirebaseService.logEvent(
+        name: AnalyticsEvents.greetingShared,
+        parameters: {
+          AnalyticsParams.category: widget.design.category,
+          AnalyticsParams.messageType:
+              _isEdited ? 'ready_local_edited' : 'ready_local',
+        },
+      );
+    } catch (error) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Görsel paylaşılamadı: $error')),
+        );
+      }
+    } finally {
+      if (mounted) setState(() => _isSharing = false);
+      final fileToDelete = temporaryFile;
+      if (fileToDelete != null) {
+        Future<void>.delayed(const Duration(minutes: 5), () async {
+          try {
+            if (await fileToDelete.exists()) await fileToDelete.delete();
+          } catch (_) {}
+        });
+      }
+    }
+  }
+
+  Future<void> _save() async {
+    if (_isSharing || _isSaving) return;
     setState(() => _isSaving = true);
 
     try {
-      final bytes = await _captureGreetingCard();
-      if (bytes == null || bytes.isEmpty) {
-        throw Exception('Görsel oluşturulamadı');
-      }
+      final export = await _createExportImage();
       if (Platform.isIOS) {
-        // iOS'ta uygulama kapsayıcısındaki Downloads klasörü her zaman mevcut
-        // değildir. Görseli kullanıcının Fotoğraflar arşivine kaydederiz.
         final saved = await _mediaChannel.invokeMethod<bool>(
           'saveImageToPhotoLibrary',
-          bytes,
+          export.bytes,
         );
         if (saved != true) {
           throw Exception('Görsel Fotoğraflar arşivine kaydedilemedi');
         }
-
         if (mounted) {
           ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(content: Text('Görsel Fotoğraflar\'a kaydedildi.')),
+            const SnackBar(content: Text('Görsel Fotoğraflar’a kaydedildi.')),
           );
         }
         return;
@@ -438,16 +538,14 @@ class _MessagesScreenState extends State<MessagesScreen> {
 
       final directory = await getDownloadsDirectory() ??
           await getApplicationDocumentsDirectory();
-      // Bazı cihazlarda Downloads yolu döndürülse bile klasör henüz
-      // oluşturulmamış olabilir.
       await directory.create(recursive: true);
-      final imagePath =
-          '${directory.path}/her_gun_islam_${_shareFormat.name}_${DateTime.now().millisecondsSinceEpoch}.png';
-      await File(imagePath).writeAsBytes(bytes, flush: true);
-
+      final file = File(
+        '${directory.path}/her_gun_islam_${widget.design.id}_${DateTime.now().millisecondsSinceEpoch}.${export.extension}',
+      );
+      await file.writeAsBytes(export.bytes, flush: true);
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Görsel kaydedildi: $imagePath')),
+          SnackBar(content: Text('Görsel kaydedildi: ${file.path}')),
         );
       }
     } catch (error) {
@@ -461,809 +559,497 @@ class _MessagesScreenState extends State<MessagesScreen> {
     }
   }
 
-  void _shareAsText() {
-    if (_messageText.isEmpty) return;
-    // iOS'ta share sheet konumu zorunlu
-    final box =
-        _shareButtonKey.currentContext?.findRenderObject() as RenderBox?;
-    final origin = box != null
-        ? box.localToGlobal(Offset.zero) & box.size
-        : Rect.fromCenter(
-            center: MediaQuery.of(context).size.center(Offset.zero),
-            width: 1,
-            height: 1,
-          );
-    final signatureText = _signature.isEmpty ? '' : '\n\n— $_signature';
-    Share.share(
-      '$_messageTitle\n\n$_messageText$signatureText\n\nHer Gün İslam uygulamasından paylaşıldı',
-      sharePositionOrigin: origin,
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      backgroundColor: AppTheme.ivory,
+      appBar: AppBar(
+        title: Text(widget.design.categoryLabel),
+        centerTitle: true,
+        actions: [
+          IconButton(
+            onPressed: _toggleFavorite,
+            tooltip: _isFavorite ? 'Favorilerden kaldır' : 'Favorilere ekle',
+            icon: Icon(
+              _isFavorite
+                  ? Icons.favorite_rounded
+                  : Icons.favorite_border_rounded,
+              color: _isFavorite ? const Color(0xFFCE5868) : AppTheme.navy,
+            ),
+          ),
+          const SizedBox(width: 6),
+        ],
+      ),
+      body: Column(
+        children: [
+          Expanded(
+            child: SingleChildScrollView(
+              padding: const EdgeInsets.fromLTRB(18, 18, 18, 24),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.stretch,
+                children: [
+                  Center(
+                    child: ConstrainedBox(
+                      constraints: const BoxConstraints(maxWidth: 520),
+                      child: AspectRatio(
+                        aspectRatio: _shareFormat.aspectRatio,
+                        child: ClipRRect(
+                          borderRadius: BorderRadius.circular(22),
+                          child: Hero(
+                            tag: 'ready-message-${widget.design.id}',
+                            child: RepaintBoundary(
+                              key: _editableCardKey,
+                              child: _EditableMessageCard(
+                                design: widget.design,
+                                message: _messageText,
+                              ),
+                            ),
+                          ),
+                        ),
+                      ),
+                    ),
+                  ),
+                  if (_isEdited) ...[
+                    const SizedBox(height: 10),
+                    const Center(
+                      child: _EditedBadge(),
+                    ),
+                  ],
+                  const SizedBox(height: 18),
+                  _buildFormatSelector(),
+                  const SizedBox(height: 12),
+                  _buildActions(),
+                  const SizedBox(height: 12),
+                  Text(
+                    widget.design.source,
+                    textAlign: TextAlign.center,
+                    style: const TextStyle(
+                      color: AppTheme.textMuted,
+                      fontSize: 12,
+                    ),
+                  ),
+                  if (widget.design.sourceUrl != null) ...[
+                    const SizedBox(height: 3),
+                    TextButton.icon(
+                      onPressed: _openSource,
+                      icon: const Icon(Icons.open_in_new_rounded, size: 16),
+                      label: const Text('Görsel kaynağı ve lisans'),
+                    ),
+                  ],
+                ],
+              ),
+            ),
+          ),
+          const AdBannerWidget(),
+        ],
+      ),
     );
+  }
+
+  Widget _buildFormatSelector() {
+    const formats = [
+      ShareFormat.story,
+      ShareFormat.feed,
+      ShareFormat.square,
+    ];
+    return Container(
+      padding: const EdgeInsets.all(12),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(18),
+        boxShadow: [
+          BoxShadow(
+            color: AppTheme.navy.withValues(alpha: .06),
+            blurRadius: 14,
+            offset: const Offset(0, 4),
+          ),
+        ],
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          const Padding(
+            padding: EdgeInsets.fromLTRB(4, 1, 4, 9),
+            child: Text(
+              'Paylaşım formatı',
+              style: TextStyle(
+                color: AppTheme.navy,
+                fontSize: 13,
+                fontWeight: FontWeight.w800,
+              ),
+            ),
+          ),
+          Row(
+            children: [
+              for (var index = 0; index < formats.length; index++) ...[
+                if (index > 0) const SizedBox(width: 7),
+                Expanded(
+                  child: _ShareFormatOption(
+                    format: formats[index],
+                    isSelected: _shareFormat == formats[index],
+                    onTap: () => setState(
+                      () => _shareFormat = formats[index],
+                    ),
+                  ),
+                ),
+              ],
+            ],
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildActions() {
+    return Container(
+      padding: const EdgeInsets.all(15),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(20),
+        boxShadow: [
+          BoxShadow(
+            color: AppTheme.navy.withValues(alpha: .08),
+            blurRadius: 18,
+            offset: const Offset(0, 6),
+          ),
+        ],
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          ElevatedButton.icon(
+            key: _shareButtonKey,
+            onPressed: _isSharing || _isSaving ? null : _share,
+            icon: _isSharing
+                ? const SizedBox(
+                    width: 20,
+                    height: 20,
+                    child: CircularProgressIndicator(
+                      strokeWidth: 2,
+                      color: Colors.white,
+                    ),
+                  )
+                : const Icon(Icons.ios_share_rounded),
+            label: Text(_isSharing ? 'Paylaşılıyor...' : 'Paylaş'),
+            style: ElevatedButton.styleFrom(
+              backgroundColor: AppTheme.navy,
+              foregroundColor: Colors.white,
+              padding: const EdgeInsets.symmetric(vertical: 16),
+              shape: const StadiumBorder(),
+              textStyle: const TextStyle(
+                fontSize: 17,
+                fontWeight: FontWeight.w800,
+              ),
+            ),
+          ),
+          const SizedBox(height: 9),
+          Row(
+            children: [
+              Expanded(
+                child: OutlinedButton.icon(
+                  onPressed: _isSharing || _isSaving ? null : _editMessage,
+                  icon: const Icon(Icons.edit_rounded),
+                  label: const Text('Metni Düzenle'),
+                  style: OutlinedButton.styleFrom(
+                    foregroundColor: AppTheme.navy,
+                    side: BorderSide(
+                      color: AppTheme.navy.withValues(alpha: .25),
+                    ),
+                    padding: const EdgeInsets.symmetric(vertical: 14),
+                    shape: const StadiumBorder(),
+                    textStyle: const TextStyle(fontWeight: FontWeight.w700),
+                  ),
+                ),
+              ),
+              if (_isEdited) ...[
+                const SizedBox(width: 9),
+                Expanded(
+                  child: OutlinedButton.icon(
+                    onPressed:
+                        _isSharing || _isSaving ? null : _restoreDefaultMessage,
+                    icon: const Icon(Icons.restart_alt_rounded),
+                    label: const Text('Varsayılana Dön'),
+                    style: OutlinedButton.styleFrom(
+                      foregroundColor: AppTheme.navy,
+                      side: BorderSide(
+                        color: AppTheme.navy.withValues(alpha: .25),
+                      ),
+                      padding: const EdgeInsets.symmetric(vertical: 14),
+                      shape: const StadiumBorder(),
+                      textStyle: const TextStyle(fontWeight: FontWeight.w700),
+                    ),
+                  ),
+                ),
+              ],
+            ],
+          ),
+          const SizedBox(height: 9),
+          OutlinedButton.icon(
+            onPressed: _isSharing || _isSaving ? null : _save,
+            icon: _isSaving
+                ? const SizedBox(
+                    width: 18,
+                    height: 18,
+                    child: CircularProgressIndicator(strokeWidth: 2),
+                  )
+                : const Icon(Icons.download_rounded),
+            label: Text(_isSaving ? 'Kaydediliyor...' : 'Cihaza Kaydet'),
+            style: OutlinedButton.styleFrom(
+              foregroundColor: AppTheme.navy,
+              side: BorderSide(color: AppTheme.navy.withValues(alpha: .25)),
+              padding: const EdgeInsets.symmetric(vertical: 14),
+              shape: const StadiumBorder(),
+              textStyle: const TextStyle(fontWeight: FontWeight.w700),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _ShareFormatOption extends StatelessWidget {
+  final ShareFormat format;
+  final bool isSelected;
+  final VoidCallback onTap;
+
+  const _ShareFormatOption({
+    required this.format,
+    required this.isSelected,
+    required this.onTap,
+  });
+
+  IconData get _icon => switch (format) {
+        ShareFormat.story => Icons.stay_current_portrait_rounded,
+        ShareFormat.feed => Icons.crop_portrait_rounded,
+        ShareFormat.square => Icons.crop_square_rounded,
+      };
+
+  String get _shortLabel => switch (format) {
+        ShareFormat.story => 'Hikâye/Reels',
+        ShareFormat.feed => 'Gönderi',
+        ShareFormat.square => 'Kare',
+      };
+
+  @override
+  Widget build(BuildContext context) {
+    return Material(
+      color: isSelected ? AppTheme.navy : AppTheme.ivory,
+      borderRadius: BorderRadius.circular(13),
+      child: InkWell(
+        onTap: onTap,
+        borderRadius: BorderRadius.circular(13),
+        child: Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 5, vertical: 10),
+          child: Column(
+            children: [
+              Icon(
+                _icon,
+                size: 20,
+                color: isSelected ? Colors.white : AppTheme.navy,
+              ),
+              const SizedBox(height: 5),
+              FittedBox(
+                fit: BoxFit.scaleDown,
+                child: Text(
+                  _shortLabel,
+                  maxLines: 1,
+                  style: TextStyle(
+                    color: isSelected ? Colors.white : AppTheme.navy,
+                    fontSize: 11,
+                    fontWeight: FontWeight.w800,
+                  ),
+                ),
+              ),
+              const SizedBox(height: 2),
+              FittedBox(
+                fit: BoxFit.scaleDown,
+                child: Text(
+                  '${format.width.toInt()}×${format.height.toInt()}',
+                  maxLines: 1,
+                  style: TextStyle(
+                    color: isSelected
+                        ? Colors.white.withValues(alpha: .72)
+                        : AppTheme.textMuted,
+                    fontSize: 9,
+                    fontWeight: FontWeight.w600,
+                  ),
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+class _EditableMessageCard extends StatelessWidget {
+  final ReadyMessageDesign design;
+  final String message;
+
+  const _EditableMessageCard({
+    required this.design,
+    required this.message,
+  });
+
+  double _baseFontSize() {
+    if (message.length <= 42) return 30;
+    if (message.length <= 72) return 25;
+    if (message.length <= 110) return 21;
+    if (message.length <= 145) return 18;
+    return 16;
   }
 
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
-      appBar: AppBar(
-        title: const Text('Mesaj Paylaş', style: TextStyle(fontSize: 22)),
-        centerTitle: true,
-        elevation: 0,
-        leading: _canGoBack()
-            ? IconButton(
-                icon: const Icon(Icons.arrow_back),
-                onPressed: _onBackPressed,
-              )
-            : const Icon(Icons.menu_rounded),
-        actions: [
-          IconButton(
-            onPressed: _showSignatureDialog,
-            tooltip: 'Kişisel imza',
-            icon: Icon(
-              Icons.draw_outlined,
-              color: _signature.isEmpty ? AppTheme.navy : AppTheme.gold,
-            ),
-          ),
-          ...WidgetShortcutHelper.appBarActions(context),
-          const SizedBox(width: 6),
-        ],
-      ),
-      body: Container(
-        color: AppTheme.ivory,
-        child: Column(
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        final scale = constraints.maxWidth / 360;
+        return Stack(
+          fit: StackFit.expand,
           children: [
-            Expanded(
-              child: _isLoading
-                  ? const Center(child: CircularProgressIndicator())
-                  : _buildContent(),
+            Image.asset(
+              design.backgroundAssetPath,
+              fit: BoxFit.cover,
+              cacheWidth: 1080,
+              filterQuality: FilterQuality.high,
             ),
-            const AdBannerWidget(),
-          ],
-        ),
-      ),
-    );
-  }
-
-  Widget _buildContent() {
-    // Step 1: Main group selection (Cuma, Kandiller, Bayramlar, Özel Günler)
-    if (_mainGroup == null) {
-      return _buildMainGroupSelection();
-    }
-
-    if ((_mainGroup == 'favorites' || _mainGroup == 'recent') &&
-        _messageText.isEmpty) {
-      return _buildSavedMessageSelection(
-        title:
-            _mainGroup == 'favorites' ? 'Favori Mesajlar' : 'Son Kullanılanlar',
-        messages:
-            _mainGroup == 'favorites' ? _favoriteMessages : _recentMessages,
-        emptyText: _mainGroup == 'favorites'
-            ? 'Henüz favori mesajınız yok.'
-            : 'Henüz kullanılan bir mesaj yok.',
-        emptyIcon: _mainGroup == 'favorites'
-            ? Icons.favorite_border_rounded
-            : Icons.history_rounded,
-      );
-    }
-
-    // Step 2: Sub-category for Kandiller, Bayramlar, or Özel Günler
-    if ((_mainGroup == 'kandil' ||
-            _mainGroup == 'bayram' ||
-            _mainGroup == 'özel_günler') &&
-        _selectedCategoryId == null) {
-      return _buildSubCategorySelection();
-    }
-
-    // Step 3: Message selection
-    if (_messageText.isEmpty) {
-      return _buildMessageSelection();
-    }
-
-    // Step 4: Preview and share
-    return _buildPreview();
-  }
-
-  Widget _buildMainGroupSelection() {
-    return Padding(
-      padding: const EdgeInsets.all(20),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.stretch,
-        children: [
-          const SizedBox(height: 24),
-          Row(
-            children: [
-              Expanded(
-                child: _libraryCard(
-                  label: 'Favoriler',
-                  count: _favoriteMessages.length,
-                  icon: Icons.favorite_rounded,
-                  color: const Color(0xFFB95D67),
-                  onTap: () => _selectMainGroup('favorites'),
+            const DecoratedBox(
+              decoration: BoxDecoration(
+                gradient: LinearGradient(
+                  begin: Alignment.topCenter,
+                  end: Alignment.bottomCenter,
+                  colors: [
+                    Color(0x33000000),
+                    Color(0x24000000),
+                    Color(0x52000000),
+                  ],
+                  stops: [0, .48, 1],
                 ),
               ),
-              const SizedBox(width: 12),
-              Expanded(
-                child: _libraryCard(
-                  label: 'Son Kullanılanlar',
-                  count: _recentMessages.length,
-                  icon: Icons.history_rounded,
-                  color: AppTheme.emerald,
-                  onTap: () => _selectMainGroup('recent'),
-                ),
-              ),
-            ],
-          ),
-          const SizedBox(height: 26),
-          const Text(
-            'Kategori Seçin',
-            style: TextStyle(
-              fontSize: 18,
-              fontWeight: FontWeight.bold,
-              color: AppTheme.navy,
             ),
-          ),
-          const SizedBox(height: 20),
-          _categoryChip(
-            'Cuma',
-            Icons.calendar_today,
-            onTap: () => _selectMainGroup('cuma'),
-          ),
-          const SizedBox(height: 12),
-          _categoryChip(
-            'Kandiller',
-            Icons.nightlight_round,
-            onTap: () => _selectMainGroup('kandil'),
-          ),
-          const SizedBox(height: 12),
-          _categoryChip(
-            'Bayramlar',
-            Icons.celebration,
-            onTap: () => _selectMainGroup('bayram'),
-          ),
-          const SizedBox(height: 12),
-          _categoryChip(
-            'Günlük Dua & Zikir',
-            Icons.menu_book,
-            onTap: () => _selectMainGroup('günlük_dua'),
-          ),
-          const SizedBox(height: 12),
-          _categoryChip(
-            'Özel Günler',
-            Icons.card_giftcard,
-            onTap: () => _selectMainGroup('özel_günler'),
-          ),
-        ],
-      ),
-    );
-  }
-
-  Widget _libraryCard({
-    required String label,
-    required int count,
-    required IconData icon,
-    required Color color,
-    required VoidCallback onTap,
-  }) {
-    return Material(
-      color: Colors.white,
-      borderRadius: BorderRadius.circular(18),
-      child: InkWell(
-        onTap: onTap,
-        borderRadius: BorderRadius.circular(18),
-        child: Padding(
-          padding: const EdgeInsets.all(16),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Container(
-                width: 40,
-                height: 40,
-                decoration: BoxDecoration(
-                  color: color.withValues(alpha: .12),
-                  shape: BoxShape.circle,
-                ),
-                child: Icon(icon, color: color, size: 22),
-              ),
-              const SizedBox(height: 13),
-              Text(
-                label,
-                maxLines: 1,
-                overflow: TextOverflow.ellipsis,
-                style: const TextStyle(
-                  color: AppTheme.navy,
-                  fontSize: 14,
-                  fontWeight: FontWeight.w700,
+            const DecoratedBox(
+              decoration: BoxDecoration(
+                gradient: RadialGradient(
+                  radius: .78,
+                  colors: [Color(0x5C000000), Color(0x08000000)],
                 ),
               ),
-              const SizedBox(height: 4),
-              Text(
-                '$count mesaj',
-                style: const TextStyle(
-                  color: AppTheme.textMuted,
-                  fontSize: 12,
+            ),
+            Center(
+              child: Padding(
+                padding: EdgeInsets.symmetric(horizontal: 30 * scale),
+                child: Text(
+                  message,
+                  textAlign: TextAlign.center,
+                  maxLines: 8,
+                  overflow: TextOverflow.ellipsis,
+                  style: TextStyle(
+                    color: Colors.white,
+                    fontSize: _baseFontSize() * scale,
+                    height: 1.28,
+                    fontWeight: FontWeight.w700,
+                    letterSpacing: .1 * scale,
+                    shadows: [
+                      Shadow(
+                        color: Colors.black.withValues(alpha: .92),
+                        blurRadius: 13 * scale,
+                        offset: Offset(0, 2 * scale),
+                      ),
+                      Shadow(
+                        color: Colors.black.withValues(alpha: .62),
+                        blurRadius: 3 * scale,
+                        offset: Offset(0, 1 * scale),
+                      ),
+                    ],
+                  ),
                 ),
               ),
-            ],
-          ),
-        ),
-      ),
-    );
-  }
-
-  Widget _categoryChip(String label, IconData icon, {VoidCallback? onTap}) {
-    return Material(
-      color: Colors.white,
-      borderRadius: BorderRadius.circular(16),
-      elevation: 0,
-      child: InkWell(
-        onTap: onTap,
-        borderRadius: BorderRadius.circular(16),
-        child: Padding(
-          padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 16),
-          child: Row(
-            children: [
-              Icon(icon, color: AppTheme.emerald, size: 28),
-              const SizedBox(width: 16),
-              Text(
-                label,
-                style: const TextStyle(
-                  fontSize: 18,
-                  fontWeight: FontWeight.w600,
-                  color: AppTheme.navy,
-                ),
-              ),
-              const Spacer(),
-              const Icon(Icons.arrow_forward_ios,
-                  size: 16, color: AppTheme.navy),
-            ],
-          ),
-        ),
-      ),
-    );
-  }
-
-  Widget _buildSubCategorySelection() {
-    final List<String> ids;
-    final IconData icon;
-
-    if (_mainGroup == 'kandil') {
-      ids = _greetingService.getKandilIds();
-      icon = Icons.nightlight_round;
-    } else if (_mainGroup == 'bayram') {
-      ids = _greetingService.getBayramIds();
-      icon = Icons.celebration;
-    } else if (_mainGroup == 'özel_günler') {
-      ids = GreetingCategoryInfo.specialOccasionIds;
-      icon = Icons.card_giftcard;
-    } else {
-      ids = [];
-      icon = Icons.category;
-    }
-
-    return ListView(
-      padding: const EdgeInsets.all(20),
-      children: [
-        const Text(
-          'Alt Kategori Seçin',
-          style: TextStyle(
-            fontSize: 18,
-            fontWeight: FontWeight.bold,
-            color: AppTheme.navy,
-          ),
-        ),
-        const SizedBox(height: 16),
-        ...ids.map((id) => Padding(
-              padding: const EdgeInsets.only(bottom: 12),
-              child: _categoryChip(
-                GreetingCategoryInfo.getDisplayName(id),
-                icon,
-                onTap: () => _selectCategory(id),
-              ),
-            )),
-      ],
-    );
-  }
-
-  Widget _buildMessageSelection() {
-    final messages =
-        _greetingService.getMessagesForCategory(_selectedCategoryId!);
-
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.stretch,
-      children: [
-        Expanded(
-          child: ListView(
-            padding: const EdgeInsets.all(20),
-            children: [
-              const Text(
-                'Mesaj Seçin veya özel yazın',
-                style: TextStyle(
-                  fontSize: 18,
-                  fontWeight: FontWeight.bold,
-                  color: AppTheme.navy,
-                ),
-              ),
-              const SizedBox(height: 16),
-
-              // ÖNEMLİ: Özel mesaj butonu EN ÜSTTE (vurgulu tasarım)
-              Material(
-                color: AppTheme.gold.withValues(alpha: 0.14),
-                borderRadius: BorderRadius.circular(16),
-                child: InkWell(
-                  onTap: () => _showCustomMessageDialog(),
-                  borderRadius: BorderRadius.circular(16),
-                  child: Padding(
-                    padding: const EdgeInsets.all(20),
-                    child: Row(
-                      children: [
-                        const Icon(Icons.edit_note,
-                            color: AppTheme.gold, size: 32),
-                        const SizedBox(width: 16),
-                        Expanded(
-                          child: Column(
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            children: [
-                              const Text(
-                                'Özel mesaj yaz',
-                                style: TextStyle(
-                                  fontSize: 18,
-                                  fontWeight: FontWeight.bold,
-                                  color: AppTheme.navy,
-                                ),
-                              ),
-                              const SizedBox(height: 4),
-                              Text(
-                                'Kendi mesajınızı oluşturun',
-                                style: TextStyle(
-                                    fontSize: 13, color: Colors.grey[600]),
-                              ),
-                            ],
-                          ),
-                        ),
-                        const Icon(Icons.arrow_forward_ios,
-                            size: 18, color: AppTheme.gold),
+            ),
+            Positioned(
+              left: 28 * scale,
+              right: 28 * scale,
+              bottom: 29 * scale,
+              child: Row(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  Container(
+                    width: 20 * scale,
+                    height: 1 * scale,
+                    color: Colors.white.withValues(alpha: .55),
+                  ),
+                  SizedBox(width: 9 * scale),
+                  Text(
+                    'HER GÜN İSLAM',
+                    style: TextStyle(
+                      color: Colors.white.withValues(alpha: .9),
+                      fontSize: 8.5 * scale,
+                      fontWeight: FontWeight.w700,
+                      letterSpacing: 1.55 * scale,
+                      shadows: const [
+                        Shadow(color: Colors.black87, blurRadius: 7),
                       ],
                     ),
                   ),
-                ),
-              ),
-
-              const SizedBox(height: 20),
-              const Divider(),
-              const SizedBox(height: 12),
-
-              // Hazır mesajlar listesi
-              ...messages.map((msg) => Padding(
-                    padding: const EdgeInsets.only(bottom: 12),
-                    child: _messageCard(msg),
-                  )),
-            ],
-          ),
-        ),
-      ],
-    );
-  }
-
-  Widget _buildSavedMessageSelection({
-    required String title,
-    required List<GreetingMessage> messages,
-    required String emptyText,
-    required IconData emptyIcon,
-  }) {
-    return ListView(
-      padding: const EdgeInsets.all(20),
-      children: [
-        Text(
-          title,
-          style: const TextStyle(
-            color: AppTheme.navy,
-            fontSize: 22,
-            fontWeight: FontWeight.w700,
-          ),
-        ),
-        const SizedBox(height: 6),
-        Text(
-          '${messages.length} mesaj',
-          style: const TextStyle(color: AppTheme.textMuted),
-        ),
-        const SizedBox(height: 18),
-        if (messages.isEmpty)
-          Container(
-            padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 52),
-            decoration: BoxDecoration(
-              color: Colors.white,
-              borderRadius: BorderRadius.circular(18),
-            ),
-            child: Column(
-              children: [
-                Icon(emptyIcon, size: 46, color: AppTheme.gold),
-                const SizedBox(height: 14),
-                Text(
-                  emptyText,
-                  textAlign: TextAlign.center,
-                  style: const TextStyle(
-                    color: AppTheme.textMuted,
-                    fontSize: 15,
+                  SizedBox(width: 9 * scale),
+                  Container(
+                    width: 20 * scale,
+                    height: 1 * scale,
+                    color: Colors.white.withValues(alpha: .55),
                   ),
-                ),
-              ],
-            ),
-          )
-        else
-          ...messages.map(
-            (message) => Padding(
-              padding: const EdgeInsets.only(bottom: 12),
-              child: _messageCard(message, showCategory: true),
-            ),
-          ),
-      ],
-    );
-  }
-
-  Widget _messageCard(GreetingMessage msg, {bool showCategory = false}) {
-    final favorite = _isFavorite(msg);
-    return Material(
-      color: Colors.white,
-      borderRadius: BorderRadius.circular(12),
-      elevation: 0,
-      child: InkWell(
-        onTap: () => _selectMessage(msg),
-        borderRadius: BorderRadius.circular(12),
-        child: Padding(
-          padding: const EdgeInsets.all(16),
-          child: Row(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    if (showCategory) ...[
-                      Text(
-                        GreetingCategoryInfo.getDisplayName(msg.category),
-                        style: const TextStyle(
-                          color: AppTheme.emerald,
-                          fontSize: 12,
-                          fontWeight: FontWeight.w700,
-                        ),
-                      ),
-                      const SizedBox(height: 5),
-                    ],
-                    Text(
-                      msg.text,
-                      style: const TextStyle(
-                        fontSize: 14,
-                        height: 1.5,
-                        color: AppTheme.text,
-                      ),
-                      maxLines: 3,
-                      overflow: TextOverflow.ellipsis,
-                    ),
-                  ],
-                ),
+                ],
               ),
-              const SizedBox(width: 8),
-              IconButton(
-                onPressed: () => _toggleFavorite(msg),
-                tooltip: favorite ? 'Favorilerden kaldır' : 'Favorilere ekle',
-                icon: Icon(
-                  favorite
-                      ? Icons.favorite_rounded
-                      : Icons.favorite_border_rounded,
-                  color:
-                      favorite ? const Color(0xFFB95D67) : AppTheme.textMuted,
-                ),
-              ),
-            ],
-          ),
-        ),
-      ),
+            ),
+          ],
+        );
+      },
     );
   }
+}
 
-  Future<void> _showCustomMessageDialog() async {
-    final message = await showDialog<String>(
-      context: context,
-      builder: (context) => const _TextInputDialog(
-        title: 'Özel Mesaj Yaz',
-        hintText: 'Mesajınızı yazın...',
-        submitLabel: 'Kullan',
-        maxLength: 200,
-        minLines: 4,
-        maxLines: 6,
+class _EditedBadge extends StatelessWidget {
+  const _EditedBadge();
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 7),
+      decoration: BoxDecoration(
+        color: AppTheme.gold.withValues(alpha: .14),
+        borderRadius: BorderRadius.circular(999),
       ),
-    );
-    if (message != null && message.trim().isNotEmpty) {
-      _setCustomMessage(message.trim(), 'Özel Mesaj');
-    }
-  }
-
-  Widget _buildPreview() {
-    final currentMessage = _currentMessage();
-    final currentIsFavorite =
-        currentMessage != null && _isFavorite(currentMessage);
-    return SingleChildScrollView(
-      padding: const EdgeInsets.all(20),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.stretch,
+      child: const Row(
+        mainAxisSize: MainAxisSize.min,
         children: [
-          Row(
-            children: [
-              const Expanded(
-                child: Text(
-                  'Önizleme',
-                  style: TextStyle(
-                    fontSize: 24,
-                    fontWeight: FontWeight.w700,
-                    color: AppTheme.navy,
-                  ),
-                ),
-              ),
-              if (currentMessage != null)
-                IconButton(
-                  onPressed: () => _toggleFavorite(currentMessage),
-                  tooltip: currentIsFavorite
-                      ? 'Favorilerden kaldır'
-                      : 'Favorilere ekle',
-                  icon: Icon(
-                    currentIsFavorite
-                        ? Icons.favorite_rounded
-                        : Icons.favorite_border_rounded,
-                    color: currentIsFavorite
-                        ? const Color(0xFFB95D67)
-                        : AppTheme.navy,
-                  ),
-                ),
-              PopupMenuButton<ShareFormat>(
-                initialValue: _shareFormat,
-                onSelected: (format) => setState(() => _shareFormat = format),
-                itemBuilder: (context) => ShareFormat.values
-                    .map(
-                      (format) => PopupMenuItem(
-                        value: format,
-                        child: Row(
-                          children: [
-                            Icon(
-                              _shareFormat == format
-                                  ? Icons.check_circle
-                                  : Icons.crop_outlined,
-                              size: 19,
-                              color: _shareFormat == format
-                                  ? AppTheme.gold
-                                  : AppTheme.navy,
-                            ),
-                            const SizedBox(width: 10),
-                            Text(format.label),
-                          ],
-                        ),
-                      ),
-                    )
-                    .toList(),
-                child: Container(
-                  padding:
-                      const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-                  decoration: BoxDecoration(
-                    color: Colors.white,
-                    borderRadius: BorderRadius.circular(20),
-                    border:
-                        Border.all(color: AppTheme.navy.withValues(alpha: .16)),
-                  ),
-                  child: Row(
-                    mainAxisSize: MainAxisSize.min,
-                    children: [
-                      const Icon(Icons.aspect_ratio_rounded,
-                          size: 17, color: AppTheme.navy),
-                      const SizedBox(width: 7),
-                      Text(
-                        _shareFormat.label,
-                        style: const TextStyle(
-                          color: AppTheme.navy,
-                          fontWeight: FontWeight.w600,
-                        ),
-                      ),
-                      const SizedBox(width: 4),
-                      const Icon(Icons.keyboard_arrow_down_rounded,
-                          size: 18, color: AppTheme.navy),
-                    ],
-                  ),
-                ),
-              ),
-            ],
-          ),
-          const SizedBox(height: 16),
-          FutureBuilder<String?>(
-            future: _imageFuture,
-            builder: (context, snapshot) {
-              final imageUrl = snapshot.data;
-              return Container(
-                decoration: BoxDecoration(
-                  borderRadius: BorderRadius.circular(18),
-                  boxShadow: [
-                    BoxShadow(
-                      color: AppTheme.navy.withValues(alpha: 0.13),
-                      blurRadius: 22,
-                      offset: const Offset(0, 8),
-                    ),
-                  ],
-                ),
-                child: ClipRRect(
-                  borderRadius: BorderRadius.circular(18),
-                  child: AspectRatio(
-                    aspectRatio: _shareFormat.aspectRatio,
-                    child: snapshot.connectionState == ConnectionState.waiting
-                        ? const ColoredBox(
-                            color: Color(0xFFE8E5DC),
-                            child: Center(child: CircularProgressIndicator()),
-                          )
-                        : FittedBox(
-                            fit: BoxFit.contain,
-                            alignment: Alignment.center,
-                            child: RepaintBoundary(
-                              key: _greetingCardKey,
-                              child: GreetingShareableCard(
-                                categoryId: _selectedCategoryId!,
-                                messageText: _messageText,
-                                messageTitle: _messageTitle,
-                                signature: _signature,
-                                imageUrl: imageUrl,
-                                width: _shareFormat.width,
-                                height: _shareFormat.height,
-                              ),
-                            ),
-                          ),
-                  ),
-                ),
-              );
-            },
-          ),
-          const SizedBox(height: 22),
-          Container(
-            padding: const EdgeInsets.all(16),
-            decoration: BoxDecoration(
-              color: Colors.white,
-              borderRadius: BorderRadius.circular(18),
-              boxShadow: [
-                BoxShadow(
-                  color: AppTheme.navy.withValues(alpha: .07),
-                  blurRadius: 18,
-                  offset: const Offset(0, 5),
-                ),
-              ],
-            ),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.stretch,
-              children: [
-                ElevatedButton.icon(
-                  key: _shareButtonKey,
-                  onPressed: _isSharing || _isSaving ? null : _shareGreeting,
-                  icon: _isSharing
-                      ? const SizedBox(
-                          width: 22,
-                          height: 22,
-                          child: CircularProgressIndicator(
-                            strokeWidth: 2,
-                            valueColor:
-                                AlwaysStoppedAnimation<Color>(Colors.white),
-                          ),
-                        )
-                      : const Icon(Icons.ios_share_rounded, size: 22),
-                  label: Text(
-                    _isSharing ? 'Paylaşılıyor...' : 'Paylaş',
-                    style: const TextStyle(
-                      fontSize: 17,
-                      fontWeight: FontWeight.w700,
-                    ),
-                  ),
-                  style: ElevatedButton.styleFrom(
-                    backgroundColor: AppTheme.navy,
-                    foregroundColor: Colors.white,
-                    disabledBackgroundColor:
-                        AppTheme.navy.withValues(alpha: .55),
-                    padding: const EdgeInsets.symmetric(vertical: 17),
-                    elevation: 0,
-                    shape: const StadiumBorder(),
-                  ),
-                ),
-                const SizedBox(height: 12),
-                Row(
-                  children: [
-                    Expanded(
-                      child: OutlinedButton.icon(
-                        onPressed: _isSharing || _isSaving
-                            ? null
-                            : _changePreviewImage,
-                        icon: const Icon(Icons.image_outlined, size: 18),
-                        label: const FittedBox(
-                          fit: BoxFit.scaleDown,
-                          child: Text('Görseli Değiştir'),
-                        ),
-                        style: OutlinedButton.styleFrom(
-                          foregroundColor: AppTheme.navy,
-                          side: BorderSide(
-                              color: AppTheme.navy.withValues(alpha: .35)),
-                          padding: const EdgeInsets.symmetric(
-                              horizontal: 12, vertical: 13),
-                          shape: const StadiumBorder(),
-                        ),
-                      ),
-                    ),
-                    const SizedBox(width: 10),
-                    Expanded(
-                      child: OutlinedButton.icon(
-                        onPressed: _isSharing || _isSaving
-                            ? null
-                            : _showEditMessageDialog,
-                        icon: const Icon(Icons.edit_outlined, size: 18),
-                        label: const FittedBox(
-                          fit: BoxFit.scaleDown,
-                          child: Text('Metni Düzenle'),
-                        ),
-                        style: OutlinedButton.styleFrom(
-                          foregroundColor: AppTheme.navy,
-                          side: BorderSide(
-                              color: AppTheme.navy.withValues(alpha: .35)),
-                          padding: const EdgeInsets.symmetric(
-                              horizontal: 12, vertical: 13),
-                          shape: const StadiumBorder(),
-                        ),
-                      ),
-                    ),
-                  ],
-                ),
-                const SizedBox(height: 5),
-                TextButton.icon(
-                  onPressed:
-                      _isSharing || _isSaving ? null : _saveGreetingToDevice,
-                  icon: _isSaving
-                      ? const SizedBox(
-                          width: 18,
-                          height: 18,
-                          child: CircularProgressIndicator(strokeWidth: 2),
-                        )
-                      : const Icon(Icons.download_rounded, size: 20),
-                  label: Text(_isSaving ? 'Kaydediliyor...' : 'Cihaza Kaydet'),
-                  style: TextButton.styleFrom(
-                    foregroundColor: AppTheme.navy,
-                    textStyle: const TextStyle(fontWeight: FontWeight.w600),
-                  ),
-                ),
-              ],
+          Icon(Icons.auto_awesome_rounded, size: 15, color: AppTheme.gold),
+          SizedBox(width: 6),
+          Text(
+            'Metin düzenlendi',
+            style: TextStyle(
+              color: AppTheme.navy,
+              fontSize: 12,
+              fontWeight: FontWeight.w700,
             ),
           ),
-          const SizedBox(height: 12),
         ],
       ),
     );
   }
 }
 
-class _TextInputDialog extends StatefulWidget {
-  final String title;
-  final String hintText;
+class _EditMessageDialog extends StatefulWidget {
   final String initialValue;
-  final String submitLabel;
-  final int maxLength;
-  final int minLines;
-  final int maxLines;
-  final bool allowEmpty;
-  final String? helperText;
 
-  const _TextInputDialog({
-    required this.title,
-    required this.hintText,
-    this.initialValue = '',
-    required this.submitLabel,
-    required this.maxLength,
-    required this.minLines,
-    required this.maxLines,
-    this.allowEmpty = false,
-    this.helperText,
-  });
+  const _EditMessageDialog({required this.initialValue});
 
   @override
-  State<_TextInputDialog> createState() => _TextInputDialogState();
+  State<_EditMessageDialog> createState() => _EditMessageDialogState();
 }
 
-class _TextInputDialogState extends State<_TextInputDialog> {
+class _EditMessageDialogState extends State<_EditMessageDialog> {
   late final TextEditingController _controller;
+  String? _errorText;
 
   @override
   void initState() {
@@ -1277,42 +1063,178 @@ class _TextInputDialogState extends State<_TextInputDialog> {
     super.dispose();
   }
 
-  void _submit() {
+  void _save() {
     final value = _controller.text.trim();
-    if (value.isNotEmpty || widget.allowEmpty) {
-      Navigator.pop(context, value);
+    if (value.isEmpty) {
+      setState(() => _errorText = 'Mesaj boş bırakılamaz.');
+      return;
     }
+    Navigator.of(context).pop(value);
   }
 
   @override
   Widget build(BuildContext context) {
     return AlertDialog(
-      title: Text(widget.title),
+      title: const Text('Mesajı Düzenle'),
       content: TextField(
         controller: _controller,
         autofocus: true,
-        minLines: widget.minLines,
-        maxLines: widget.maxLines,
-        maxLength: widget.maxLength,
+        minLines: 4,
+        maxLines: 7,
+        maxLength: 180,
         textCapitalization: TextCapitalization.sentences,
         decoration: InputDecoration(
-          hintText: widget.hintText,
-          helperText: widget.helperText,
-          helperMaxLines: 2,
+          hintText: 'Paylaşmak istediğiniz mesajı yazın',
+          errorText: _errorText,
           border: const OutlineInputBorder(),
         ),
-        onSubmitted: widget.maxLines == 1 ? (_) => _submit() : null,
+        onChanged: (_) {
+          if (_errorText != null) setState(() => _errorText = null);
+        },
+        onSubmitted: (_) => _save(),
       ),
       actions: [
         TextButton(
-          onPressed: () => Navigator.pop(context),
+          onPressed: () => Navigator.of(context).pop(),
           child: const Text('Vazgeç'),
         ),
-        FilledButton(
-          onPressed: _submit,
-          child: Text(widget.submitLabel),
+        FilledButton.icon(
+          onPressed: _save,
+          icon: const Icon(Icons.check_rounded),
+          label: const Text('Uygula'),
         ),
       ],
     );
   }
 }
+
+class _ExportImage {
+  final Uint8List bytes;
+  final String extension;
+  final String mimeType;
+
+  const _ExportImage({
+    required this.bytes,
+    required this.extension,
+    required this.mimeType,
+  });
+}
+
+class _MessageLoadError extends StatelessWidget {
+  final VoidCallback onRetry;
+
+  const _MessageLoadError({required this.onRetry});
+
+  @override
+  Widget build(BuildContext context) {
+    return Center(
+      child: Padding(
+        padding: const EdgeInsets.all(28),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            const Icon(
+              Icons.broken_image_outlined,
+              size: 52,
+              color: AppTheme.gold,
+            ),
+            const SizedBox(height: 14),
+            const Text(
+              'Hazır mesajlar yüklenemedi.',
+              textAlign: TextAlign.center,
+              style: TextStyle(
+                color: AppTheme.navy,
+                fontSize: 17,
+                fontWeight: FontWeight.w700,
+              ),
+            ),
+            const SizedBox(height: 12),
+            FilledButton.icon(
+              onPressed: onRetry,
+              icon: const Icon(Icons.refresh_rounded),
+              label: const Text('Tekrar Dene'),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+class _EmptyFavorites extends StatelessWidget {
+  const _EmptyFavorites();
+
+  @override
+  Widget build(BuildContext context) {
+    return Center(
+      child: Padding(
+        padding: const EdgeInsets.all(32),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            const Icon(
+              Icons.favorite_border_rounded,
+              size: 54,
+              color: AppTheme.gold,
+            ),
+            const SizedBox(height: 13),
+            const Text(
+              'Henüz favori tasarımınız yok.',
+              style: TextStyle(
+                color: AppTheme.navy,
+                fontSize: 16,
+                fontWeight: FontWeight.w700,
+              ),
+            ),
+            const SizedBox(height: 5),
+            Text(
+              'Beğendiğiniz tasarımlardaki kalp simgesine dokunun.',
+              textAlign: TextAlign.center,
+              style: TextStyle(
+                color: AppTheme.navy.withValues(alpha: .58),
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+class _MessageFilter {
+  final String id;
+  final String label;
+  final IconData icon;
+
+  const _MessageFilter(this.id, this.label, this.icon);
+}
+
+const _messageFilters = [
+  _MessageFilter('all', 'Tümü', Icons.grid_view_rounded),
+  _MessageFilter('favorites', 'Favoriler', Icons.favorite_rounded),
+  _MessageFilter('cesaret', 'Cesaret', Icons.shield_outlined),
+  _MessageFilter('cuma', 'Cuma', Icons.mosque_rounded),
+  _MessageFilter('kandiller', 'Kandiller', Icons.nightlight_round),
+  _MessageFilter('bayramlar', 'Bayramlar', Icons.celebration_rounded),
+  _MessageFilter('dua', 'Dua', Icons.volunteer_activism_rounded),
+  _MessageFilter('tevekkul', 'Tevekkül', Icons.route_rounded),
+  _MessageFilter('sabir', 'Sabır', Icons.hourglass_bottom_rounded),
+  _MessageFilter('sukur', 'Şükür', Icons.wb_sunny_outlined),
+  _MessageFilter('umut', 'Umut', Icons.light_mode_outlined),
+  _MessageFilter('huzur', 'Huzur', Icons.spa_outlined),
+  _MessageFilter('namaz', 'Namaz', Icons.self_improvement_rounded),
+  _MessageFilter('iyilik', 'İyilik', Icons.favorite_outline_rounded),
+];
+
+const _kandilCategories = <String>{
+  'mevlid',
+  'regaib',
+  'mirac',
+  'berat',
+  'kadir',
+};
+
+const _bayramCategories = <String>{
+  'ramazan_bayrami',
+  'kurban_bayrami',
+};
