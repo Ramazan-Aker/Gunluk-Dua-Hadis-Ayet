@@ -28,7 +28,8 @@ class PrayerHomeWidgetService {
     final moments = <PrayerWidgetMoment>[];
     for (final day in prayerTimes) {
       final entries = <(String, String)>[
-        ('Sabah', day.imsak),
+        ('İmsak', day.imsak),
+        ('Güneş', day.gunes),
         ('Öğle', day.ogle),
         ('İkindi', day.ikindi),
         ('Akşam', day.aksam),

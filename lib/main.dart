@@ -7,6 +7,8 @@ import 'package:flutter/services.dart';
 import 'package:flutter_native_splash/flutter_native_splash.dart';
 import 'services/home_screen_widget_service.dart';
 import 'services/prayer_home_widget_service.dart';
+import 'services/prayer_alarm_service.dart';
+import 'services/quran_listening_service.dart';
 import 'services/smart_goal_reminder_service.dart';
 import 'services/achievement_service.dart';
 import 'services/app_review_service.dart';
@@ -25,6 +27,7 @@ import 'widget_verse_launch_handler.dart';
 import 'widget_verse_pending.dart';
 import 'widget_prayer_pending.dart';
 import 'theme/app_theme.dart';
+import 'widgets/app_update_gate.dart';
 
 /// Main entry point of the Daily Dua & Hadith app
 void main() async {
@@ -60,15 +63,34 @@ void main() async {
     DeviceOrientation.portraitDown,
   ]);
 
-  // Set system UI overlay style
+  // Draw behind the system bars on every supported Android version. Android
+  // 15+ enforces this mode for apps targeting API 35 or newer.
+  if (!kIsWeb && Platform.isAndroid) {
+    await SystemChrome.setEnabledSystemUIMode(SystemUiMode.edgeToEdge);
+  }
+
+  // Keep both system bars transparent and their icons readable.
   SystemChrome.setSystemUIOverlayStyle(
     const SystemUiOverlayStyle(
       statusBarColor: Colors.transparent,
       statusBarIconBrightness: Brightness.light,
+      statusBarBrightness: Brightness.dark,
+      systemNavigationBarColor: Colors.transparent,
+      systemNavigationBarDividerColor: Colors.transparent,
+      systemNavigationBarIconBrightness: Brightness.dark,
+      systemStatusBarContrastEnforced: false,
+      systemNavigationBarContrastEnforced: false,
     ),
   );
 
   // Run the app
+  if (!kIsWeb && (Platform.isAndroid || Platform.isIOS)) {
+    try {
+      await QuranListening.initialize();
+    } catch (e) {
+      debugPrint('Audio initialization failed: $e');
+    }
+  }
   runApp(const DailyDuaApp());
 }
 
@@ -86,6 +108,7 @@ class _DailyDuaAppState extends State<DailyDuaApp> with WidgetsBindingObserver {
 
   Future<void> _widgetVersePipeline() async {
     if (kIsWeb || !(Platform.isAndroid || Platform.isIOS)) return;
+    unawaited(PrayerAlarmService().refresh());
     await HomeScreenWidgetService.syncRandomVerseForWidget();
     await PrayerHomeWidgetService.refreshWidget();
     if (Platform.isAndroid) {
@@ -136,6 +159,13 @@ class _DailyDuaAppState extends State<DailyDuaApp> with WidgetsBindingObserver {
 
   @override
   void didChangeAppLifecycleState(AppLifecycleState state) {
+    if (state == AppLifecycleState.resumed) {
+      unawaited(PrayerAlarmService().refresh());
+    }
+    if (state == AppLifecycleState.paused) {
+      unawaited(
+          QuranListening.instance?.saveBookmark() ?? Future<void>.value());
+    }
     if (state == AppLifecycleState.resumed && !kIsWeb && Platform.isAndroid) {
       unawaited(HomeScreenWidgetService.syncRandomVerseForWidget());
       unawaited(PrayerHomeWidgetService.refreshWidget());
@@ -162,6 +192,9 @@ class _DailyDuaAppState extends State<DailyDuaApp> with WidgetsBindingObserver {
       debugShowCheckedModeBanner: false,
 
       theme: AppTheme.light,
+      builder: (context, child) => AppUpdateGate(
+        child: child ?? const SizedBox.shrink(),
+      ),
 
       // Home screen with bottom navigation
       home: const OnboardingGate(child: MainNavigationScreen()),

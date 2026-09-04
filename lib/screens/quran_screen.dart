@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'quran_listening_screen.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import '../services/quran_audio_service.dart';
 import '../services/ad_service.dart';
@@ -198,6 +199,19 @@ class _QuranScreenState extends State<QuranScreen> {
           child: Column(
             children: [
               const AdBannerWidget(useSecondAd: true),
+              Material(
+                color: AppTheme.ivory,
+                child: ListTile(
+                    leading: const Icon(Icons.headphones_rounded),
+                    title: const Text('Kur’an dinleme modu'),
+                    subtitle: const Text(
+                        'Sureleri sırayla dinle ve ayetleri tekrar et'),
+                    trailing: const Icon(Icons.chevron_right),
+                    onTap: () => Navigator.push(
+                        context,
+                        MaterialPageRoute<void>(
+                            builder: (_) => const QuranListeningScreen()))),
+              ),
               Expanded(child: _buildSurahList()),
               const AdBannerWidget(),
             ],

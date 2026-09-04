@@ -8,11 +8,11 @@ import android.os.Bundle
 import android.provider.Settings
 import android.webkit.WebView
 import es.antonborri.home_widget.HomeWidgetLaunchIntent
-import io.flutter.embedding.android.FlutterActivity
+import com.ryanheise.audioservice.AudioServiceActivity
 import io.flutter.embedding.engine.FlutterEngine
 import io.flutter.plugin.common.MethodChannel
 
-class MainActivity: FlutterActivity() {
+class MainActivity: AudioServiceActivity() {
     private val NOTIFICATION_CHANNEL = "com.tahram.gunlukduahadis/notification"
     private val BATTERY_CHANNEL = "com.tahram.gunlukduahadis/battery"
     private val WIDGET_VERSE_CHANNEL = "com.tahram.gunlukduahadis/widget_verse"

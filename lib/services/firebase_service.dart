@@ -25,7 +25,10 @@ class FirebaseService {
         await _crashlytics?.setCrashlyticsCollectionEnabled(true);
       }
 
+      final previousFlutterHandler = FlutterError.onError;
       FlutterError.onError = (errorDetails) {
+        // Keep framework diagnostics and integration-test failure reporting.
+        previousFlutterHandler?.call(errorDetails);
         final s = errorDetails.exceptionAsString();
         if (s.contains('AudioPlayerException') ||
             s.contains('setState() called after dispose')) {
@@ -35,6 +38,9 @@ class FirebaseService {
       };
 
       PlatformDispatcher.instance.onError = (error, stack) {
+        if (kDebugMode) {
+          debugPrint('Unhandled asynchronous error: $error\n$stack');
+        }
         final s = error.toString();
         if (s.contains('AudioPlayerException') ||
             s.contains('AndroidAudioError') ||
@@ -45,7 +51,8 @@ class FirebaseService {
         return true;
       };
     } catch (e) {
-      // App continues without Firebase
+      // Keep startup resilient, but make missing native configuration visible.
+      debugPrint('Firebase initialization failed: $e');
     }
   }
 

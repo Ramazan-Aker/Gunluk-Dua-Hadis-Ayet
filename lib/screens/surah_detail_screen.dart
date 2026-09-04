@@ -1,4 +1,6 @@
 import 'dart:async';
+import 'quran_listening_screen.dart';
+import '../services/quran_listening_service.dart';
 
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
@@ -324,6 +326,7 @@ class _SurahDetailScreenState extends State<SurahDetailScreen> {
   }
 
   Future<void> _seekAndPlayAyahIndex(int index) async {
+    await QuranListening.instance?.pause();
     if (!_canPlayAyahAt(index)) {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
@@ -372,6 +375,7 @@ class _SurahDetailScreenState extends State<SurahDetailScreen> {
   }
 
   Future<void> _onPlayPause(int index) async {
+    await QuranListening.instance?.pause();
     if (!_canPlayAyahAt(index)) {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
@@ -503,6 +507,20 @@ class _SurahDetailScreenState extends State<SurahDetailScreen> {
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
+        actions: [
+          IconButton(
+              tooltip: 'Dinleme modu',
+              icon: const Icon(Icons.headphones),
+              onPressed: () async {
+                await _player.pause();
+                if (!mounted) return;
+                await Navigator.push(
+                    context,
+                    MaterialPageRoute<void>(
+                        builder: (_) => QuranListeningScreen(
+                            initialChapter: widget.surahNumber)));
+              })
+        ],
         title: Column(
           crossAxisAlignment: CrossAxisAlignment.center,
           mainAxisSize: MainAxisSize.min,

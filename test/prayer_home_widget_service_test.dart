@@ -24,12 +24,12 @@ void main() {
     ),
   ];
 
-  test('widget programı güneşi hariç tutup beş vakit üretir', () {
+  test('widget programı imsak ve güneş dahil altı vakit üretir', () {
     final schedule = PrayerHomeWidgetService.buildSchedule(times);
-    expect(schedule, hasLength(10));
-    expect(schedule.first.name, 'Sabah');
+    expect(schedule, hasLength(12));
+    expect(schedule.first.name, 'İmsak');
     expect(schedule.first.time, '04:21');
-    expect(schedule.where((moment) => moment.name == 'Güneş'), isEmpty);
+    expect(schedule.where((moment) => moment.name == 'Güneş'), hasLength(2));
   });
 
   test('sıradaki vakit doğru seçilir', () {
@@ -53,6 +53,6 @@ void main() {
       yatsi: '21:43',
     );
     final schedule = PrayerHomeWidgetService.buildSchedule([invalid]);
-    expect(schedule, hasLength(4));
+    expect(schedule, hasLength(5));
   });
 }

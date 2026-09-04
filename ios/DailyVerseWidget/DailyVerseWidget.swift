@@ -283,7 +283,8 @@ struct PrayerTimesProvider: TimelineProvider {
         let calendar = Calendar.current
         let start = calendar.startOfDay(for: Date())
         let values: [(String, Int, Int)] = [
-            ("Sabah", 5, 18),
+            ("İmsak", 5, 18),
+            ("Güneş", 6, 42),
             ("Öğle", 13, 8),
             ("İkindi", 16, 52),
             ("Akşam", 20, 12),
@@ -304,139 +305,72 @@ struct PrayerTimesProvider: TimelineProvider {
 
 struct PrayerTimesWidgetView: View {
     @Environment(\.widgetFamily) private var family
-
     let entry: PrayerTimesEntry
-
-    private var isSmall: Bool { family == .systemSmall }
-
-    private var nextMoment: PrayerWidgetMoment? {
-        entry.schedule.first { $0.date > entry.date }
-    }
-
+    private var nextMoment: PrayerWidgetMoment? { entry.schedule.first { $0.date > entry.date } }
     private var todaysMoments: [PrayerWidgetMoment] {
-        entry.schedule.filter {
-            Calendar.current.isDate($0.date, inSameDayAs: entry.date)
-        }
+        entry.schedule.filter { Calendar.current.isDate($0.date, inSameDayAs: entry.date) }
     }
-
+    private let names = ["İmsak", "Güneş", "Öğle", "İkindi", "Akşam", "Yatsı"]
+    private func clock(_ name: String) -> String {
+        todaysMoments.first { $0.name == name || (name == "İmsak" && $0.name == "Sabah") }?.time ?? "--:--"
+    }
     var body: some View {
-        ZStack {
-            LinearGradient(
-                colors: [Color(hex: 0x002542), Color(hex: 0x183B5B)],
-                startPoint: .topLeading,
-                endPoint: .bottomTrailing
-            )
-
-            Circle()
-                .fill(Color(hex: 0x31685A).opacity(0.22))
-                .frame(width: 150, height: 150)
-                .offset(x: isSmall ? 75 : 170, y: -75)
-
-            VStack(alignment: .leading, spacing: isSmall ? 9 : 10) {
-                header
-
-                if let nextMoment {
-                    nextPrayer(nextMoment)
-                    if !isSmall {
-                        prayerRow
-                    }
-                } else {
-                    Spacer(minLength: 0)
-                    Text("Vakitleri hazırlamak için Namaz ekranını açın.")
-                        .font(.system(size: 13, weight: .medium))
-                        .foregroundColor(Color(hex: 0xF7F5EF))
-                        .lineSpacing(3)
+        GeometryReader { geometry in
+            let small = family == .systemSmall
+            let large = family == .systemLarge
+            let compact = geometry.size.height < (small ? 170 : 135)
+            VStack(alignment: .leading, spacing: compact ? 4 : 8) {
+                HStack(spacing: 5) {
+                    Image(systemName: "moon.stars.fill").foregroundColor(Color(hex: 0xD5A94E))
+                    Text(entry.city).font(.system(size: compact ? 10 : 13, weight: .semibold))
+                        .lineLimit(1).minimumScaleFactor(0.75)
                     Spacer(minLength: 0)
                 }
+                if let moment = nextMoment {
+                    HStack(alignment: .firstTextBaseline, spacing: 4) {
+                        Text(moment.name == "Sabah" ? "İmsak" : moment.name)
+                            .font(.system(size: compact ? 15 : 20, weight: .bold))
+                        Spacer(minLength: 0)
+                        Text(moment.time).font(.system(size: compact ? 18 : 24, weight: .bold, design: .rounded))
+                            .foregroundColor(Color(hex: 0xD5A94E))
+                    }.lineLimit(1).minimumScaleFactor(0.7)
+                    HStack(spacing: 4) {
+                        Image(systemName: "timer")
+                        Text(moment.date, style: .timer).monospacedDigit().lineLimit(1).minimumScaleFactor(0.7)
+                    }.font(.system(size: compact ? 10 : 12)).foregroundColor(Color(hex: 0xB2EBDA))
+                } else {
+                    Text("Vakitleri yenilemek için uygulamayı açın.")
+                        .font(.system(size: 11)).lineLimit(2).minimumScaleFactor(0.8)
+                }
+                if large { Spacer(minLength: 0) }
+                if small && compact {
+                    HStack {
+                        Text("İmsak " + clock("İmsak"))
+                        Spacer(minLength: 0)
+                        Text("Güneş " + clock("Güneş"))
+                    }.font(.system(size: 9, weight: .semibold)).lineLimit(1).minimumScaleFactor(0.7)
+                } else {
+                    let columns = small || large ? 3 : 6
+                    LazyVGrid(columns: Array(repeating: GridItem(.flexible(), spacing: 4), count: columns), spacing: large ? 16 : 4) {
+                        ForEach(names, id: \.self) { name in
+                            VStack(spacing: 2) {
+                                Text(name).font(.system(size: large ? 13 : 9, weight: .medium))
+                                    .foregroundColor(Color(hex: 0xB2EBDA))
+                                Text(clock(name)).font(.system(size: large ? 19 : 11, weight: .bold, design: .rounded))
+                            }.lineLimit(1).minimumScaleFactor(0.7).frame(maxWidth: .infinity)
+                        }
+                    }
+                }
+                if large { Spacer(minLength: 0) }
             }
-            .padding(isSmall ? 13 : 16)
+            .foregroundColor(Color(hex: 0xF7F5EF))
+            .padding(compact ? 7 : 12)
+            .frame(width: geometry.size.width, height: geometry.size.height, alignment: .topLeading)
+            .background(LinearGradient(colors: [Color(hex: 0x002542), Color(hex: 0x183B5B)], startPoint: .topLeading, endPoint: .bottomTrailing))
+            .clipShape(RoundedRectangle(cornerRadius: 16))
         }
         .widgetURL(entry.destination)
         .herGunIslamWidgetBackground()
-    }
-
-    private var header: some View {
-        HStack(spacing: 8) {
-            Image(systemName: "moon.stars.fill")
-                .font(.system(size: 15, weight: .bold))
-                .foregroundColor(Color(hex: 0xD5A94E))
-
-            VStack(alignment: .leading, spacing: 1) {
-                Text("NAMAZ VAKİTLERİ")
-                    .font(.system(size: 9, weight: .bold))
-                    .tracking(0.7)
-                    .foregroundColor(Color(hex: 0xF7F5EF))
-                Text(entry.city.uppercased())
-                    .font(.system(size: 8, weight: .semibold))
-                    .foregroundColor(Color(hex: 0xB2EBDA))
-                    .lineLimit(1)
-            }
-
-            Spacer(minLength: 0)
-
-            if !isSmall {
-                Text("AÇ")
-                    .font(.system(size: 9, weight: .bold))
-                    .foregroundColor(Color(hex: 0xF7F5EF))
-                    .padding(.horizontal, 9)
-                    .padding(.vertical, 5)
-                    .background(Capsule().fill(Color(hex: 0x31685A).opacity(0.35)))
-            }
-        }
-    }
-
-    private func nextPrayer(_ moment: PrayerWidgetMoment) -> some View {
-        VStack(alignment: .leading, spacing: isSmall ? 5 : 3) {
-            Text("SIRADAKİ VAKİT")
-                .font(.system(size: 8, weight: .bold))
-                .tracking(0.6)
-                .foregroundColor(Color(hex: 0xB2EBDA))
-
-            HStack(alignment: .firstTextBaseline, spacing: 6) {
-                Text(moment.name)
-                    .font(.system(size: isSmall ? 20 : 19, weight: .bold))
-                    .foregroundColor(Color(hex: 0xF7F5EF))
-                Spacer(minLength: 0)
-                Text(moment.time)
-                    .font(.system(size: isSmall ? 22 : 20, weight: .bold, design: .rounded))
-                    .foregroundColor(Color(hex: 0xD5A94E))
-            }
-
-            HStack(spacing: 5) {
-                Image(systemName: "timer")
-                    .font(.system(size: 10, weight: .bold))
-                Text(moment.date, style: .timer)
-                    .font(.system(size: 11, weight: .semibold, design: .rounded))
-                    .monospacedDigit()
-            }
-            .foregroundColor(Color(hex: 0xB2EBDA))
-        }
-        .padding(isSmall ? 10 : 9)
-        .background(
-            RoundedRectangle(cornerRadius: 13)
-                .fill(Color.white.opacity(0.07))
-        )
-        .overlay(
-            RoundedRectangle(cornerRadius: 13)
-                .stroke(Color(hex: 0xD5A94E).opacity(0.24), lineWidth: 1)
-        )
-    }
-
-    private var prayerRow: some View {
-        HStack(spacing: 4) {
-            ForEach(todaysMoments.prefix(5)) { moment in
-                VStack(spacing: 3) {
-                    Text(moment.name)
-                        .font(.system(size: 8, weight: .semibold))
-                        .foregroundColor(Color(hex: 0xB2EBDA))
-                        .lineLimit(1)
-                    Text(moment.time)
-                        .font(.system(size: 10, weight: .bold, design: .rounded))
-                        .foregroundColor(Color(hex: 0xF7F5EF))
-                }
-                .frame(maxWidth: .infinity)
-            }
-        }
     }
 }
 
@@ -447,7 +381,7 @@ struct PrayerTimesWidget: Widget {
         }
         .configurationDisplayName("Her Gün İslam • Namaz Vakitleri")
         .description("Sıradaki namazı, vakitleri ve canlı geri sayımı ana ekranınızda görün.")
-        .supportedFamilies([.systemSmall, .systemMedium])
+        .supportedFamilies([.systemSmall, .systemMedium, .systemLarge])
     }
 }
 

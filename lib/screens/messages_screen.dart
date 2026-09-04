@@ -519,7 +519,11 @@ class _ReadyMessagePreviewPageState extends State<_ReadyMessagePreviewPage> {
     setState(() => _isSaving = true);
 
     try {
-      final export = await _createExportImage();
+      // Prepare the image while the same interstitial used by sharing is
+      // displayed. Saving continues normally when no ad is ready.
+      final imageFuture = _createExportImage();
+      await widget.adService.showInterstitialAd().catchError((_) => false);
+      final export = await imageFuture;
       if (Platform.isIOS) {
         final saved = await _mediaChannel.invokeMethod<bool>(
           'saveImageToPhotoLibrary',

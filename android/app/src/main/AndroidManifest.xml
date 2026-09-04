@@ -20,6 +20,8 @@
     <!-- USE_FULL_SCREEN_INTENT removed - Play Store restricts this to alarm/calling apps -->
     <!-- WAKE_LOCK: Required for waking device for notifications -->
     <uses-permission android:name="android.permission.WAKE_LOCK"/>
+    <uses-permission android:name="android.permission.FOREGROUND_SERVICE"/>
+    <uses-permission android:name="android.permission.FOREGROUND_SERVICE_MEDIA_PLAYBACK"/>
     <!-- RECEIVE_BOOT_COMPLETED: Required for rescheduling notifications after device reboot -->
     <uses-permission android:name="android.permission.RECEIVE_BOOT_COMPLETED"/>
     <!-- REQUEST_IGNORE_BATTERY_OPTIMIZATIONS: Optional, for better reliability in Doze mode -->
@@ -33,6 +35,13 @@
         android:icon="@mipmap/ic_launcher">
 
         <!-- AdMob App ID (Production) -->
+        <service android:name="com.ryanheise.audioservice.AudioService"
+            android:foregroundServiceType="mediaPlayback" android:exported="true">
+            <intent-filter><action android:name="android.media.browse.MediaBrowserService" /></intent-filter>
+        </service>
+        <receiver android:name="com.ryanheise.audioservice.MediaButtonReceiver" android:exported="true">
+            <intent-filter><action android:name="android.intent.action.MEDIA_BUTTON" /></intent-filter>
+        </receiver>
         <meta-data
             android:name="com.google.android.gms.ads.APPLICATION_ID"
             android:value="ca-app-pub-9132542494292379~4482777628"/>
@@ -134,4 +143,3 @@
         </receiver>
     </application>
 </manifest>
-

@@ -8,8 +8,8 @@ import '../models/prayer_tracking.dart';
 import '../services/ramadan_api_service.dart';
 import '../services/firebase_service.dart'
     show FirebaseService, AnalyticsEvents, AnalyticsParams;
-import '../services/notification_service.dart';
-import '../services/prayer_notification_service.dart';
+import '../services/prayer_alarm_service.dart';
+import 'prayer_alarm_screen.dart';
 import '../services/prayer_tracking_service.dart';
 import '../services/prayer_home_widget_service.dart';
 import '../services/smart_goal_reminder_service.dart';
@@ -44,10 +44,8 @@ class _RamadanScreenState extends State<RamadanScreen> {
 
   bool _isLoading = true;
   String? _errorMessage;
-  final PrayerNotificationService _prayerNotifications =
-      PrayerNotificationService();
+  final PrayerAlarmService _prayerNotifications = PrayerAlarmService();
   bool _prayerNotificationsEnabled = false;
-  int _notificationLeadMinutes = 10;
   final PrayerTrackingService _prayerTrackingService = PrayerTrackingService();
   PrayerTrackingSummary? _prayerTrackingSummary;
   bool _isPrayerTrackingBusy = false;
@@ -78,11 +76,9 @@ class _RamadanScreenState extends State<RamadanScreen> {
 
   Future<void> _loadNotificationPreference() async {
     final enabled = await _prayerNotifications.isEnabled();
-    final lead = await _prayerNotifications.leadMinutes();
     if (mounted) {
       setState(() {
         _prayerNotificationsEnabled = enabled;
-        _notificationLeadMinutes = lead;
       });
     }
   }
@@ -725,10 +721,6 @@ class _RamadanScreenState extends State<RamadanScreen> {
     });
     await _persistCities();
     if (_selectedCity == null) {
-      if (_prayerNotificationsEnabled) {
-        await _prayerNotifications.disable();
-        if (mounted) setState(() => _prayerNotificationsEnabled = false);
-      }
       if (mounted) {
         WidgetsBinding.instance
             .addPostFrameCallback((_) => _showCitySelectionDialog());
@@ -780,96 +772,18 @@ class _RamadanScreenState extends State<RamadanScreen> {
 
   Future<void> _reschedulePrayerNotifications() async {
     final city = _selectedCity;
-    if (!_prayerNotificationsEnabled ||
-        city == null ||
-        _prayerTimesList.isEmpty) {
-      return;
-    }
-    await _prayerNotifications.schedule(
-      city: city,
-      prayerTimes: _prayerTimesList,
-      leadMinutes: _notificationLeadMinutes,
-    );
+    if (city == null || _prayerTimesList.isEmpty) return;
+    await _prayerNotifications.refresh(knownTimes: {city.id: _prayerTimesList});
   }
 
   Future<void> _configurePrayerNotifications() async {
-    if (_prayerNotificationsEnabled) {
-      await _prayerNotifications.disable();
-      if (mounted) setState(() => _prayerNotificationsEnabled = false);
-      return;
-    }
-
-    var selectedLead = _notificationLeadMinutes;
-    final lead = await showModalBottomSheet<int>(
-      context: context,
-      showDragHandle: true,
-      builder: (context) => SafeArea(
-        child: Padding(
-          padding: const EdgeInsets.fromLTRB(20, 4, 20, 24),
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              const Text('Namaz vakti bildirimi',
-                  style: TextStyle(
-                      color: AppTheme.navy,
-                      fontSize: 21,
-                      fontWeight: FontWeight.w700)),
-              const SizedBox(height: 6),
-              Text('${_selectedCity?.name ?? ''} için ne zaman haber verilsin?',
-                  style: const TextStyle(color: AppTheme.textMuted)),
-              const SizedBox(height: 12),
-              StatefulBuilder(
-                builder: (context, setSheetState) => Column(
-                  children: [0, 10, 15, 30].map((minutes) {
-                    return RadioListTile<int>(
-                      value: minutes,
-                      groupValue: selectedLead,
-                      activeColor: AppTheme.emerald,
-                      title: Text(minutes == 0
-                          ? 'Namaz vakti geldiğinde'
-                          : '$minutes dakika önce'),
-                      onChanged: (value) =>
-                          setSheetState(() => selectedLead = value ?? 10),
-                    );
-                  }).toList(),
-                ),
-              ),
-              const SizedBox(height: 8),
-              SizedBox(
-                width: double.infinity,
-                child: ElevatedButton(
-                  onPressed: () => Navigator.pop(context, selectedLead),
-                  child: const Text('Bildirimleri Aç'),
-                ),
-              ),
-            ],
-          ),
-        ),
-      ),
-    );
-    if (lead == null || _selectedCity == null) return;
-    final permission = await NotificationService().requestPermission();
-    if (!permission || !mounted) {
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(content: Text('Bildirim izni verilmedi.')));
-      }
-      return;
-    }
-    await _prayerNotifications.enableAndSchedule(
-      city: _selectedCity!,
-      prayerTimes: _prayerTimesList,
-      leadMinutes: lead,
-    );
-    if (!mounted) return;
-    setState(() {
-      _prayerNotificationsEnabled = true;
-      _notificationLeadMinutes = lead;
-    });
-    ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(content: Text('Namaz bildirimleri açıldı.')),
-    );
+    final city = _selectedCity;
+    if (city == null) return;
+    await Navigator.push(
+        context,
+        MaterialPageRoute<void>(
+            builder: (_) => PrayerAlarmScreen(initialCity: city)));
+    await _loadNotificationPreference();
   }
 
   Widget _buildCityTabs() {
@@ -944,9 +858,7 @@ class _RamadanScreenState extends State<RamadanScreen> {
             ),
             onPressed:
                 _selectedCity == null ? null : _configurePrayerNotifications,
-            tooltip: _prayerNotificationsEnabled
-                ? 'Namaz bildirimlerini kapat'
-                : 'Namaz bildirimlerini aç',
+            tooltip: 'Namaz alarmlarını düzenle',
           ),
           if (_selectedCity != null)
             IconButton(

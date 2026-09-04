@@ -12,6 +12,7 @@ import android.os.Build
 import android.os.Bundle
 import android.os.SystemClock
 import android.util.Log
+import android.util.SizeF
 import android.view.View
 import android.widget.RemoteViews
 import es.antonborri.home_widget.HomeWidgetLaunchIntent
@@ -69,19 +70,25 @@ class PrayerTimesWidgetProvider : HomeWidgetProvider() {
         schedule: List<PrayerMoment>,
         options: Bundle = appWidgetManager.getAppWidgetOptions(widgetId),
     ) {
-        appWidgetManager.updateAppWidget(
-            widgetId,
-            buildViews(context, widgetData, schedule, layoutFor(options)),
-        )
+        val fontScale = context.resources.configuration.fontScale.coerceAtLeast(1f)
+        fun sized(width: Int, height: Int): RemoteViews = buildViews(
+            context, widgetData, schedule, layoutFor((width / fontScale).toInt(), (height / fontScale).toInt()))
+        val views = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
+            val sizes = options.getParcelableArrayList<SizeF>(AppWidgetManager.OPTION_APPWIDGET_SIZES)
+            if (!sizes.isNullOrEmpty()) RemoteViews(sizes.associateWith { sized(it.width.toInt(), it.height.toInt()) })
+            else sized(options.getInt(AppWidgetManager.OPTION_APPWIDGET_MIN_WIDTH, 250), options.getInt(AppWidgetManager.OPTION_APPWIDGET_MAX_HEIGHT, 80))
+        } else {
+            val portrait = sized(options.getInt(AppWidgetManager.OPTION_APPWIDGET_MIN_WIDTH, 250), options.getInt(AppWidgetManager.OPTION_APPWIDGET_MAX_HEIGHT, 80))
+            val landscape = sized(options.getInt(AppWidgetManager.OPTION_APPWIDGET_MAX_WIDTH, 250), options.getInt(AppWidgetManager.OPTION_APPWIDGET_MIN_HEIGHT, 80))
+            RemoteViews(landscape, portrait)
+        }
+        appWidgetManager.updateAppWidget(widgetId, views)
     }
 
-    private fun layoutFor(options: Bundle): Int {
-        val height = options.getInt(AppWidgetManager.OPTION_APPWIDGET_MIN_HEIGHT, 0)
-        return if (height >= EXPANDED_HEIGHT_DP) {
-            R.layout.prayer_times_widget_expanded
-        } else {
-            R.layout.prayer_times_widget
-        }
+    private fun layoutFor(width: Int, height: Int): Int = when {
+        height < 120 || width < 150 -> R.layout.prayer_times_widget
+        width < 300 -> R.layout.prayer_times_widget_narrow
+        else -> R.layout.prayer_times_widget_expanded
     }
 
     private fun buildViews(
@@ -110,7 +117,8 @@ class PrayerTimesWidgetProvider : HomeWidgetProvider() {
                 next?.name ?: context.getString(R.string.prayer_widget_open_app),
             )
             setTextViewText(R.id.prayer_widget_next_time, next?.time ?: "--:--")
-            setPrayerTime(R.id.prayer_widget_sabah, today["Sabah"]?.time)
+            setPrayerTime(R.id.prayer_widget_imsak, today["İmsak"]?.time ?: today["Sabah"]?.time)
+            setPrayerTime(R.id.prayer_widget_sabah, today["Güneş"]?.time)
             setPrayerTime(R.id.prayer_widget_ogle, today["Öğle"]?.time)
             setPrayerTime(R.id.prayer_widget_ikindi, today["İkindi"]?.time)
             setPrayerTime(R.id.prayer_widget_aksam, today["Akşam"]?.time)
@@ -185,6 +193,5 @@ class PrayerTimesWidgetProvider : HomeWidgetProvider() {
         private const val ACTION_PRAYER_TRANSITION =
             "com.tahram.gunlukduahadis.PRAYER_WIDGET_TRANSITION"
         private const val TRANSITION_REQUEST_CODE = 920_001
-        private const val EXPANDED_HEIGHT_DP = 100
     }
 }
