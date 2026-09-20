@@ -118,6 +118,7 @@ void main() {
       final h = QuranListeningHandler(
           player: engine, loadRecitation: (n) async => rec(n));
       await h.openChapter(1, autoplay: false);
+      await h.setAutoNext(false);
       await h.repeatVerse(2, count);
       await flush();
       expect(engine.clipStart, const Duration(seconds: 10));
@@ -132,6 +133,26 @@ void main() {
       expect(h.repeatsLeft, 0);
       await engine.dispose();
     }
+  });
+  test('Five repetitions continue with the next surah when auto-next is on',
+      () async {
+    final engine = FakeEngine();
+    final h = QuranListeningHandler(
+        player: engine, loadRecitation: (n) async => rec(n));
+    await h.openChapter(1, autoplay: false);
+    await h.setAutoNext(true);
+    await h.repeatVerse(2, 5);
+    for (var i = 0; i < 5; i++) {
+      engine.complete();
+      await flush();
+    }
+    expect(h.chapter, 2);
+    expect(h.repeatCount, 1);
+    expect(h.repeatedVerse, isNull);
+    expect(engine.clipStart, isNull);
+    expect(engine.clipEnd, isNull);
+    expect(engine.playing, isTrue);
+    await engine.dispose();
   });
   test('Automatic continuation and final surah stopping', () async {
     final e = FakeEngine();
@@ -206,8 +227,12 @@ void main() {
     final h =
         QuranListeningHandler(player: e, loadRecitation: (n) async => rec(n));
     await h.openChapter(1, autoplay: false);
-    await tester
-        .pumpWidget(MaterialApp(builder: (context, child) => MediaQuery(data: MediaQuery.of(context).copyWith(textScaler: const TextScaler.linear(2)), child: child!), home: QuranListeningScreen(handler: h)));
+    await tester.pumpWidget(MaterialApp(
+        builder: (context, child) => MediaQuery(
+            data: MediaQuery.of(context)
+                .copyWith(textScaler: const TextScaler.linear(2)),
+            child: child!),
+        home: QuranListeningScreen(handler: h)));
     await tester.pumpAndSettle();
     await tester.scrollUntilVisible(find.text('10 kez'), 200);
     await tester.pumpAndSettle();

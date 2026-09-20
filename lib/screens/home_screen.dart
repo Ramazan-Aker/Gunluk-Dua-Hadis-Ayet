@@ -936,43 +936,37 @@ Her Gün İslam uygulamasından paylaşıldı
           ...WidgetShortcutHelper.appBarActions(context),
         ],
       ),
-      body: Container(
-        color: AppTheme.ivory,
-        child: SafeArea(
-          child: Column(
-            children: [
-              const AdBannerWidget(useSecondAd: true),
-              Expanded(
-                child: Center(
-                  child: SingleChildScrollView(
-                    child: _isLoading
-                        ? const LoadingCard()
-                        : _currentItem != null
-                            ? Column(
-                                mainAxisSize: MainAxisSize.min,
-                                children: [
-                                  ItemCard(
-                                    item: _currentItem!,
-                                    onShare: _shareItem,
-                                    onNext: _loadRandomItem,
-                                    onMarkAsRead: _markAsRead,
-                                    isSharing: _isSharing,
-                                    isRead: _isRead,
-                                    shareButtonKey: _shareButtonKey,
-                                  ),
-                                  _buildDailyPlanShortcut(),
-                                  _buildHomeShortcuts(),
-                                  if (!kIsWeb &&
-                                      (Platform.isAndroid || Platform.isIOS))
-                                    _buildWidgetPromoCard(),
-                                ],
-                              )
-                            : _buildErrorWidget(),
-                  ),
-                ),
+      body: TopBannerAdBody(
+        child: Container(
+          color: AppTheme.ivory,
+          child: SafeArea(
+            child: Center(
+              child: SingleChildScrollView(
+                child: _isLoading
+                    ? const LoadingCard()
+                    : _currentItem != null
+                        ? Column(
+                            mainAxisSize: MainAxisSize.min,
+                            children: [
+                              ItemCard(
+                                item: _currentItem!,
+                                onShare: _shareItem,
+                                onNext: _loadRandomItem,
+                                onMarkAsRead: _markAsRead,
+                                isSharing: _isSharing,
+                                isRead: _isRead,
+                                shareButtonKey: _shareButtonKey,
+                              ),
+                              _buildDailyPlanShortcut(),
+                              _buildHomeShortcuts(),
+                              if (!kIsWeb &&
+                                  (Platform.isAndroid || Platform.isIOS))
+                                _buildWidgetPromoCard(),
+                            ],
+                          )
+                        : _buildErrorWidget(),
               ),
-              const AdBannerWidget(),
-            ],
+            ),
           ),
         ),
       ),

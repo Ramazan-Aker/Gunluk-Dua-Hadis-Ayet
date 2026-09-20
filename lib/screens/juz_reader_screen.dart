@@ -12,6 +12,7 @@ import '../services/quran_offline_repository.dart';
 import '../services/quran_progress_service.dart';
 import '../services/smart_goal_reminder_service.dart';
 import '../services/achievement_service.dart';
+import '../services/ad_service.dart';
 import '../theme/app_theme.dart';
 
 class JuzReaderScreen extends StatefulWidget {
@@ -88,32 +89,34 @@ class _JuzReaderScreenState extends State<JuzReaderScreen> {
           ),
         ],
       ),
-      body: FutureBuilder<List<QuranOfflineVerse>>(
-        future: _versesFuture,
-        builder: (context, snapshot) {
-          if (snapshot.connectionState != ConnectionState.done) {
-            return const Center(child: CircularProgressIndicator());
-          }
-          final verses = snapshot.data ?? const <QuranOfflineVerse>[];
-          if (verses.isEmpty) {
-            return const Center(child: Text('Cüz içeriği yüklenemedi.'));
-          }
-          return ListView.builder(
-            padding: const EdgeInsets.fromLTRB(20, 12, 20, 110),
-            itemCount: verses.length,
-            itemBuilder: (context, index) {
-              final verse = verses[index];
-              final newSurah =
-                  index == 0 || verses[index - 1].surah != verse.surah;
-              return Column(
-                children: [
-                  if (newSurah) _SurahHeader(number: verse.surah),
-                  _JuzVerseCard(verse: verse),
-                ],
-              );
-            },
-          );
-        },
+      body: TopBannerAdBody(
+        child: FutureBuilder<List<QuranOfflineVerse>>(
+          future: _versesFuture,
+          builder: (context, snapshot) {
+            if (snapshot.connectionState != ConnectionState.done) {
+              return const Center(child: CircularProgressIndicator());
+            }
+            final verses = snapshot.data ?? const <QuranOfflineVerse>[];
+            if (verses.isEmpty) {
+              return const Center(child: Text('Cüz içeriği yüklenemedi.'));
+            }
+            return ListView.builder(
+              padding: const EdgeInsets.fromLTRB(20, 12, 20, 110),
+              itemCount: verses.length,
+              itemBuilder: (context, index) {
+                final verse = verses[index];
+                final newSurah =
+                    index == 0 || verses[index - 1].surah != verse.surah;
+                return Column(
+                  children: [
+                    if (newSurah) _SurahHeader(number: verse.surah),
+                    _JuzVerseCard(verse: verse),
+                  ],
+                );
+              },
+            );
+          },
+        ),
       ),
       bottomNavigationBar: SafeArea(
         top: false,

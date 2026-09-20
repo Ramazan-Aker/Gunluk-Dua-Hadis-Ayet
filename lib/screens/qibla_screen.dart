@@ -10,6 +10,7 @@ import '../models/qibla_direction.dart';
 import '../services/firebase_service.dart'
     show FirebaseService, AnalyticsEvents, AnalyticsParams;
 import '../services/qibla_direction_service.dart';
+import '../services/ad_service.dart';
 import '../theme/app_theme.dart';
 
 enum _QiblaStatus {
@@ -229,10 +230,12 @@ class _QiblaScreenState extends State<QiblaScreen> with WidgetsBindingObserver {
     return Scaffold(
       backgroundColor: AppTheme.ivory,
       appBar: AppBar(title: const Text('Kıbleyi Bul')),
-      body: SafeArea(
-        child: AnimatedSwitcher(
-          duration: const Duration(milliseconds: 240),
-          child: _buildBody(),
+      body: TopBannerAdBody(
+        child: SafeArea(
+          child: AnimatedSwitcher(
+            duration: const Duration(milliseconds: 240),
+            child: _buildBody(),
+          ),
         ),
       ),
     );

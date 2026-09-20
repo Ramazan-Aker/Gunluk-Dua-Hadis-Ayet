@@ -242,6 +242,15 @@ class QuranListeningHandler extends BaseAudioHandler {
           unawaited(player
               .play()
               .catchError((Object e) => _fail('Ses oynatılamadı.')));
+        } else if (autoNext && chapter! < 114) {
+          // A repeated ayah is played through a clipped audio source. Once the
+          // requested count is complete, remove that clip before loading the
+          // next chapter. Previously we only paused here, so "otomatik geç"
+          // never ran after 3/5/10 repetitions.
+          repeatedVerse = null;
+          repeatCount = 1;
+          await player.setClip(start: null, end: null);
+          await openChapter(chapter! + 1);
         } else {
           await pause();
         }
@@ -309,6 +318,49 @@ class QuranListeningHandler extends BaseAudioHandler {
   Future<void> seek(Duration position) async {
     await player.seek(position);
     await _savePosition();
+  }
+
+  Future<void> seekRelative(Duration offset) async {
+    final total = player.duration ?? Duration.zero;
+    final targetMs = (player.position + offset)
+        .inMilliseconds
+        .clamp(0, total.inMilliseconds);
+    await seek(Duration(milliseconds: targetMs));
+  }
+
+  Future<void> skipToNextVerse() async {
+    final timings = recitation?.timings;
+    if (timings == null || timings.isEmpty) return;
+    final verse = currentVerse;
+    final next =
+        timings.where((timing) => timing.verseNumber > verse).firstOrNull;
+    if (next == null) {
+      await skipToNext();
+      return;
+    }
+    if (repeatedVerse != null && repeatCount > 1) {
+      await repeatVerse(next.verseNumber, repeatCount);
+    } else {
+      await seek(Duration(milliseconds: next.timestampFrom));
+    }
+  }
+
+  Future<void> skipToPreviousVerse() async {
+    final timings = recitation?.timings;
+    if (timings == null || timings.isEmpty) return;
+    final verse = currentVerse;
+    final previous = timings.reversed
+        .where((timing) => timing.verseNumber < verse)
+        .firstOrNull;
+    if (previous == null) {
+      await seek(Duration.zero);
+      return;
+    }
+    if (repeatedVerse != null && repeatCount > 1) {
+      await repeatVerse(previous.verseNumber, repeatCount);
+    } else {
+      await seek(Duration(milliseconds: previous.timestampFrom));
+    }
   }
 
   @override

@@ -193,7 +193,9 @@ class _DailyDuaAppState extends State<DailyDuaApp> with WidgetsBindingObserver {
 
       theme: AppTheme.light,
       builder: (context, child) => AppUpdateGate(
-        child: child ?? const SizedBox.shrink(),
+        child: PersistentTopBannerShell(
+          child: child ?? const SizedBox.shrink(),
+        ),
       ),
 
       // Home screen with bottom navigation
@@ -276,42 +278,52 @@ class _MainNavigationScreenState extends State<MainNavigationScreen> {
             ),
           ],
         ),
-        child: BottomNavigationBar(
-          currentIndex: _selectedIndex,
-          onTap: _onItemTapped,
-          type: BottomNavigationBarType.fixed,
-          backgroundColor: Colors.transparent,
-          selectedItemColor: AppTheme.navy,
-          unselectedItemColor: AppTheme.textMuted,
-          selectedFontSize: 12,
-          unselectedFontSize: 12,
-          selectedLabelStyle: const TextStyle(fontWeight: FontWeight.w700),
-          elevation: 0,
-          items: const [
-            BottomNavigationBarItem(
-              icon: Icon(Icons.home_outlined),
-              activeIcon: _ActiveNavIcon(Icons.home_rounded),
-              label: 'Ana Sayfa',
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            const RepaintBoundary(
+              child: AdBannerWidget(
+                key: ValueKey<String>('persistent-main-banner'),
+              ),
             ),
-            BottomNavigationBarItem(
-              icon: Icon(Icons.menu_book_outlined),
-              activeIcon: _ActiveNavIcon(Icons.menu_book_rounded),
-              label: 'Kur\'an',
-            ),
-            BottomNavigationBarItem(
-              icon: Icon(Icons.mosque_outlined),
-              activeIcon: _ActiveNavIcon(Icons.mosque_rounded),
-              label: 'Namaz',
-            ),
-            BottomNavigationBarItem(
-              icon: Icon(Icons.chat_bubble_outline_rounded),
-              activeIcon: _ActiveNavIcon(Icons.chat_bubble_rounded),
-              label: 'Mesajlar',
-            ),
-            BottomNavigationBarItem(
-              icon: Icon(Icons.more_horiz_rounded),
-              activeIcon: _ActiveNavIcon(Icons.more_horiz_rounded),
-              label: 'Diğer',
+            BottomNavigationBar(
+              currentIndex: _selectedIndex,
+              onTap: _onItemTapped,
+              type: BottomNavigationBarType.fixed,
+              backgroundColor: Colors.transparent,
+              selectedItemColor: AppTheme.navy,
+              unselectedItemColor: AppTheme.textMuted,
+              selectedFontSize: 12,
+              unselectedFontSize: 12,
+              selectedLabelStyle: const TextStyle(fontWeight: FontWeight.w700),
+              elevation: 0,
+              items: const [
+                BottomNavigationBarItem(
+                  icon: Icon(Icons.home_outlined),
+                  activeIcon: _ActiveNavIcon(Icons.home_rounded),
+                  label: 'Ana Sayfa',
+                ),
+                BottomNavigationBarItem(
+                  icon: Icon(Icons.menu_book_outlined),
+                  activeIcon: _ActiveNavIcon(Icons.menu_book_rounded),
+                  label: 'Kur\'an',
+                ),
+                BottomNavigationBarItem(
+                  icon: Icon(Icons.mosque_outlined),
+                  activeIcon: _ActiveNavIcon(Icons.mosque_rounded),
+                  label: 'Namaz',
+                ),
+                BottomNavigationBarItem(
+                  icon: Icon(Icons.chat_bubble_outline_rounded),
+                  activeIcon: _ActiveNavIcon(Icons.chat_bubble_rounded),
+                  label: 'Mesajlar',
+                ),
+                BottomNavigationBarItem(
+                  icon: Icon(Icons.more_horiz_rounded),
+                  activeIcon: _ActiveNavIcon(Icons.more_horiz_rounded),
+                  label: 'Diğer',
+                ),
+              ],
             ),
           ],
         ),

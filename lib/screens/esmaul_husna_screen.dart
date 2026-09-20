@@ -4,6 +4,7 @@ import '../models/esmaul_husna_name.dart';
 import '../models/esmaul_husna_progress.dart';
 import '../services/esmaul_husna_audio_service.dart';
 import '../services/esmaul_husna_service.dart';
+import '../services/ad_service.dart';
 import '../theme/app_theme.dart';
 
 enum _EsmaFilter { all, favorites, memorized }
@@ -118,39 +119,43 @@ class _EsmaulHusnaScreenState extends State<EsmaulHusnaScreen> {
     return Scaffold(
       backgroundColor: AppTheme.ivory,
       appBar: AppBar(title: const Text('Esmaül Hüsna')),
-      body: _loading
-          ? const Center(child: CircularProgressIndicator())
-          : CustomScrollView(
-              slivers: [
-                SliverToBoxAdapter(child: _buildHeader()),
-                SliverToBoxAdapter(child: _buildSearchAndFilters()),
-                if (names.isEmpty)
-                  const SliverFillRemaining(
-                    hasScrollBody: false,
-                    child: Center(child: Text('Bu filtrede isim bulunamadı.')),
-                  )
-                else
-                  SliverPadding(
-                    padding: const EdgeInsets.fromLTRB(16, 4, 16, 32),
-                    sliver: SliverList.separated(
-                      itemCount: names.length,
-                      separatorBuilder: (_, __) => const SizedBox(height: 10),
-                      itemBuilder: (context, index) => _NameCard(
-                        name: names[index],
-                        favorite:
-                            _progress.favorites.contains(names[index].number),
-                        memorized:
-                            _progress.memorized.contains(names[index].number),
-                        speaking: _speakingNumber == names[index].number,
-                        onFavorite: () => _toggleFavorite(names[index].number),
-                        onMemorized: () =>
-                            _toggleMemorized(names[index].number),
-                        onSpeak: () => _speak(names[index]),
+      body: TopBannerAdBody(
+        child: _loading
+            ? const Center(child: CircularProgressIndicator())
+            : CustomScrollView(
+                slivers: [
+                  SliverToBoxAdapter(child: _buildHeader()),
+                  SliverToBoxAdapter(child: _buildSearchAndFilters()),
+                  if (names.isEmpty)
+                    const SliverFillRemaining(
+                      hasScrollBody: false,
+                      child:
+                          Center(child: Text('Bu filtrede isim bulunamadı.')),
+                    )
+                  else
+                    SliverPadding(
+                      padding: const EdgeInsets.fromLTRB(16, 4, 16, 32),
+                      sliver: SliverList.separated(
+                        itemCount: names.length,
+                        separatorBuilder: (_, __) => const SizedBox(height: 10),
+                        itemBuilder: (context, index) => _NameCard(
+                          name: names[index],
+                          favorite:
+                              _progress.favorites.contains(names[index].number),
+                          memorized:
+                              _progress.memorized.contains(names[index].number),
+                          speaking: _speakingNumber == names[index].number,
+                          onFavorite: () =>
+                              _toggleFavorite(names[index].number),
+                          onMemorized: () =>
+                              _toggleMemorized(names[index].number),
+                          onSpeak: () => _speak(names[index]),
+                        ),
                       ),
                     ),
-                  ),
-              ],
-            ),
+                ],
+              ),
+      ),
     );
   }
 

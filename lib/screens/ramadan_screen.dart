@@ -868,22 +868,23 @@ class _RamadanScreenState extends State<RamadanScreen> {
             ),
         ],
       ),
-      body: Container(
-        color: AppTheme.ivory,
-        child: Column(
-          children: [
-            _buildCityTabs(),
-            Expanded(
-              child: _isLoading
-                  ? const Center(child: CircularProgressIndicator())
-                  : _errorMessage != null
-                      ? _buildErrorWidget()
-                      : _selectedCity == null
-                          ? _buildNoCityWidget()
-                          : _buildContent(),
-            ),
-            const AdBannerWidget(),
-          ],
+      body: TopBannerAdBody(
+        child: Container(
+          color: AppTheme.ivory,
+          child: Column(
+            children: [
+              _buildCityTabs(),
+              Expanded(
+                child: _isLoading
+                    ? const Center(child: CircularProgressIndicator())
+                    : _errorMessage != null
+                        ? _buildErrorWidget()
+                        : _selectedCity == null
+                            ? _buildNoCityWidget()
+                            : _buildContent(),
+              ),
+            ],
+          ),
         ),
       ),
     );

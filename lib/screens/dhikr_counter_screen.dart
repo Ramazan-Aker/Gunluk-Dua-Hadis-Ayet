@@ -8,6 +8,7 @@ import '../services/dhikr_tracking_service.dart';
 import '../services/smart_goal_reminder_service.dart';
 import '../services/achievement_service.dart';
 import '../services/firebase_service.dart' show FirebaseService;
+import '../services/ad_service.dart';
 import '../theme/app_theme.dart';
 
 class DhikrCounterScreen extends StatefulWidget {
@@ -235,9 +236,11 @@ class _DhikrCounterScreenState extends State<DhikrCounterScreen> {
           const SizedBox(width: 6),
         ],
       ),
-      body: _loading
-          ? const Center(child: CircularProgressIndicator())
-          : _buildContent(_summary!),
+      body: TopBannerAdBody(
+        child: _loading
+            ? const Center(child: CircularProgressIndicator())
+            : _buildContent(_summary!),
+      ),
     );
   }
 

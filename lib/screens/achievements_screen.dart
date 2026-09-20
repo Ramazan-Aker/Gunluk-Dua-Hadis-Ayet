@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import '../models/achievement.dart';
 import '../services/achievement_service.dart';
 import '../services/firebase_service.dart' show FirebaseService;
+import '../services/ad_service.dart';
 import '../theme/app_theme.dart';
 
 class AchievementsScreen extends StatefulWidget {
@@ -33,34 +34,36 @@ class _AchievementsScreenState extends State<AchievementsScreen> {
     return Scaffold(
       backgroundColor: AppTheme.ivory,
       appBar: AppBar(title: const Text('Başarılar ve Rozetler')),
-      body: summary == null
-          ? const Center(child: CircularProgressIndicator())
-          : RefreshIndicator(
-              onRefresh: _load,
-              child: ListView(
-                physics: const AlwaysScrollableScrollPhysics(),
-                padding: const EdgeInsets.fromLTRB(18, 16, 18, 34),
-                children: [
-                  _AchievementHeader(summary: summary),
-                  const SizedBox(height: 18),
-                  const Text(
-                    'Rozet koleksiyonun',
-                    style: TextStyle(
-                      color: AppTheme.navy,
-                      fontSize: 18,
-                      fontWeight: FontWeight.w800,
+      body: TopBannerAdBody(
+        child: summary == null
+            ? const Center(child: CircularProgressIndicator())
+            : RefreshIndicator(
+                onRefresh: _load,
+                child: ListView(
+                  physics: const AlwaysScrollableScrollPhysics(),
+                  padding: const EdgeInsets.fromLTRB(18, 16, 18, 34),
+                  children: [
+                    _AchievementHeader(summary: summary),
+                    const SizedBox(height: 18),
+                    const Text(
+                      'Rozet koleksiyonun',
+                      style: TextStyle(
+                        color: AppTheme.navy,
+                        fontSize: 18,
+                        fontWeight: FontWeight.w800,
+                      ),
                     ),
-                  ),
-                  const SizedBox(height: 11),
-                  ...summary.achievements.map(
-                    (achievement) => Padding(
-                      padding: const EdgeInsets.only(bottom: 10),
-                      child: _AchievementCard(status: achievement),
+                    const SizedBox(height: 11),
+                    ...summary.achievements.map(
+                      (achievement) => Padding(
+                        padding: const EdgeInsets.only(bottom: 10),
+                        child: _AchievementCard(status: achievement),
+                      ),
                     ),
-                  ),
-                ],
+                  ],
+                ),
               ),
-            ),
+      ),
     );
   }
 }

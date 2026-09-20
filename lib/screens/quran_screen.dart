@@ -29,7 +29,39 @@ class _QuranScreenState extends State<QuranScreen> {
   List<QuranSurahInfo> _surahs = [];
   List<QuranSurahInfo> _filteredSurahs = [];
   int? _lastReadSurah;
+  int _lastReadVerse = 0;
+  Map<int, int> _verseCounts = const {};
   String _searchQuery = '';
+  String _originFilter = 'all';
+
+  static const Set<int> _medinanSurahs = {
+    2,
+    3,
+    4,
+    5,
+    8,
+    9,
+    22,
+    24,
+    33,
+    47,
+    48,
+    49,
+    57,
+    58,
+    59,
+    60,
+    61,
+    62,
+    63,
+    64,
+    65,
+    66,
+    76,
+    98,
+    99,
+    110,
+  };
 
   static const String _keyLastRead = 'quran_last_read_surah';
   static const String _keyLastVerse =
@@ -117,9 +149,16 @@ class _QuranScreenState extends State<QuranScreen> {
     try {
       final prefs = await SharedPreferences.getInstance();
       final savedLastRead = prefs.getInt(_keyLastRead);
-      if (savedLastRead != null) {
-        setState(() => _lastReadSurah = savedLastRead);
-      }
+      final verseCounts =
+          await QuranOfflineRepository.instance.getSurahVerseCounts();
+      if (!mounted) return;
+      setState(() {
+        _lastReadSurah = savedLastRead;
+        _lastReadVerse = savedLastRead == null
+            ? 0
+            : prefs.getInt('$_keyLastVerse$savedLastRead') ?? 0;
+        _verseCounts = verseCounts;
+      });
     } catch (_) {}
   }
 
@@ -134,20 +173,27 @@ class _QuranScreenState extends State<QuranScreen> {
   void _filterSurahs(String query) {
     setState(() {
       _searchQuery = query.toLowerCase().trim();
+      _applyFilters();
+    });
+  }
 
-      if (_searchQuery.isEmpty) {
-        _filteredSurahs = _surahs;
-      } else {
-        _filteredSurahs = _surahs.where((surah) {
-          // Search by surah name (Turkish)
-          final nameMatch = surah.name.toLowerCase().contains(_searchQuery);
+  void _applyFilters() {
+    _filteredSurahs = _surahs.where((surah) {
+      final matchesSearch = _searchQuery.isEmpty ||
+          surah.name.toLowerCase().contains(_searchQuery) ||
+          surah.number.toString().contains(_searchQuery);
+      final isMedinan = _medinanSurahs.contains(surah.number);
+      final matchesOrigin = _originFilter == 'all' ||
+          (_originFilter == 'medinan' && isMedinan) ||
+          (_originFilter == 'meccan' && !isMedinan);
+      return matchesSearch && matchesOrigin;
+    }).toList();
+  }
 
-          // Search by surah number
-          final numberMatch = surah.number.toString().contains(_searchQuery);
-
-          return nameMatch || numberMatch;
-        }).toList();
-      }
+  void _setOriginFilter(String value) {
+    setState(() {
+      _originFilter = value;
+      _applyFilters();
     });
   }
 
@@ -159,7 +205,7 @@ class _QuranScreenState extends State<QuranScreen> {
     final lastVerse = prefs.getInt('$_keyLastVerse$surahNumber') ?? 0;
 
     if (!mounted) return;
-    Navigator.push(
+    await Navigator.push(
       context,
       MaterialPageRoute(
         builder: (context) => SurahDetailScreen(
@@ -172,6 +218,7 @@ class _QuranScreenState extends State<QuranScreen> {
         ),
       ),
     );
+    if (mounted) await _loadSavedPreferences();
 
     FirebaseService.logEvent(
       name: 'quran_surah_opened',
@@ -185,36 +232,41 @@ class _QuranScreenState extends State<QuranScreen> {
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        leading: const Icon(Icons.menu_rounded),
-        title: const Text('Her Gün İslam', style: TextStyle(fontSize: 24)),
+        toolbarHeight: 72,
+        leading: Padding(
+          padding: const EdgeInsets.all(8),
+          child: DecoratedBox(
+            decoration: BoxDecoration(
+              color: Colors.white,
+              borderRadius: BorderRadius.circular(15),
+              boxShadow: AppTheme.ambientShadow,
+            ),
+            child: const Icon(Icons.menu_rounded),
+          ),
+        ),
+        title: const Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Text('Her Gün İslam', style: TextStyle(fontSize: 22)),
+            Text('KUR’AN-I KERİM',
+                style: TextStyle(
+                    color: AppTheme.emerald,
+                    fontSize: 9,
+                    fontWeight: FontWeight.w800,
+                    letterSpacing: 1.2)),
+          ],
+        ),
         centerTitle: true,
         actions: [
           ...WidgetShortcutHelper.appBarActions(context),
           const SizedBox(width: 6),
         ],
       ),
-      body: Container(
-        color: AppTheme.ivory,
-        child: SafeArea(
-          child: Column(
-            children: [
-              const AdBannerWidget(useSecondAd: true),
-              Material(
-                color: AppTheme.ivory,
-                child: ListTile(
-                    leading: const Icon(Icons.headphones_rounded),
-                    title: const Text('Kur’an dinleme modu'),
-                    subtitle: const Text(
-                        'Sureleri sırayla dinle ve ayetleri tekrar et'),
-                    trailing: const Icon(Icons.chevron_right),
-                    onTap: () => Navigator.push(
-                        context,
-                        MaterialPageRoute<void>(
-                            builder: (_) => const QuranListeningScreen()))),
-              ),
-              Expanded(child: _buildSurahList()),
-              const AdBannerWidget(),
-            ],
+      body: TopBannerAdBody(
+        child: Container(
+          color: AppTheme.ivory,
+          child: SafeArea(
+            child: _buildSurahList(),
           ),
         ),
       ),
@@ -268,6 +320,7 @@ class _QuranScreenState extends State<QuranScreen> {
       child: CustomScrollView(
         controller: _scrollController,
         slivers: [
+          SliverToBoxAdapter(child: _buildListeningCard()),
           SliverToBoxAdapter(child: _buildPlayAllCard()),
           // Show search results count when searching
           if (_searchQuery.isNotEmpty)
@@ -296,6 +349,8 @@ class _QuranScreenState extends State<QuranScreen> {
                     return _SurahGridTile(
                       surah: surah,
                       isLastRead: isLastRead,
+                      verseCount: _verseCounts[surah.number],
+                      isMedinan: _medinanSurahs.contains(surah.number),
                       onTap: () => _openSurahReader(surah.number, surah.name),
                     );
                   },
@@ -330,6 +385,65 @@ class _QuranScreenState extends State<QuranScreen> {
     );
   }
 
+  Widget _buildListeningCard() {
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(16, 14, 16, 0),
+      child: Material(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(22),
+        child: InkWell(
+          borderRadius: BorderRadius.circular(22),
+          onTap: () => Navigator.push(
+            context,
+            MaterialPageRoute<void>(
+                builder: (_) => const QuranListeningScreen()),
+          ),
+          child: Container(
+            padding: const EdgeInsets.all(14),
+            decoration: BoxDecoration(
+              borderRadius: BorderRadius.circular(22),
+              border: Border.all(color: const Color(0xFFE8E5DE)),
+              boxShadow: AppTheme.ambientShadow,
+            ),
+            child: Row(
+              children: [
+                Container(
+                  width: 50,
+                  height: 50,
+                  decoration: BoxDecoration(
+                    color: AppTheme.mint.withValues(alpha: .35),
+                    borderRadius: BorderRadius.circular(16),
+                  ),
+                  child: const Icon(Icons.headphones_rounded,
+                      color: AppTheme.emerald),
+                ),
+                const SizedBox(width: 14),
+                const Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text('Kur’an dinleme modu',
+                          style: TextStyle(
+                              color: AppTheme.navy,
+                              fontSize: 15,
+                              fontWeight: FontWeight.w800)),
+                      SizedBox(height: 3),
+                      Text('Sureleri sırayla dinle ve ayetleri tekrar et',
+                          style: TextStyle(
+                              color: AppTheme.textMuted, fontSize: 12)),
+                    ],
+                  ),
+                ),
+                const Icon(Icons.chevron_right_rounded,
+                    color: AppTheme.outline),
+              ],
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+
   Widget _buildPlayAllCard() {
     return Padding(
       padding: const EdgeInsets.fromLTRB(16, 16, 16, 10),
@@ -338,41 +452,96 @@ class _QuranScreenState extends State<QuranScreen> {
           if (_lastReadSurah != null)
             Container(
               width: double.infinity,
-              padding: const EdgeInsets.all(20),
+              padding: const EdgeInsets.all(22),
               decoration: BoxDecoration(
-                color: AppTheme.navyContainer,
-                borderRadius: BorderRadius.circular(18),
+                gradient: const LinearGradient(
+                  begin: Alignment.topLeft,
+                  end: Alignment.bottomRight,
+                  colors: [AppTheme.navy, Color(0xFF0A4A68)],
+                ),
+                borderRadius: BorderRadius.circular(26),
                 boxShadow: AppTheme.ambientShadow,
               ),
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  const Text('KALDIĞIN YERDEN',
-                      style: TextStyle(
-                          color: Color(0xFFA9C9F0),
-                          fontSize: 12,
-                          fontWeight: FontWeight.w600,
-                          letterSpacing: .8)),
+                  Row(
+                    children: [
+                      Container(
+                        padding: const EdgeInsets.symmetric(
+                            horizontal: 10, vertical: 5),
+                        decoration: BoxDecoration(
+                          color: Colors.white.withValues(alpha: .13),
+                          borderRadius: BorderRadius.circular(20),
+                        ),
+                        child: const Text('●  KALDIĞIN YERDEN',
+                            style: TextStyle(
+                                color: AppTheme.mint,
+                                fontSize: 10,
+                                fontWeight: FontWeight.w800,
+                                letterSpacing: .5)),
+                      ),
+                      const Spacer(),
+                      Text('${_lastReadVerse + 1}. Ayet',
+                          style: const TextStyle(
+                              color: Color(0xFFC7D7E2), fontSize: 11)),
+                    ],
+                  ),
                   const SizedBox(height: 10),
                   Text(
                       QuranAudioService.turkishSurahNames[_lastReadSurah] ??
                           'Sure $_lastReadSurah',
                       style: const TextStyle(
                           color: Colors.white,
-                          fontSize: 22,
-                          fontWeight: FontWeight.w700)),
-                  const SizedBox(height: 14),
-                  ElevatedButton.icon(
-                    style: ElevatedButton.styleFrom(
-                        backgroundColor: Colors.white,
-                        foregroundColor: AppTheme.navy),
-                    onPressed: () => _openSurahReader(
-                        _lastReadSurah!,
-                        QuranAudioService.turkishSurahNames[_lastReadSurah] ??
-                            'Sure $_lastReadSurah'),
-                    icon: const Icon(Icons.play_arrow_rounded),
-                    label: const Text('Devam Et'),
+                          fontSize: 28,
+                          fontWeight: FontWeight.w900)),
+                  const SizedBox(height: 6),
+                  Text(
+                    '$_lastReadSurah. Sure • ${_lastReadVerse + 1}. Ayet',
+                    style:
+                        const TextStyle(color: Color(0xFFC7D7E2), fontSize: 12),
                   ),
+                  const SizedBox(height: 16),
+                  Row(
+                    children: [
+                      Expanded(
+                        child: ClipRRect(
+                          borderRadius: BorderRadius.circular(8),
+                          child: LinearProgressIndicator(
+                            minHeight: 6,
+                            value: _verseCounts[_lastReadSurah] == null
+                                ? 0
+                                : ((_lastReadVerse + 1) /
+                                        _verseCounts[_lastReadSurah]!)
+                                    .clamp(0, 1),
+                            color: AppTheme.gold,
+                            backgroundColor: Colors.white24,
+                          ),
+                        ),
+                      ),
+                      const SizedBox(width: 12),
+                      Text(
+                        _verseCounts[_lastReadSurah] == null
+                            ? ''
+                            : '%${(((_lastReadVerse + 1) / _verseCounts[_lastReadSurah]!) * 100).round()}',
+                        style: const TextStyle(
+                            color: AppTheme.mint,
+                            fontSize: 11,
+                            fontWeight: FontWeight.w800),
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 18),
+                  ElevatedButton.icon(
+                      style: ElevatedButton.styleFrom(
+                          backgroundColor: Colors.white,
+                          foregroundColor: AppTheme.navy),
+                      onPressed: () => _openSurahReader(
+                          _lastReadSurah!,
+                          QuranAudioService.turkishSurahNames[_lastReadSurah] ??
+                              'Sure $_lastReadSurah'),
+                      icon: const Icon(Icons.play_arrow_rounded),
+                      label: const Text('Devam Et')),
                 ],
               ),
             ),
@@ -386,6 +555,7 @@ class _QuranScreenState extends State<QuranScreen> {
                     child: _QuickQuranTile(
                         icon: Icons.headphones_rounded,
                         label: 'Hatim Dinle',
+                        subtitle: 'Farklı hafızlardan dinle',
                         color: AppTheme.mint,
                         onTap: _openFullQuranPlayer)),
                 const SizedBox(width: 12),
@@ -393,6 +563,7 @@ class _QuranScreenState extends State<QuranScreen> {
                   child: _QuickQuranTile(
                     icon: Icons.auto_stories_rounded,
                     label: 'Cüzler',
+                    subtitle: '30 Cüz fihristi',
                     color: const Color(0xFFFFDEA3),
                     onTap: () => Navigator.push<void>(
                         context,
@@ -405,16 +576,55 @@ class _QuranScreenState extends State<QuranScreen> {
             const SizedBox(height: 12),
             _QuranPlanShortcut(onTap: _openReadingPlan),
             const SizedBox(height: 20),
-            const Align(
-                alignment: Alignment.centerLeft,
-                child: Text('Sureler',
-                    style: TextStyle(
-                        color: AppTheme.navy,
-                        fontSize: 22,
-                        fontWeight: FontWeight.w700))),
+            _buildSurahHeader(),
           ],
         ],
       ),
+    );
+  }
+
+  Widget _buildSurahHeader() {
+    return Row(
+      crossAxisAlignment: CrossAxisAlignment.end,
+      children: [
+        const Expanded(
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text('Sureler',
+                  style: TextStyle(
+                      color: AppTheme.navy,
+                      fontSize: 22,
+                      fontWeight: FontWeight.w900)),
+              Text('Toplam 114 Sure',
+                  style: TextStyle(color: AppTheme.textMuted, fontSize: 12)),
+            ],
+          ),
+        ),
+        Container(
+          padding: const EdgeInsets.all(3),
+          decoration: BoxDecoration(
+            color: const Color(0xFFECEAE4),
+            borderRadius: BorderRadius.circular(12),
+          ),
+          child: Row(
+            children: [
+              _OriginButton(
+                  label: 'Tümü',
+                  selected: _originFilter == 'all',
+                  onTap: () => _setOriginFilter('all')),
+              _OriginButton(
+                  label: 'Mekki',
+                  selected: _originFilter == 'meccan',
+                  onTap: () => _setOriginFilter('meccan')),
+              _OriginButton(
+                  label: 'Medeni',
+                  selected: _originFilter == 'medinan',
+                  onTap: () => _setOriginFilter('medinan')),
+            ],
+          ),
+        ),
+      ],
     );
   }
 
@@ -519,12 +729,14 @@ class _QuranPlanShortcut extends StatelessWidget {
 class _QuickQuranTile extends StatelessWidget {
   final IconData icon;
   final String label;
+  final String subtitle;
   final Color color;
   final VoidCallback onTap;
 
   const _QuickQuranTile(
       {required this.icon,
       required this.label,
+      required this.subtitle,
       required this.color,
       required this.onTap});
 
@@ -537,8 +749,8 @@ class _QuickQuranTile extends StatelessWidget {
         onTap: onTap,
         borderRadius: BorderRadius.circular(16),
         child: Container(
-          height: 126,
-          padding: const EdgeInsets.all(18),
+          height: 140,
+          padding: const EdgeInsets.all(16),
           decoration: BoxDecoration(
               borderRadius: BorderRadius.circular(16),
               boxShadow: AppTheme.ambientShadow),
@@ -552,7 +764,14 @@ class _QuickQuranTile extends StatelessWidget {
               const SizedBox(height: 12),
               Text(label,
                   style: const TextStyle(
-                      fontSize: 15, fontWeight: FontWeight.w600)),
+                      color: AppTheme.navy,
+                      fontSize: 15,
+                      fontWeight: FontWeight.w800)),
+              const SizedBox(height: 3),
+              Text(subtitle,
+                  textAlign: TextAlign.center,
+                  style:
+                      const TextStyle(color: AppTheme.textMuted, fontSize: 10)),
             ],
           ),
         ),
@@ -564,11 +783,15 @@ class _QuickQuranTile extends StatelessWidget {
 class _SurahGridTile extends StatelessWidget {
   final QuranSurahInfo surah;
   final bool isLastRead;
+  final int? verseCount;
+  final bool isMedinan;
   final VoidCallback onTap;
 
   const _SurahGridTile({
     required this.surah,
     this.isLastRead = false,
+    required this.verseCount,
+    required this.isMedinan,
     required this.onTap,
   });
 
@@ -623,14 +846,15 @@ class _SurahGridTile extends StatelessWidget {
                             decoration: BoxDecoration(
                                 color: AppTheme.mint,
                                 borderRadius: BorderRadius.circular(7)),
-                            child: const Text('SURE',
-                                style: TextStyle(
+                            child: Text(isMedinan ? 'MEDENİ' : 'MEKKİ',
+                                style: const TextStyle(
                                     color: AppTheme.emerald,
-                                    fontSize: 10,
-                                    fontWeight: FontWeight.w700)),
+                                    fontSize: 9,
+                                    fontWeight: FontWeight.w800)),
                           ),
                           const SizedBox(width: 8),
-                          Text('${surah.number}. sure',
+                          Text(
+                              '${verseCount ?? '—'} Ayet • ${surah.number}. Sure',
                               style: const TextStyle(
                                   color: AppTheme.textMuted, fontSize: 12)),
                         ],
@@ -649,4 +873,37 @@ class _SurahGridTile extends StatelessWidget {
       ),
     );
   }
+}
+
+class _OriginButton extends StatelessWidget {
+  const _OriginButton({
+    required this.label,
+    required this.selected,
+    required this.onTap,
+  });
+
+  final String label;
+  final bool selected;
+  final VoidCallback onTap;
+
+  @override
+  Widget build(BuildContext context) => Material(
+        color: selected ? Colors.white : Colors.transparent,
+        borderRadius: BorderRadius.circular(9),
+        child: InkWell(
+          onTap: onTap,
+          borderRadius: BorderRadius.circular(9),
+          child: Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+            child: Text(
+              label,
+              style: TextStyle(
+                color: selected ? AppTheme.navy : AppTheme.textMuted,
+                fontSize: 11,
+                fontWeight: FontWeight.w800,
+              ),
+            ),
+          ),
+        ),
+      );
 }

@@ -3,6 +3,7 @@ import 'package:intl/intl.dart';
 
 import '../models/kaza_prayer_tracking.dart';
 import '../services/kaza_prayer_service.dart';
+import '../services/ad_service.dart';
 import '../theme/app_theme.dart';
 
 class KazaPrayerScreen extends StatefulWidget {
@@ -78,82 +79,84 @@ class _KazaPrayerScreenState extends State<KazaPrayerScreen> {
           ),
         ],
       ),
-      body: summary == null
-          ? const Center(child: CircularProgressIndicator())
-          : ListView(
-              padding: const EdgeInsets.fromLTRB(16, 16, 16, 32),
-              children: [
-                _SummaryCard(
-                    summary: summary, onAdd: _busy ? null : () => _addDebt()),
-                const SizedBox(height: 12),
-                Container(
-                  padding: const EdgeInsets.all(13),
-                  decoration: BoxDecoration(
-                    color: AppTheme.mint,
-                    borderRadius: BorderRadius.circular(14),
-                  ),
-                  child: const Row(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Icon(Icons.lock_outline_rounded,
-                          color: AppTheme.emerald, size: 20),
-                      SizedBox(width: 9),
-                      Expanded(
-                        child: Text(
-                          'Bu alan kişisel takip içindir; veriler yalnızca cihazınızda saklanır. Dini hüküm veya borç hesabı yerine geçmez.',
-                          style: TextStyle(
-                              fontSize: 12.5,
-                              height: 1.35,
-                              color: AppTheme.navy),
-                        ),
-                      ),
-                    ],
-                  ),
-                ),
-                const SizedBox(height: 18),
-                const Text('Namazlara göre',
-                    style: TextStyle(
-                        fontSize: 18,
-                        fontWeight: FontWeight.w800,
-                        color: AppTheme.navy)),
-                const SizedBox(height: 10),
-                LayoutBuilder(
-                  builder: (context, constraints) {
-                    final width = (constraints.maxWidth - 10) / 2;
-                    return Wrap(
-                      spacing: 10,
-                      runSpacing: 10,
+      body: TopBannerAdBody(
+        child: summary == null
+            ? const Center(child: CircularProgressIndicator())
+            : ListView(
+                padding: const EdgeInsets.fromLTRB(16, 16, 16, 32),
+                children: [
+                  _SummaryCard(
+                      summary: summary, onAdd: _busy ? null : () => _addDebt()),
+                  const SizedBox(height: 12),
+                  Container(
+                    padding: const EdgeInsets.all(13),
+                    decoration: BoxDecoration(
+                      color: AppTheme.mint,
+                      borderRadius: BorderRadius.circular(14),
+                    ),
+                    child: const Row(
+                      crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
-                        for (final prayer in KazaPrayerType.values)
-                          SizedBox(
-                            width: width,
-                            child: _PrayerDebtCard(
-                              prayer: prayer,
-                              debt: summary.debtFor(prayer),
-                              busy: _busy,
-                              onAdd: () => _addDebt(prayer),
-                              onPerformed: () => _markPerformed(prayer),
-                            ),
+                        Icon(Icons.lock_outline_rounded,
+                            color: AppTheme.emerald, size: 20),
+                        SizedBox(width: 9),
+                        Expanded(
+                          child: Text(
+                            'Bu alan kişisel takip içindir; veriler yalnızca cihazınızda saklanır. Dini hüküm veya borç hesabı yerine geçmez.',
+                            style: TextStyle(
+                                fontSize: 12.5,
+                                height: 1.35,
+                                color: AppTheme.navy),
                           ),
+                        ),
                       ],
-                    );
-                  },
-                ),
-                const SizedBox(height: 22),
-                const Text('Son hareketler',
-                    style: TextStyle(
-                        fontSize: 18,
-                        fontWeight: FontWeight.w800,
-                        color: AppTheme.navy)),
-                const SizedBox(height: 8),
-                if (summary.history.isEmpty)
-                  const _EmptyHistory()
-                else
-                  ...summary.history
-                      .take(20)
-                      .map((item) => _HistoryTile(item: item)),
-              ],
-            ),
+                    ),
+                  ),
+                  const SizedBox(height: 18),
+                  const Text('Namazlara göre',
+                      style: TextStyle(
+                          fontSize: 18,
+                          fontWeight: FontWeight.w800,
+                          color: AppTheme.navy)),
+                  const SizedBox(height: 10),
+                  LayoutBuilder(
+                    builder: (context, constraints) {
+                      final width = (constraints.maxWidth - 10) / 2;
+                      return Wrap(
+                        spacing: 10,
+                        runSpacing: 10,
+                        children: [
+                          for (final prayer in KazaPrayerType.values)
+                            SizedBox(
+                              width: width,
+                              child: _PrayerDebtCard(
+                                prayer: prayer,
+                                debt: summary.debtFor(prayer),
+                                busy: _busy,
+                                onAdd: () => _addDebt(prayer),
+                                onPerformed: () => _markPerformed(prayer),
+                              ),
+                            ),
+                        ],
+                      );
+                    },
+                  ),
+                  const SizedBox(height: 22),
+                  const Text('Son hareketler',
+                      style: TextStyle(
+                          fontSize: 18,
+                          fontWeight: FontWeight.w800,
+                          color: AppTheme.navy)),
+                  const SizedBox(height: 8),
+                  if (summary.history.isEmpty)
+                    const _EmptyHistory()
+                  else
+                    ...summary.history
+                        .take(20)
+                        .map((item) => _HistoryTile(item: item)),
+                ],
+              ),
+      ),
     );
   }
 }

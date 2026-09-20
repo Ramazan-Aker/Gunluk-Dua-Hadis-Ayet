@@ -7,6 +7,7 @@ import '../services/firebase_service.dart' show FirebaseService;
 import '../services/quran_progress_service.dart';
 import '../services/quran_reading_plan_service.dart';
 import '../services/smart_goal_reminder_service.dart';
+import '../services/ad_service.dart';
 import '../theme/app_theme.dart';
 
 class QuranReadingPlanScreen extends StatefulWidget {
@@ -187,11 +188,13 @@ class _QuranReadingPlanScreenState extends State<QuranReadingPlanScreen> {
             ),
         ],
       ),
-      body: _loading
-          ? const Center(child: CircularProgressIndicator())
-          : _summary == null
-              ? _buildSetup()
-              : _buildPlan(_summary!),
+      body: TopBannerAdBody(
+        child: _loading
+            ? const Center(child: CircularProgressIndicator())
+            : _summary == null
+                ? _buildSetup()
+                : _buildPlan(_summary!),
+      ),
     );
   }
 

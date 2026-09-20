@@ -498,6 +498,106 @@ class AdBannerWidget extends StatefulWidget {
   State<AdBannerWidget> createState() => _AdBannerWidgetState();
 }
 
+/// Tüm Navigator sayfalarının üzerinde tek bir üst banner örneği tutar.
+///
+/// Sayfalar AppBar'ın hemen altında 58 px'lik bir hedef alan ayırır. Kalıcı
+/// banner bu hedefi takip eder; Navigator değişse de reklam state'i korunur ve
+/// hedef alan ayrıldığı için içerikle üst üste binmez.
+class PersistentTopBannerShell extends StatefulWidget {
+  const PersistentTopBannerShell({super.key, required this.child});
+
+  final Widget child;
+
+  @override
+  State<PersistentTopBannerShell> createState() =>
+      _PersistentTopBannerShellState();
+}
+
+class _PersistentTopBannerShellState extends State<PersistentTopBannerShell> {
+  final LayerLink _bannerAnchor = LayerLink();
+
+  @override
+  Widget build(BuildContext context) {
+    return Stack(
+      key: const ValueKey<String>('persistent-top-banner-layout'),
+      clipBehavior: Clip.none,
+      children: [
+        Positioned.fill(
+          child: _PersistentTopBannerScope(
+            bannerAnchor: _bannerAnchor,
+            child: widget.child,
+          ),
+        ),
+        CompositedTransformFollower(
+          link: _bannerAnchor,
+          showWhenUnlinked: false,
+          targetAnchor: Alignment.topLeft,
+          followerAnchor: Alignment.topLeft,
+          child: SizedBox(
+            width: MediaQuery.sizeOf(context).width,
+            height: TopBannerAdBody.bannerSlotHeight,
+            child: const Center(
+              child: RepaintBoundary(
+                child: AdBannerWidget(
+                  key: ValueKey<String>('persistent-top-banner'),
+                  useSecondAd: true,
+                ),
+              ),
+            ),
+          ),
+        ),
+      ],
+    );
+  }
+}
+
+class _PersistentTopBannerScope extends InheritedWidget {
+  const _PersistentTopBannerScope({
+    required this.bannerAnchor,
+    required super.child,
+  });
+
+  final LayerLink bannerAnchor;
+
+  static LayerLink? anchorOf(BuildContext context) => context
+      .dependOnInheritedWidgetOfExactType<_PersistentTopBannerScope>()
+      ?.bannerAnchor;
+
+  @override
+  bool updateShouldNotify(_PersistentTopBannerScope oldWidget) => false;
+}
+
+/// Bağımsız ekran testleri/önizlemeleri için üst banner yerleşimi.
+/// Uygulama kabuğunda kalıcı banner zaten varsa ikinci reklam oluşturmaz.
+class TopBannerAdBody extends StatelessWidget {
+  const TopBannerAdBody({super.key, required this.child});
+
+  static const double bannerSlotHeight = 58;
+
+  final Widget child;
+
+  @override
+  Widget build(BuildContext context) {
+    final persistentAnchor = _PersistentTopBannerScope.anchorOf(context);
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        if (persistentAnchor != null)
+          CompositedTransformTarget(
+            key: const ValueKey<String>('persistent-top-banner-slot'),
+            link: persistentAnchor,
+            child: const SizedBox(height: bannerSlotHeight),
+          )
+        else
+          const RepaintBoundary(
+            child: AdBannerWidget(useSecondAd: true),
+          ),
+        Expanded(child: child),
+      ],
+    );
+  }
+}
+
 class _AdBannerWidgetState extends State<AdBannerWidget>
     with WidgetsBindingObserver {
   final AdService _adService = AdService();
@@ -523,6 +623,7 @@ class _AdBannerWidgetState extends State<AdBannerWidget>
 
   Future<void> _initAd() async {
     if (!AdService._adsEnabled) return;
+    if (Platform.environment.containsKey('FLUTTER_TEST')) return;
     if (_isLoading || _bannerAd != null) return;
     _isLoading = true;
 

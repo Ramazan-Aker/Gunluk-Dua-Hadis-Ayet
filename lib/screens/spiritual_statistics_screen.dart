@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 
 import '../models/spiritual_statistics.dart';
 import '../services/spiritual_statistics_service.dart';
+import '../services/ad_service.dart';
 import '../theme/app_theme.dart';
 
 class SpiritualStatisticsScreen extends StatefulWidget {
@@ -49,30 +50,32 @@ class _SpiritualStatisticsScreenState extends State<SpiritualStatisticsScreen> {
     return Scaffold(
       backgroundColor: AppTheme.ivory,
       appBar: AppBar(title: const Text('Manevi İstatistikler')),
-      body: RefreshIndicator(
-        onRefresh: _load,
-        child: ListView(
-          physics: const AlwaysScrollableScrollPhysics(),
-          padding: const EdgeInsets.fromLTRB(16, 14, 16, 34),
-          children: [
-            Center(
-              child: SegmentedButton<StatisticsPeriod>(
-                segments: [
-                  for (final period in StatisticsPeriod.values)
-                    ButtonSegment(value: period, label: Text(period.label)),
-                ],
-                selected: {_period},
-                onSelectionChanged: (value) => _changePeriod(value.first),
+      body: TopBannerAdBody(
+        child: RefreshIndicator(
+          onRefresh: _load,
+          child: ListView(
+            physics: const AlwaysScrollableScrollPhysics(),
+            padding: const EdgeInsets.fromLTRB(16, 14, 16, 34),
+            children: [
+              Center(
+                child: SegmentedButton<StatisticsPeriod>(
+                  segments: [
+                    for (final period in StatisticsPeriod.values)
+                      ButtonSegment(value: period, label: Text(period.label)),
+                  ],
+                  selected: {_period},
+                  onSelectionChanged: (value) => _changePeriod(value.first),
+                ),
               ),
-            ),
-            const SizedBox(height: 14),
-            if (_loading)
-              const SizedBox(
-                  height: 320,
-                  child: Center(child: CircularProgressIndicator()))
-            else
-              _buildContent(_summary!),
-          ],
+              const SizedBox(height: 14),
+              if (_loading)
+                const SizedBox(
+                    height: 320,
+                    child: Center(child: CircularProgressIndicator()))
+              else
+                _buildContent(_summary!),
+            ],
+          ),
         ),
       ),
     );

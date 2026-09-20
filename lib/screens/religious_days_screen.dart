@@ -3,8 +3,8 @@ import 'package:flutter/material.dart';
 import '../models/religious_day.dart';
 import '../services/firebase_service.dart' show FirebaseService;
 import '../services/religious_days_service.dart';
-import '../services/ad_service.dart';
 import '../services/app_review_service.dart';
+import '../services/ad_service.dart';
 import '../theme/app_theme.dart';
 import 'dhikr_counter_screen.dart';
 import 'esmaul_husna_screen.dart';
@@ -91,95 +91,98 @@ class _ReligiousDaysScreenState extends State<ReligiousDaysScreen> {
           const SizedBox(width: 8),
         ],
       ),
-      body: Column(
-        children: [
-          Expanded(
-            child: days.isEmpty
-                ? const Center(child: Text('Gösterilecek dini gün bulunamadı.'))
-                : ListView(
-                    padding: const EdgeInsets.fromLTRB(20, 20, 20, 32),
-                    children: [
-                      if (!_showPast) ...[
-                        const _SectionHeader(
-                          eyebrow: 'DİNİ TAKVİM',
-                          title: 'Sıradaki dini gün',
-                          subtitle: 'Yaklaşan özel günü bir bakışta gör',
-                        ),
-                        const SizedBox(height: 12),
-                        if (featured != null) _FeaturedDay(day: featured),
-                        const SizedBox(height: 26),
-                        const _SectionHeader(
-                          eyebrow: 'KEŞFET',
-                          title: 'Manevi araçlar',
-                          subtitle: 'Günlük ibadet ve ezber takibini sürdür',
-                        ),
-                        const SizedBox(height: 12),
-                        Row(
-                          children: [
-                            Expanded(
-                              child: _SpiritualToolCard(
-                                icon: Icons.touch_app_rounded,
-                                title: 'Zikirmatik',
-                                subtitle: 'Hedefini tamamla, serini koru',
-                                background: AppTheme.emerald,
-                                foreground: Colors.white,
-                                iconBackground: AppTheme.mint,
-                                iconColor: AppTheme.emerald,
-                                onTap: () => Navigator.push(
-                                  context,
-                                  MaterialPageRoute<void>(
-                                    builder: (_) => const DhikrCounterScreen(),
-                                  ),
-                                ),
-                              ),
-                            ),
-                            const SizedBox(width: 12),
-                            Expanded(
-                              child: _SpiritualToolCard(
-                                icon: Icons.auto_awesome_rounded,
-                                title: 'Esmaül Hüsna',
-                                subtitle: '99 ismi dinle ve ezberle',
-                                background: AppTheme.navy,
-                                foreground: Colors.white,
-                                iconBackground: AppTheme.mint,
-                                iconColor: AppTheme.emerald,
-                                onTap: () => Navigator.push(
-                                  context,
-                                  MaterialPageRoute<void>(
-                                    builder: (_) => const EsmaulHusnaScreen(),
-                                  ),
-                                ),
-                              ),
-                            ),
-                          ],
-                        ),
-                        const SizedBox(height: 26),
-                        _SectionHeader(
-                          eyebrow: 'TAKVİM',
-                          title: 'Yaklaşan dini günler',
-                          subtitle:
-                              '${days.length - 1} önemli tarih seni bekliyor',
-                        ),
-                        const SizedBox(height: 12),
-                      ] else ...[
-                        _SectionHeader(
-                          eyebrow: 'ARŞİV',
-                          title: 'Geçmiş dini günler',
-                          subtitle: '${days.length} tarih listeleniyor',
-                        ),
-                        const SizedBox(height: 12),
-                      ],
-                      ...days.skip(_showPast ? 0 : 1).map(
-                            (day) => Padding(
-                              padding: const EdgeInsets.only(bottom: 12),
-                              child: _DayTile(day: day),
-                            ),
+      body: TopBannerAdBody(
+        child: Column(
+          children: [
+            Expanded(
+              child: days.isEmpty
+                  ? const Center(
+                      child: Text('Gösterilecek dini gün bulunamadı.'))
+                  : ListView(
+                      padding: const EdgeInsets.fromLTRB(20, 20, 20, 32),
+                      children: [
+                        if (!_showPast) ...[
+                          const _SectionHeader(
+                            eyebrow: 'DİNİ TAKVİM',
+                            title: 'Sıradaki dini gün',
+                            subtitle: 'Yaklaşan özel günü bir bakışta gör',
                           ),
-                    ],
-                  ),
-          ),
-          const AdBannerWidget(),
-        ],
+                          const SizedBox(height: 12),
+                          if (featured != null) _FeaturedDay(day: featured),
+                          const SizedBox(height: 26),
+                          const _SectionHeader(
+                            eyebrow: 'KEŞFET',
+                            title: 'Manevi araçlar',
+                            subtitle: 'Günlük ibadet ve ezber takibini sürdür',
+                          ),
+                          const SizedBox(height: 12),
+                          Row(
+                            children: [
+                              Expanded(
+                                child: _SpiritualToolCard(
+                                  icon: Icons.touch_app_rounded,
+                                  title: 'Zikirmatik',
+                                  subtitle: 'Hedefini tamamla, serini koru',
+                                  background: AppTheme.emerald,
+                                  foreground: Colors.white,
+                                  iconBackground: AppTheme.mint,
+                                  iconColor: AppTheme.emerald,
+                                  onTap: () => Navigator.push(
+                                    context,
+                                    MaterialPageRoute<void>(
+                                      builder: (_) =>
+                                          const DhikrCounterScreen(),
+                                    ),
+                                  ),
+                                ),
+                              ),
+                              const SizedBox(width: 12),
+                              Expanded(
+                                child: _SpiritualToolCard(
+                                  icon: Icons.auto_awesome_rounded,
+                                  title: 'Esmaül Hüsna',
+                                  subtitle: '99 ismi dinle ve ezberle',
+                                  background: AppTheme.navy,
+                                  foreground: Colors.white,
+                                  iconBackground: AppTheme.mint,
+                                  iconColor: AppTheme.emerald,
+                                  onTap: () => Navigator.push(
+                                    context,
+                                    MaterialPageRoute<void>(
+                                      builder: (_) => const EsmaulHusnaScreen(),
+                                    ),
+                                  ),
+                                ),
+                              ),
+                            ],
+                          ),
+                          const SizedBox(height: 26),
+                          _SectionHeader(
+                            eyebrow: 'TAKVİM',
+                            title: 'Yaklaşan dini günler',
+                            subtitle:
+                                '${days.length - 1} önemli tarih seni bekliyor',
+                          ),
+                          const SizedBox(height: 12),
+                        ] else ...[
+                          _SectionHeader(
+                            eyebrow: 'ARŞİV',
+                            title: 'Geçmiş dini günler',
+                            subtitle: '${days.length} tarih listeleniyor',
+                          ),
+                          const SizedBox(height: 12),
+                        ],
+                        ...days.skip(_showPast ? 0 : 1).map(
+                              (day) => Padding(
+                                padding: const EdgeInsets.only(bottom: 12),
+                                child: _DayTile(day: day),
+                              ),
+                            ),
+                      ],
+                    ),
+            ),
+          ],
+        ),
       ),
     );
   }

@@ -29,27 +29,35 @@ class PrayerAlarmRule {
       required this.weekdays,
       required this.prayers,
       this.leadMinutes = 10,
-      this.enabled = true});
+      this.enabled = true,
+      this.soundEnabled = true,
+      this.vibrate = true});
   final String id;
   final TurkishCity city;
   final Set<int> weekdays;
   final Set<AlarmPrayer> prayers;
   final int leadMinutes;
   final bool enabled;
+  final bool soundEnabled;
+  final bool vibrate;
   PrayerAlarmRule withEnabled(bool value) => PrayerAlarmRule(
       id: id,
       city: city,
       weekdays: weekdays,
       prayers: prayers,
       leadMinutes: leadMinutes,
-      enabled: value);
+      enabled: value,
+      soundEnabled: soundEnabled,
+      vibrate: vibrate);
   Map<String, dynamic> toJson() => {
         'id': id,
         'city': city.toJson(),
         'weekdays': weekdays.toList()..sort(),
         'prayers': prayers.map((p) => p.name).toList(),
         'leadMinutes': leadMinutes,
-        'enabled': enabled
+        'enabled': enabled,
+        'soundEnabled': soundEnabled,
+        'vibrate': vibrate
       };
   factory PrayerAlarmRule.fromJson(Map<String, dynamic> json) {
     final days = (json['weekdays'] as List).cast<int>().toSet();
@@ -71,7 +79,9 @@ class PrayerAlarmRule {
         weekdays: days,
         prayers: prayers,
         leadMinutes: lead,
-        enabled: json['enabled'] == true);
+        enabled: json['enabled'] == true,
+        soundEnabled: json['soundEnabled'] != false,
+        vibrate: json['vibrate'] != false);
   }
 }
 
@@ -81,12 +91,16 @@ class PlannedPrayerAlarm {
       required this.prayer,
       required this.prayerAt,
       required this.notifyAt,
-      required this.leadMinutes});
+      required this.leadMinutes,
+      this.soundEnabled = true,
+      this.vibrate = true});
   final TurkishCity city;
   final AlarmPrayer prayer;
   final DateTime prayerAt;
   final DateTime notifyAt;
   final int leadMinutes;
+  final bool soundEnabled;
+  final bool vibrate;
 }
 
 /// Days refer to the prayer day, even for reminders the night before.
@@ -113,7 +127,9 @@ List<PlannedPrayerAlarm> planPrayerAlarms(
             prayer: prayer,
             prayerAt: at,
             notifyAt: notify,
-            leadMinutes: rule.leadMinutes);
+            leadMinutes: rule.leadMinutes,
+            soundEnabled: rule.soundEnabled,
+            vibrate: rule.vibrate);
       }
     }
   }

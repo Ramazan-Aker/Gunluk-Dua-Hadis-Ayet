@@ -125,12 +125,7 @@ class _MessagesScreenState extends State<MessagesScreen> {
           const SizedBox(width: 6),
         ],
       ),
-      body: Column(
-        children: [
-          Expanded(child: _buildBody()),
-          const AdBannerWidget(),
-        ],
-      ),
+      body: TopBannerAdBody(child: _buildBody()),
     );
   }
 
@@ -584,68 +579,70 @@ class _ReadyMessagePreviewPageState extends State<_ReadyMessagePreviewPage> {
           const SizedBox(width: 6),
         ],
       ),
-      body: Column(
-        children: [
-          Expanded(
-            child: SingleChildScrollView(
-              padding: const EdgeInsets.fromLTRB(18, 18, 18, 24),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.stretch,
-                children: [
-                  Center(
-                    child: ConstrainedBox(
-                      constraints: const BoxConstraints(maxWidth: 520),
-                      child: AspectRatio(
-                        aspectRatio: _shareFormat.aspectRatio,
-                        child: ClipRRect(
-                          borderRadius: BorderRadius.circular(22),
-                          child: Hero(
-                            tag: 'ready-message-${widget.design.id}',
-                            child: RepaintBoundary(
-                              key: _editableCardKey,
-                              child: _EditableMessageCard(
-                                design: widget.design,
-                                message: _messageText,
+      body: TopBannerAdBody(
+        child: Column(
+          children: [
+            Expanded(
+              child: SingleChildScrollView(
+                padding: const EdgeInsets.fromLTRB(18, 18, 18, 24),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.stretch,
+                  children: [
+                    Center(
+                      child: ConstrainedBox(
+                        constraints: const BoxConstraints(maxWidth: 520),
+                        child: AspectRatio(
+                          aspectRatio: _shareFormat.aspectRatio,
+                          child: ClipRRect(
+                            borderRadius: BorderRadius.circular(22),
+                            child: Hero(
+                              tag: 'ready-message-${widget.design.id}',
+                              child: RepaintBoundary(
+                                key: _editableCardKey,
+                                child: _EditableMessageCard(
+                                  design: widget.design,
+                                  message: _messageText,
+                                ),
                               ),
                             ),
                           ),
                         ),
                       ),
                     ),
-                  ),
-                  if (_isEdited) ...[
-                    const SizedBox(height: 10),
-                    const Center(
-                      child: _EditedBadge(),
+                    if (_isEdited) ...[
+                      const SizedBox(height: 10),
+                      const Center(
+                        child: _EditedBadge(),
+                      ),
+                    ],
+                    const SizedBox(height: 18),
+                    _buildFormatSelector(),
+                    const SizedBox(height: 12),
+                    _buildActions(),
+                    const SizedBox(height: 12),
+                    Text(
+                      widget.design.source,
+                      textAlign: TextAlign.center,
+                      style: const TextStyle(
+                        color: AppTheme.textMuted,
+                        fontSize: 12,
+                      ),
                     ),
+                    if (widget.design.sourceUrl != null) ...[
+                      const SizedBox(height: 3),
+                      TextButton.icon(
+                        onPressed: _openSource,
+                        icon: const Icon(Icons.open_in_new_rounded, size: 16),
+                        label: const Text('Görsel kaynağı ve lisans'),
+                      ),
+                    ],
                   ],
-                  const SizedBox(height: 18),
-                  _buildFormatSelector(),
-                  const SizedBox(height: 12),
-                  _buildActions(),
-                  const SizedBox(height: 12),
-                  Text(
-                    widget.design.source,
-                    textAlign: TextAlign.center,
-                    style: const TextStyle(
-                      color: AppTheme.textMuted,
-                      fontSize: 12,
-                    ),
-                  ),
-                  if (widget.design.sourceUrl != null) ...[
-                    const SizedBox(height: 3),
-                    TextButton.icon(
-                      onPressed: _openSource,
-                      icon: const Icon(Icons.open_in_new_rounded, size: 16),
-                      label: const Text('Görsel kaynağı ve lisans'),
-                    ),
-                  ],
-                ],
+                ),
               ),
             ),
-          ),
-          const AdBannerWidget(),
-        ],
+            const AdBannerWidget(),
+          ],
+        ),
       ),
     );
   }

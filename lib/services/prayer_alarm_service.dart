@@ -83,7 +83,8 @@ class PrayerAlarmService {
     }
     if (!force &&
         _lastRefresh != null &&
-        DateTime.now().difference(_lastRefresh!) < const Duration(minutes: 15)) {
+        DateTime.now().difference(_lastRefresh!) <
+            const Duration(minutes: 15)) {
       return 0;
     }
     final work = _refresh(knownTimes);
@@ -147,7 +148,9 @@ class PrayerAlarmService {
             title: '${alarm.prayer.label} $before',
             body:
                 '${alarm.city.name} • ${alarm.prayerAt.hour.toString().padLeft(2, '0')}:${alarm.prayerAt.minute.toString().padLeft(2, '0')}',
-            scheduledAt: alarm.notifyAt);
+            scheduledAt: alarm.notifyAt,
+            enableVibration: alarm.vibrate,
+            playSound: alarm.soundEnabled);
         if (success) {
           count++;
           last = alarm.notifyAt;

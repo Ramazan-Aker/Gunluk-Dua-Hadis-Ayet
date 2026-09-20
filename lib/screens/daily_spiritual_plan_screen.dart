@@ -7,6 +7,7 @@ import '../services/daily_spiritual_plan_service.dart';
 import '../services/firebase_service.dart' show FirebaseService;
 import '../services/smart_goal_reminder_service.dart';
 import '../services/achievement_service.dart';
+import '../services/ad_service.dart';
 import '../theme/app_theme.dart';
 import '../widget_prayer_pending.dart';
 import 'dhikr_counter_screen.dart';
@@ -285,12 +286,14 @@ class _DailySpiritualPlanScreenState extends State<DailySpiritualPlanScreen> {
           const SizedBox(width: 5),
         ],
       ),
-      body: _loading
-          ? const Center(child: CircularProgressIndicator())
-          : RefreshIndicator(
-              onRefresh: _load,
-              child: _buildContent(_summary!),
-            ),
+      body: TopBannerAdBody(
+        child: _loading
+            ? const Center(child: CircularProgressIndicator())
+            : RefreshIndicator(
+                onRefresh: _load,
+                child: _buildContent(_summary!),
+              ),
+      ),
     );
   }
 

@@ -117,6 +117,15 @@ class QuranOfflineRepository {
         .toList();
   }
 
+  /// Sure numarasına göre ayet sayılarını tek seferde döndürür.
+  Future<Map<int, int>> getSurahVerseCounts() async {
+    await ensureLoaded();
+    return Map<int, int>.unmodifiable(
+      _bySurah?.map((surah, verses) => MapEntry(surah, verses.length)) ??
+          const <int, int>{},
+    );
+  }
+
   Future<List<QuranOfflineVerse>> getVersesBetween({
     required int startSurah,
     required int startAyah,

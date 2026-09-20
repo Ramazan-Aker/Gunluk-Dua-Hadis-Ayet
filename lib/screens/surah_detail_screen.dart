@@ -17,6 +17,7 @@ import '../services/quran_offline_repository.dart';
 import '../services/firebase_service.dart';
 import '../services/quran_audio_service.dart';
 import '../services/quran_timing_service.dart';
+import '../services/ad_service.dart';
 import '../widgets/surah_ayah_card.dart';
 import '../widgets/surah_detail_shimmer.dart';
 import '../theme/app_theme.dart';
@@ -545,16 +546,18 @@ class _SurahDetailScreenState extends State<SurahDetailScreen> {
         centerTitle: true,
         elevation: 0,
       ),
-      body: Container(
-        color: AppTheme.ivory,
-        child: SafeArea(
-          child: _loading
-              ? const SingleChildScrollView(
-                  child: SurahDetailShimmerList(itemCount: 7),
-                )
-              : _errorMessage != null
-                  ? _buildError()
-                  : _buildList(),
+      body: TopBannerAdBody(
+        child: Container(
+          color: AppTheme.ivory,
+          child: SafeArea(
+            child: _loading
+                ? const SingleChildScrollView(
+                    child: SurahDetailShimmerList(itemCount: 7),
+                  )
+                : _errorMessage != null
+                    ? _buildError()
+                    : _buildList(),
+          ),
         ),
       ),
     );

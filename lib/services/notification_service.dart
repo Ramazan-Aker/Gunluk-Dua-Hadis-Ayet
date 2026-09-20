@@ -367,6 +367,8 @@ class NotificationService {
     required String title,
     required String body,
     required DateTime scheduledAt,
+    bool enableVibration = true,
+    bool playSound = true,
   }) async {
     if (!_isInitialized) await initialize();
     if (scheduledAt.isBefore(DateTime.now())) return false;
@@ -384,7 +386,7 @@ class NotificationService {
         title,
         body,
         tz.TZDateTime.from(scheduledAt, tz.local),
-        const NotificationDetails(
+        NotificationDetails(
           android: AndroidNotificationDetails(
             'prayer_times',
             'Namaz Vakti Bildirimleri',
@@ -393,13 +395,13 @@ class NotificationService {
             importance: Importance.max,
             priority: Priority.high,
             icon: '@mipmap/ic_launcher',
-            enableVibration: true,
-            playSound: true,
+            enableVibration: enableVibration,
+            playSound: playSound,
           ),
           iOS: DarwinNotificationDetails(
             presentAlert: true,
             presentBadge: true,
-            presentSound: true,
+            presentSound: playSound,
             interruptionLevel: InterruptionLevel.timeSensitive,
           ),
         ),
